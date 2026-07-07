@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>A Comparison between Framed-based and Event-based Cameras for Flapping-Wing Robot Perception</title>
+    <meta name="keywords" content="event camera, frame camera, flapping-wing robot, ornithopter, motion blur, dynamic range, visual perception, computer vision, DVS, aerial robotics">
+    <meta name="paper-authors" content="R. Tapia, J.P. Rodriguez-Gomez, J.A. Sanchez-Diaz, F.J. Ganan, I.G. Rodriguez, J. Luna-Santamaria, J.R. Martinez-de Dios, A. Ollero">
+    <meta name="paper-journal" content="IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2023, pp. 3025-3032 · DOI: 10.1109/IROS55552.2023.10342500">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">A Comparison between Framed-based and Event-based Cameras for Flapping-Wing Robot Perception</div>
+                <span class="tier-badge tier-1">Tier 1 — Top</span>
+            </div>
+            <div class="authors">R. Tapia, J.P. Rodriguez-Gomez, J.A. Sanchez-Diaz, F.J. Ganan, I.G. Rodriguez, J. Luna-Santamaria, J.R. Martinez-de Dios, A. Ollero</div>
+            <div class="journal">IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2023, pp. 3025-3032 · DOI: 10.1109/IROS55552.2023.10342500</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">Paper Summary</div>
+            <div class="summary">This paper presents a comprehensive experimental comparison between frame-based and event-based cameras for <span class="term">flapping-wing robot perception</span>. Seven cameras including a DAVIS346 event camera are evaluated on an E-Flap ornithopter across platform requirements (weight, size, power), flight requirements (dynamic range, motion blur), and vision algorithm performance (corner detection, VIO, line detection, human detection). Results demonstrate that event cameras outperform frame cameras in power consumption, dynamic range (>120 dB), and motion blur robustness, suggesting them as the most promising sensor for ornithopter applications despite the current maturity gap in event-based software ecosystems.</div>
+            <div class="keywords"><span class="keyword-chip">event camera</span><span class="keyword-chip">frame camera</span><span class="keyword-chip">flapping-wing robot</span><span class="keyword-chip">ornithopter</span><span class="keyword-chip">motion blur</span><span class="keyword-chip">dynamic range</span><span class="keyword-chip">visual perception</span><span class="keyword-chip">computer vision</span><span class="keyword-chip">DVS</span><span class="keyword-chip">aerial robotics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Flapping-wing robots face unique perception challenges due to severe vibrations, motion blur, and strict payload constraints. While cameras are the primary sensor choice, there is no consensus on whether frame-based or event-based cameras are more suitable, motivating this systematic experimental comparison.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Prior ornithopter perception systems relied on external sensors or basic onboard cameras, with recent works exploring event cameras. While theoretical comparisons exist between frame and event cameras, no systematic experimental comparison had been conducted specifically for flapping-wing robots.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Seven cameras spanning event-based, monocular, and stereo configurations were evaluated using three test benches emulating flapping conditions and actual flight experiments aboard the E-Flap ornithopter. The comparison framework addresses platform requirements, flight requirements, and application-dependent performance.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Event cameras demonstrated lower power consumption, superior dynamic range, and higher motion blur robustness compared to frame cameras. In flight data experiments, APS and DVS achieved comparable performance, with event-based single-event representations providing the fastest input rates.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The results suggest event cameras as the most suitable sensors for ornithopters due to superior dynamic range, motion blur robustness, and competitive algorithm performance. However, the frame-based software ecosystem is considerably more mature, and onboard processing bottlenecks remain an open challenge.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The paper establishes event cameras as the most promising vision sensor for ornithopter perception through systematic experimental evaluation. While APS and DVS achieved similar algorithm performance, event cameras' inherent advantages in dynamic range, motion blur robustness, and power consumption make them the preferred choice.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction",
+            related_works: "Related Works",
+            method:        "Method",
+            experiment:    "Experiment",
+            discussion:    "Discussion",
+            conclusion:    "Conclusion"
+        };
+
+        const FIG_PREFIX = "Fig";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "<span class=\"term\">Ornithopters</span> generate lift and thrust through oscillating flapping wings, combining gliding and flapping modes to reduce power consumption while maintaining high maneuverability without fast-rotating propellers."}, {"type": "bullet", "text": "Flapping strokes cause mechanical vibrations and abrupt pitch changes, leading to <span class=\"term\">motion blur</span> in intensity images and strong lighting condition changes that degrade perception quality."}, {"type": "bullet", "text": "Strict payload, weight distribution, and energy consumption constraints limit the number and type of sensors mountable onboard, ruling out LiDARs, radars, and infrared cameras for most ornithopter designs."}, {"type": "bullet", "text": "Event cameras are bioinspired sensors with microsecond temporal resolution, high dynamic range (>120 dB), and low power consumption, making them promising candidates for ornithopter perception."}, {"type": "bullet", "text": "Previous works used different vision sensor types for ornithopter perception without systematic comparison, resulting in a lack of consensus on the optimal sensor choice."}, {"type": "bullet", "text": "The paper contributes: (i) qualitative and quantitative analyses of visual sensors based on ornithopter platform and flight requirements, and (ii) comparison of algorithms for corner detection, VIO, line detection, and human detection on ornithopter flight data."}]}, "related_works": {"content": [{"type": "bullet", "text": "Ornithopter control and guidance methods traditionally relied on external sensors such as motion capture systems, with only recent integration of onboard visual sensors enabled by sensor miniaturization advances."}, {"type": "bullet", "text": "A mechanical camera stabilizer was proposed to compensate for flapping vibrations, while other works used lightweight cameras transmitting video to base stations for off-board processing."}, {"type": "bullet", "text": "Event-based methods for ornithopters include dynamic obstacle avoidance controlling tail deflections and visual servoing using line pattern tracking from events for robot guidance."}, {"type": "bullet", "text": "The GRIFFIN perception dataset provided measurements from both event and traditional cameras onboard a flapping-wing robot, establishing a benchmark for ornithopter perception research."}, {"type": "bullet", "text": "Prior experimental comparisons between event and frame cameras used test bench setups measuring sampling rates, detection rates, position estimation errors, and pixel latency, concluding event cameras outperform in bandwidth efficiency."}, {"type": "bullet", "text": "Theoretical comparisons through power-performance curves and system-level models showed that different sensor types dominate in different sensing power ranges, but experimental validation on aerial robots remained a neglected area."}]}, "method": {"content": [{"type": "bullet", "text": "Seven cameras were selected for comparison: DAVIS346 (event+APS), RealSense D435 (stereo RGB-D), ZED (stereo), G53 (infrared stereo), ELP (monocular), and two mvBlueFOX cameras (monocular, color and grayscale), representing diverse resolutions, weights, and frame rates.", "figure_refs": [1]}, {"type": "bullet", "text": "Three test benches were designed: (a) a motorized mechanism emulating flapping pitch oscillations (±30° at varying frequencies) for power measurement, (b) an oscillating mechanism for motion blur analysis, and (c) an illumination-controlled box with ArUco boards for dynamic range evaluation.", "figure_refs": [2]}, {"type": "bullet", "text": "Flight experiments were conducted on the E-Flap ornithopter in a 15m×21m×8m indoor testbed equipped with 24 Optitrack cameras for ground truth pose, with data collected from DAVIS346, RealSense D435, and a VectorNav VN-200 INS."}, {"type": "bullet", "text": "Power consumption was measured using an INA219 power monitor while pitch rate was systematically increased from 0 Hz to 6 Hz, with the typical E-Flap flapping frequency being 3.5 Hz ($\\mu_f = 4.31$ Hz, $\\sigma_f = 0.833$ Hz in flight experiments)."}, {"type": "bullet", "text": "The comparison framework categorizes requirements into: platform requirements (weight, size, power consumption), flight requirements (dynamic range, motion blur), and application-dependent requirements (algorithm performance on flight data)."}, {"type": "bullet", "text": "For algorithm comparison, four perception tasks were selected: Harris/eHarris corner detection, VINS-MONO/Ultimate SLAM for VIO, Hough transform for line detection, and YOLOv5 for human detection, covering both single-event and image-based processing."}]}, "experiment": {"content": [{"type": "bullet", "text": "DVS had lower power consumption than most frame cameras across the flapping frequency range, with only the BFOX-G grayscale camera achieving lower consumption in the high-dynamic scenario, demonstrating the low-energy advantage of event cameras.", "figure_refs": [4]}, {"type": "bullet", "text": "DVS reported the highest dynamic range performance, detecting nearly 100% of ArUco markers from 0 to ~83 dB lighting difference, while the best frame camera (APS) achieved 100% detection only up to ~45 dB.", "figure_refs": [5]}, {"type": "bullet", "text": "Motion blur analysis showed the DVS thickness ratio remained close to 1.0 across all pitch rates, while frame cameras exhibited increasing blur with pitch rate, confirming event cameras' robustness against flapping-induced motion blur.", "figure_refs": [7]}, {"type": "bullet", "text": "Corner detection results showed eHarris (DVS) achieved the highest Recall (0.909) and F1 (0.900) at 0.97M events/second processing rate, while Harris with APS achieved higher Precision (0.972) but lower Recall (0.806)."}, {"type": "bullet", "text": "VIO results showed VINS-MONO with APS images achieved the best performance ($E_{RMS} = 0.828$ m), followed by Ultimate SLAM with DVS event images ($E_{RMS} = 0.879$ m), while RS suffered from motion blur ($E_{RMS} = 1.178$ m).", "figure_refs": [9]}, {"type": "bullet", "text": "For line detection, APS reported the best Prevalence (0.943) due to low motion blur, while RS had the lowest (0.234) due to severe blur; DVS performance was similar to APS except for slight degradation when lines were not well-defined."}, {"type": "bullet", "text": "Human detection using YOLOv5 showed APS achieving the best Accuracy (0.960), with DVS reconstructed frames achieving similar F1 (0.952), while RS reported the poorest performance (F1=0.863) due to motion blur."}]}, "discussion": {"content": [{"type": "bullet", "text": "Event cameras outperformed frame cameras in all three ornithopter-specific requirements: power consumption, dynamic range, and motion blur robustness, with current event cameras achieving comparable sizes and weights to frame cameras."}, {"type": "bullet", "text": "Among frame cameras, APS showed remarkable performance in application-dependent experiments, barely affected by flapping strokes, suggesting that low-motion-blur frame cameras remain competitive for specific tasks."}, {"type": "bullet", "text": "Single-event and event-image representations tended to outperform intensity frames by providing the fastest input rates, potentially enabling faster responses for ornithopter obstacle avoidance and navigation."}, {"type": "bullet", "text": "Reconstructed frames from events collected onboard ornithopters did not offer significant advantage over direct frame camera images, indicating that raw event representations are preferable."}, {"type": "bullet", "text": "The frame-based software ecosystem is considerably more mature than event-based methods, with a wide variety of traditional vision libraries and deep learning methods available, easing implementation of frame-based approaches."}, {"type": "bullet", "text": "Processing bottlenecks may occur with event cameras since ornithopter flight generated ~0.97 million events/second, exceeding the event-based corner detector rate (~0.22 million events/second), highlighting the need for event filtering and transmission strategies."}]}, "conclusion": {"content": [{"type": "bullet", "text": "The strict constraints and challenging conditions during flapping impose strong requirements for ornithopter perception, and this paper provides the first experimental consensus favoring event-based cameras."}, {"type": "bullet", "text": "Event cameras demonstrated superior performance in platform-level (weight, power) and flight-level (dynamic range, motion blur) requirements critical for ornithopter operations."}, {"type": "bullet", "text": "APS and DVS obtained similar results in application-dependent experiments, but the growing event vision community suggests future novel, faster, and more robust algorithms will further exploit event camera advantages."}, {"type": "bullet", "text": "Low-resolution event cameras may report better performance than higher-resolution models under high-speed motions and low illumination conditions typical of ornithopter flight."}, {"type": "bullet", "text": "The DAVIS346 hybrid sensor (DVS+APS) provided unique flexibility for evaluation but commercial event-only cameras like DVXplorer Mini are approaching similar weight and volume as frame cameras."}, {"type": "bullet", "text": "The growing number of event-based algorithms and continued miniaturization of event cameras support their adoption as the standard perception sensor for future ornithopter designs."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "The study only considers a single low-resolution event camera (DAVIS346, 346x260) for the comparison.", "source_quote": "it is worth mentioning that our study only considers a low-resolution event camera.", "source_section": "discussion"}, {"claim": "The study lacks analysis of onboard processing constraints and computational bottlenecks.", "source_quote": "it lacks an analysis of the possible issues of processing events and frames onboard.", "source_section": "discussion"}], "future_works": [{"claim": "Extending the comparative study to onboard processing with other frame cameras and analyzing processing bottlenecks on resource-limited computers.", "source_quote": "Future work focuses on extending the comparative onboard the robot to other frame cameras and analyzing the advantages and limitations of onboard processing events and frames on lightweight computers limited by resources.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["No consensus exists on the most suitable vision sensor type for flapping-wing robot perception.", "Flapping strokes cause severe motion blur and lighting changes that degrade conventional camera performance.", "Strict payload, weight, and power constraints of ornithopters limit sensor selection."], "addressed_by_this_work": ["Provided the first systematic experimental comparison of frame-based and event-based cameras specifically for ornithopter perception.", "Demonstrated event camera superiority in dynamic range, motion blur robustness, and power consumption under flapping conditions.", "Validated both sensor types on real ornithopter flight data across four vision tasks."], "remaining_unresolved": ["Onboard real-time processing feasibility and computational bottleneck analysis remains open.", "Comparison with high-resolution event cameras was not performed."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "Limitations",
+            future_works:   "Future Works",
+            motivation:     "Motivation Resolution",
+            mot_problems:   "Motivating Problems",
+            mot_addressed:  "Addressed by This Work",
+            mot_remaining:  "Remaining Unresolved"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

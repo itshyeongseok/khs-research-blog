@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>A Novel Actuation Strategy for an Agile Bioinspired FWAV Performing a Morphing-Coupled Wingbeat Pattern</title>
+    <meta name="keywords" content="flapping-wing aerial vehicle, wing morphing, bioinspired robotics, morphing-coupled wingbeat, conical rocker mechanism, rolling agility, bat-style wing, lateral dynamics, ornithopter, biomimetics">
+    <meta name="paper-authors" content="Ang Chen, Bifeng Song, Zhihe Wang, Dong Xue, Kang Liu">
+    <meta name="paper-journal" content="IEEE Transactions on Robotics, Vol. 39, No. 1, pp. 452-469, 2023 · DOI: 10.1109/TRO.2022.3189812">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">A Novel Actuation Strategy for an Agile Bioinspired FWAV Performing a Morphing-Coupled Wingbeat Pattern</div>
+                <span class="tier-badge tier-1">Tier 1 — Top</span>
+            </div>
+            <div class="authors">Ang Chen, Bifeng Song, Zhihe Wang, Dong Xue, Kang Liu</div>
+            <div class="journal">IEEE Transactions on Robotics, Vol. 39, No. 1, pp. 452-469, 2023 · DOI: 10.1109/TRO.2022.3189812</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">Paper Summary</div>
+            <div class="summary">This paper presents <span class="term">RoboFalcon</span>, a bioinspired <span class="term">flapping-wing aerial vehicle (FWAV)</span> that achieves a <span class="term">morphing-coupled wingbeat pattern</span> — extending wings during the downstroke and tucking them during the upstroke — by means of a novel <span class="term">conical rocker mechanism (CRM)</span>. A <span class="term">morphing decoupler</span> enables independent servo-driven wing morphing during maneuvers, allowing bilateral asymmetric downstrokes that generate rolling moments correlated with flapping frequency. Wind tunnel experiments with four wrist mounting angles demonstrate that the wrist angle tunes the angle of attack, lift/thrust balance, and power consumption of the equilibrium flight state, while the morphing-coupled pattern yields higher lift efficiency than conventional wingbeat. Tethered and free-flight tests confirm that RoboFalcon completes a 90-degree rolling maneuver in as few as 2.5 wingbeat cycles, and a system-identification-based lateral linear model shows close agreement with measured flight data under simple PID control.</div>
+            <div class="keywords"><span class="keyword-chip">flapping-wing aerial vehicle</span><span class="keyword-chip">wing morphing</span><span class="keyword-chip">bioinspired robotics</span><span class="keyword-chip">morphing-coupled wingbeat</span><span class="keyword-chip">conical rocker mechanism</span><span class="keyword-chip">rolling agility</span><span class="keyword-chip">bat-style wing</span><span class="keyword-chip">lateral dynamics</span><span class="keyword-chip">ornithopter</span><span class="keyword-chip">biomimetics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Flying vertebrates uniquely couple wing morphing with wingbeat — extending wings in the downstroke and tucking them in the upstroke — to reduce drag and enhance agility, but no prior flyable bionic platform had reproduced this pattern. The paper motivates the design of <span class="term">RoboFalcon</span>, a FWAV that achieves the morphing-coupled wingbeat through a novel mechanism, performs bilateral asymmetric downstrokes for high rolling agility, and is validated through wind tunnel and free-flight experiments.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Prior bioinspired FWAV research has explored feathered and membranous morphing wings as well as various mechanisms for coupling or decoupling morphing from flapping, but the morphing-coupled wingbeat pattern has remained limited to wind tunnel and simulation studies. The paper situates RoboFalcon within this landscape, identifying the gap in flyable platforms that achieve biologically faithful coupled kinematics.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">RoboFalcon's design centers on two novel mechanisms: the <span class="term">conical rocker mechanism (CRM)</span> that mechanically couples wing flapping and morphing at the same frequency, and a <span class="term">morphing decoupler</span> consisting of three interlocking sliders that allows the servo to take over wing morphing during the downstroke for independent bilateral control. The bat-style membranous wing skeleton includes a tilted wrist joint mounting angle that mimics wrist supination/pronation to passively tune the hand-wing twist.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Experiments are organized in three parts: wind tunnel aerodynamic characterization of four wrist mounting angles and comparison of morphing-coupled versus conventional wingbeat, tethered rolling maneuver tests for open-loop agility assessment, and outdoor free-flight tests with onboard data logging. The results quantify the influence of wrist angle on equilibrium flight state, confirm higher lift efficiency of the morphing-coupled wingbeat, and demonstrate exceptional rolling agility.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The discussion evaluates RoboFalcon's contributions in terms of bionic fidelity, aerodynamic insight, and agility, while acknowledging the limitations imposed by the membrane wing and the scope boundary of the article. The authors situate the platform as a research tool for studying bird/bat flight mechanics and as a proof-of-concept for the morphing-coupled actuation strategy.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">RoboFalcon demonstrates, for the first time on a flyable platform, the morphing-coupled wingbeat pattern analogous to the level flight kinematics of birds, enabled by the conical rocker mechanism and the morphing decoupler. The integrated experimental validation — wind tunnel characterization, tethered maneuver tests, and outdoor free flight with system identification — establishes both the aerodynamic insight and the agility performance of the proposed actuation strategy.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction",
+            related_works: "Related Works",
+            method:        "Method",
+            experiment:    "Experiment",
+            discussion:    "Discussion",
+            conclusion:    "Conclusion"
+        };
+
+        const FIG_PREFIX = "Fig";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "Birds and bats reduce their <span class=\"term\">wing span and area</span> during the upstroke by rapidly withdrawing wings toward the body, then extend fully during the downstroke; this pattern reduces drag and enhances aerodynamic efficiency during level flight.", "figure_refs": [1]}, {"type": "bullet", "text": "Flying vertebrates share an analogous three-link forelimb structure (arm wing comprising humerus and forearm, plus a hand wing), and their skeletal system automatically couples elbow and wrist extension/flexion, simplifying morphing while maintaining rigidity.", "figure_refs": [1]}, {"type": "bullet", "text": "Birds initiate rolling maneuvers through bilateral asymmetries in wing morphing and wing trajectory, generating rolling moments; both birds and bats can reorient their bodies within a few wingbeats — a hummingbird can execute a 180-degree yaw turn within four wingbeats.", "figure_refs": []}, {"type": "bullet", "text": "Previous bioinspired platforms have used propeller-based thrust modulation or conventional control surfaces for attitude control, and while some designs incorporate wing morphing, these either actuate morphing with an independent actuator or leave it passive — the morphing is not directly coupled with the wingbeat cycle.", "figure_refs": []}, {"type": "bullet", "text": "The key engineering challenge of morphing-coupled wingbeat is that wing extension and retraction must be actuated at the same frequency as flapping, requiring high-speed actuators, yet the wings must remain lightweight to keep moment of inertia low — a contradictory constraint that prior designs could not resolve.", "figure_refs": []}, {"type": "bullet", "text": "RoboFalcon is introduced as a flyable bioinspired FWAV based on the <span class=\"term\">peregrine falcon</span> morphology (1.2 m wingspan, 600 g), equipped with a novel <span class=\"term\">conical rocker mechanism (CRM)</span> and a morphing decoupler, achieving the bird-like wingbeat pattern and demonstrating 90-degree roll within 2.5 wingbeat cycles.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "Several bionic robots and aircraft have mimicked the wing morphing of birds and bats using morphable, articulated wings with membranous or feathered surfaces, and some have improved flight agility and maneuverability compared to fixed-wing platforms.", "figure_refs": []}, {"type": "bullet", "text": "Most prior bioinspired morphing platforms were validated on conventional propeller-powered frames using elevator/rudder for attitude control, meaning the wing morphing did not itself serve as the primary source of thrust and attitude control as it does in nature.", "figure_refs": []}, {"type": "bullet", "text": "Bat Bot (B2) and Festo Bionic Flying Fox represent membranous bat-style wing platforms; these successfully replicate bat-style morphing but actuate morphing with independent actuators rather than coupling it mechanically with flapping.", "figure_refs": []}, {"type": "bullet", "text": "Bird-inspired feathered morphing wings, such as those using soft biohybrid structures and wrist/finger underactuation, demonstrate significant aerodynamic benefits but have not been demonstrated in combination with a flapping mechanism that replicates the full morphing-coupled wingbeat cycle.", "figure_refs": []}, {"type": "bullet", "text": "Investigations of the morphing-coupled wingbeat pattern (wing-extended downstroke, wing-tucked upstroke) have so far been limited to bat-inspired robotic wings in wind tunnels and computational simulations of avian wingbeat kinematics, without a flyable platform that demonstrates this pattern in free flight.", "figure_refs": []}, {"type": "bullet", "text": "The wrist osteology of birds and bats enables natural <span class=\"term\">supination and pronation</span> of the hand wing during wingbeat; prior engineering designs have not systematically studied how to mimic and exploit this feature to tune the aerodynamic equilibrium of an FWAV.", "figure_refs": []}, {"type": "bullet", "text": "System identification and lateral dynamics modeling of ornithopters has been attempted in prior work, typically using multibody or linearized cycle-averaged models; RoboFalcon extends this line by combining system identification with a vehicle that replicates biologically faithful kinematics.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "The platform is modeled on the peregrine falcon with a 1.2 m maximum wingspan and 600 g total flight weight, powered by a 3S 850 mAh Li-Po battery driving a brushless DC motor (SunnySky X2212 KV980). The airframe uses CNC-cut 2 mm carbon fiber composite boards assembled as a 3-D puzzle, and a PixHawk mini autopilot with IMU, pitot tube, GPS, and power management module is integrated.", "figure_refs": [2]}, {"type": "bullet", "text": "The <span class=\"term\">bat-style morphing wing</span> skeleton consists of a humerus and radius spar (arm wing) connected by revolute joints forming the elbow, and three finger spars spanning the hand wing. A one-DOF multilink mechanism — two sets of four-bar linkages — constrains arm extension/flexion to a single degree of freedom driven by the linear distance between shoulder and the proximal end of lever 1.", "figure_refs": [3]}, {"type": "bullet", "text": "The wrist joint is constructed with a <span class=\"term\">pitch-up mounting angle</span> $\\theta$ by tilting a 3D-printed knuckle around the radial spar at the distal end, making the wrist rotation axis non-perpendicular to the wing plane. This tilted axis enables passive pitch-up of the hand wing to partially offset hyperpronation during the downstroke, while during the upstroke it causes the hand wing to bend downward further, replicating the natural supination/flexion motion.", "figure_refs": [3]}, {"type": "bullet", "text": "The <span class=\"term\">conical rocker mechanism (CRM)</span> converts gear rotation into wing flapping via a rocker arm and a cross shaft that constrains rocker motion to a conical trajectory. An oblique crank (shaft C, eccentrically hinged to the gear by a ball-and-socket joint) drives the conical swing, which is then converted to linear reciprocating motion via a link rod and slider to actuate wing morphing with a 90-degree phase lag behind flapping.", "figure_refs": [4]}, {"type": "formula", "label": "Eq. (1) — Flapping amplitude angle", "latex": "\\Phi = 2\\arctan\\left(\\frac{R}{H}\\right)", "description": "The flapping amplitude angle $\\Phi$ is determined by the ratio of the crank radius $R$ (distance from gear rotation axis to the ball-and-socket joint of shaft C) to the height $H$ from the crank rotation plane to the center of the cross shaft. Adjusting $R$ or $H$ allows design-time setting of flapping amplitude without affecting the coupling mechanism."}, {"type": "bullet", "text": "The <span class=\"term\">morphing decoupler</span> comprises three coaxial sliders on the cross shaft's longer shaft: a motor input slider (MIS) driven reciprocally by the brushless DC motor, a servo input slider (SIS) actuated or locked by a rear-mounted servo, and an output slider (OS) linked to lever 1. Hockey-stick-shaped slots on MIS and SIS guide a shared pin, switching control of the OS between the motor and the servo depending on slider positions.", "figure_refs": [5]}, {"type": "bullet", "text": "During the downstroke phase the MIS slides anteriorly, decoupling the OS from the motor and locking the wing in the fully extended state via the SIS; during the upstroke the MIS slides posteriorly, re-coupling the OS to the motor for the tucking motion. This asymmetric coupling ensures full wing extension each downstroke regardless of servo state, while the servo can independently limit wingspan on either side.", "figure_refs": [5]}, {"type": "bullet", "text": "Wing skeleton link lengths (humerus $l_h$, radius $l_r$, manus $l_m$) are determined from statistical bird/bat forelimb data, and the remaining linkage lengths are derived using vector closed-loop equations evaluated at the fully extended and tucked states — a systematic kinematic design procedure that yields a one-DOF mechanism spanning the required morphing range.", "figure_refs": [9]}, {"type": "bullet", "text": "The unstretchable polyester fabric membrane is chosen over elastic membrane to avoid the extra energy loss from elastic damping during constant morphing motion; however, this results in wrinkling when the wing is tucked, causing some additional drag that does not prevent flight.", "figure_refs": [3]}]}, "experiment": {"content": [{"type": "bullet", "text": "Wind tunnel tests are conducted in a low-speed, low-turbulence wind tunnel at Northwestern Polytechnical University at 8 m/s airspeed. A six-axis load cell (MEK6D40, 1000 Hz) measures lift and net thrust for four wrist mounting angles ($\\theta$ = 10°, 15°, 20°, 25°) over angles of attack from 2° to 12° and flapping frequencies approximately 2–4 Hz. Each state is held for more than five wingbeat cycles and cycle-averaged; maximum RMSE is below 36.96 g for lift and 8.35 g for net thrust.", "figure_refs": [6]}, {"type": "bullet", "text": "The aerodynamic equilibrium condition for trimmed level flight is expressed as simultaneously zero cycle-averaged net thrust and cycle-averaged lift equal to vehicle weight:", "figure_refs": [6]}, {"type": "formula", "label": "Eq. (2) — Trimmed level flight equilibrium", "latex": "\\bar{T}_{net} = 0, \\quad \\bar{L} = W", "description": "For steady level flight, the cycle-averaged net thrust $\\bar{T}_{net}$ must be zero and the cycle-averaged lift $\\bar{L}$ must equal vehicle weight $W$ (600 g). Discrete wind tunnel data are fitted with quadratic polynomials in angle of attack and flapping frequency to locate this equilibrium point for each wrist angle configuration."}, {"type": "bullet", "text": "Smaller wrist mounting angles produce a larger trimmed angle of attack at equilibrium because stronger downstroke hand-wing twist requires a higher angle of attack to keep the local angle of attack in the effective range. As $\\theta$ increases from 10° to 25°, available lift increases monotonically, while available thrust is maximized near $\\theta$ = 20°, suggesting birds and bats may use wrist supination/pronation to balance these quantities.", "figure_refs": [6]}, {"type": "bullet", "text": "Comparing morphing-coupled wingbeat to conventional wingbeat (same wing, morphing link rod removed) at 8 m/s, $\\theta$ = 20°, $\\alpha$ = 4°, $f$ = 4 Hz: the morphing-coupled pattern produces higher cycle-averaged lift and lower cycle-averaged net thrust, because the tucked upstroke reduces both the negative lift and the net thrust during that phase. Power consumption is also reduced during the tucked upstroke, yielding higher <span class=\"term\">lift efficiency</span> overall.", "figure_refs": [6]}, {"type": "bullet", "text": "Rolling moment is measured with a 25° wrist angle configuration under flapping frequencies 1.4–2.6 Hz (limited by load cell protection requirements) and angles of attack 0°–12°. The rolling moment remains near zero during the upstroke and only builds during the asymmetric downstroke; the cycle-averaged rolling moment increases linearly with flapping frequency, providing frequency-regulated roll control authority.", "figure_refs": [6]}, {"type": "bullet", "text": "Five tethered rolling maneuver tests are performed indoors to measure the open-loop dynamic response of a single bilateral asymmetric downstroke. A Hall-effect switch detects gear position; a custom STM32F103-based rolling-and-gliding controller delays half a wingbeat cycle after trigger and then commands unilateral wing morphing for three-quarters of a cycle to confine the asymmetric downstroke to a single event.", "figure_refs": [7]}, {"type": "bullet", "text": "In tethered tests, RoboFalcon achieves a 90-degree rolling maneuver within approximately 2.5 wingbeat cycles (open loop). The roll rate is higher during each downstroke than during the upstroke, the vehicle shows limited lateral stability (consistent with high rolling agility), and an adverse roll-yaw coupling analogous to prior studies on propeller-powered morphing platforms is observed.", "figure_refs": [7]}, {"type": "bullet", "text": "Outdoor free-flight tests demonstrate RoboFalcon performing climbing, banking turns, and rapid rolling maneuvers under a simple PID autopilot. During a sharp turn, the vehicle reduces airspeed from 11 m/s to approximately 3 m/s near stall, executes the rolling maneuver, and then recovers to level flight. Even in closed-loop stabilized mode, a 90-degree roll is completed in 3–4 flapping cycles. Peak roll angular velocity reaches nearly 400°/s, and peak roll angular acceleration reaches up to 5000°/s², comparable in magnitude to some insect-scale FWAVs.", "figure_refs": [7]}]}, "discussion": {"content": [{"type": "bullet", "text": "The CRM achieves the essential bioinspired goal: the wingbeat kinematics of RoboFalcon are closely similar to bird trajectories reported in prior biological studies, enabling the platform to serve as a research instrument for studying steady-level flight aerodynamics and bilateral asymmetric maneuvers with morphing-coupled kinematics.", "figure_refs": []}, {"type": "bullet", "text": "The wrist mounting angle provides an engineering analog to wrist supination/pronation of flying vertebrates: wind tunnel data confirm that angle of attack of the equilibrium state decreases as $\\theta$ increases, supporting the hypothesis that birds and bats use wrist joint posture to trim their angle of attack in level flight.", "figure_refs": []}, {"type": "bullet", "text": "The frequency-regulated rolling moment is consistent with the dominance of the downstroke in generating rolling force in birds, as reported in prior biological studies. This correlation makes rolling agility directly controllable by adjusting motor speed, offering an attractive roll control strategy for bird-inspired FWAVs.", "figure_refs": []}, {"type": "bullet", "text": "The morphing decoupler simplifies roll control by allowing lightweight, low-power servos to actuate wing morphing without operating at the flapping frequency, reducing actuator weight and energy burden compared to designs where the morphing actuator must match flapping frequency.", "figure_refs": []}, {"type": "bullet", "text": "RoboFalcon has a considerable available lift margin above the equilibrium point (based on wind tunnel data), indicating significant payload capacity for larger batteries and onboard equipment, and the bat-style membrane wing provides sufficient structural integrity despite wrinkling when tucked.", "figure_refs": []}, {"type": "bullet", "text": "The membrane wing's wrinkling during the tucked state imposes efficiency losses that limit comparisons with feathered wings in nature; a future feathered wing implementation is identified as necessary for a complete efficiency comparison and to improve aerodynamic profile when wings are tucked.", "figure_refs": []}, {"type": "bullet", "text": "The adverse roll-yaw coupling observed during asymmetric morphing-coupled flapping is acknowledged as more complex than that in a gliding-state propeller platform and is explicitly deferred to future investigation, recognizing it as a scientifically open and practically important problem for control design.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "This article presents a novel actuation strategy that couples wing-morphing motion with the wingbeat for a flapping-wing vehicle, introducing a new rolling attitude control approach that simplifies control of complex flapping kinematics while reducing the burden on the wing morphing actuator.", "figure_refs": []}, {"type": "bullet", "text": "RoboFalcon achieves a 90-degree rolling maneuver within 2.5 wingbeat cycles in open-loop tethered tests, and within 3–4 wingbeat cycles under closed-loop PID control during free flight, performing at the level of biological flyers such as cockatiels and comparable to state-of-the-art bioinspired FWAVs.", "figure_refs": []}, {"type": "bullet", "text": "Wind tunnel measurements confirm that the morphing-coupled wingbeat pattern achieves higher <span class=\"term\">lift efficiency</span> than the conventional (fixed-span) wingbeat, and that the wrist mounting angle provides a tunable parameter for optimizing the equilibrium flight state in terms of angle of attack, lift/thrust ratio, and power consumption.", "figure_refs": []}, {"type": "bullet", "text": "The lateral dynamics model identified from flight data follows a structure analogous to a fixed-wing lateral model, with the vehicle exhibiting faster roll convergence and slower yaw convergence; input matrix elements indicate relatively weak roll-yaw control coupling, and simple PID control is sufficient for stable flight.", "figure_refs": [8]}, {"type": "formula", "label": "Eq. (5) — Identified lateral state-space model", "latex": "\\begin{pmatrix} \\dot{p} \\\\ \\dot{r} \\\\ \\dot{\\phi} \\end{pmatrix} = \\begin{pmatrix} -2.08 & -4.08 & 0 \\\\ 0.92 & -0.07 & 0 \\\\ 1 & 0 & 0 \\end{pmatrix} \\begin{pmatrix} p \\\\ r \\\\ \\phi \\end{pmatrix} + \\begin{pmatrix} 4.17 \\\\ 0.08 \\\\ 0 \\end{pmatrix} \\delta_\\phi", "description": "The system-identified third-order state-space lateral model for RoboFalcon (with PID controller), where $p$ is roll rate, $r$ is yaw rate, $\\phi$ is roll angle, and $\\delta_\\phi$ is the roll command input. The diagonal elements $a_{11} = -2.08$ and $a_{22} = -0.07$ indicate fast roll damping and slow yaw damping, respectively; $a_{12} = -4.08$ reflects a leftward rolling moment when the vehicle has a rightward yaw rate, unlike conventional fixed-wing behavior."}, {"type": "bullet", "text": "The bioinspired morphing wing design principles developed for RoboFalcon — raised elbow joint for arm-wing camber, tilted wrist knuckle for hand-wing passive torsion, and rigid leading-edge support structures replicating the propatagium — provide a generalizable design reference for vertebrate-wing-inspired morphing robots.", "figure_refs": []}, {"type": "bullet", "text": "The CRM's inherent capability to adjust flapping amplitude, stroke plane tilt, dihedral angle, and sweep angle positions RoboFalcon as a future platform for studying and replicating take-off and perching kinematics through stroke plane tilting and amplitude modulation strategies.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "The unstretchable membrane wing generates additional drag due to wrinkling when the wing is tucked, reducing aerodynamic efficiency compared to a feathered wing.", "source_quote": "It should be noted that, in this article, the wing based on the unstretchable membrane may generate sufficient lift for flight, but eventually, the efficiency is reduced due to the additional drag caused by the wrinkles.", "source_section": "discussion"}, {"claim": "The platform cannot replicate the wing kinematics used by birds and bats during take-off and perching, only those used in level flight.", "source_quote": "Also, this platform can only achieve the wingbeat pattern of birds and bats in level flight, but not the completely different pattern in the take-OFF and perching states used by these flying vertebrates.", "source_section": "discussion"}, {"claim": "The study does not investigate in depth the dynamic mechanisms and energy efficiency advantages of the morphing-coupled wingbeat pattern.", "source_quote": "This article mainly focuses on providing an engineering solution to achieve the morphing-coupled flapping motion and validating the agility benefits from the bilateral asymmetric downstroke without delving in depth into the dynamical mechanisms and the energy efficiency advantage of this wingbeat pattern.", "source_section": "discussion"}, {"claim": "The adverse roll-yaw coupling produced during asymmetric morphing-coupled flapping is acknowledged but not fully analyzed in the article.", "source_quote": "Nevertheless, for the asymmetric morphing coupled with flapping, the mechanism of adverse yaw generation could be more complex, which is not within the scope of this article.", "source_section": "discussion"}], "future_works": [{"claim": "A bird-style feathered wing should be investigated to improve aerodynamic profile when wings are tucked and to enable higher efficiency than the current membrane wing.", "source_quote": "Since even in nature, birds fly more efficiently than bats [23], future work shall investigate a bird-style feathered wing for this platform, to allow an enhanced aerodynamic profile when the wings are tucked [25].", "source_section": "discussion"}, {"claim": "More detailed and precise experimental measurements should be conducted for accurate modeling and analyzing the energy efficiency advantages of the morphing-coupled wingbeat pattern.", "source_quote": "Therefore future works shall also involve more detailed and precise experimental measurements to focus on accurate modeling and analyze the efficiency advantages of this wingbeat pattern after equipping some sort of single-degree-of-freedom feathered morphing wings.", "source_section": "discussion"}, {"claim": "The CRM's ability to adjust flapping amplitude, stroke plane, dihedral angle, and sweep angle should be exploited to achieve wingbeat patterns for take-off and perching maneuvers.", "source_quote": "Considering that the CRM within RoboFalcon has the potential ability to adjust the flapping amplitude, stroke plane, dihedral angle, and sweep angle, RoboFalcon can be expected to couple these parameters with flapping by deploying appropriate actuation strategies to achieve the wingbeat patterns of birds or bats during take-off and perching, such as stroke plane tilting and amplitude modulation [18],[53],[54].", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["Flying vertebrates (birds and bats) naturally couple wing morphing with the wingbeat cycle — extending wings during the downstroke and tucking them during the upstroke — but no flyable bionic platform had yet replicated this morphing-coupled wingbeat pattern.", "Achieving a wing-extended downstroke and wing-tucked upstroke simultaneously demands that the morphing actuator operate at the same high frequency as flapping, imposing severe weight and power constraints that previous bioinspired designs could not satisfy.", "Existing bioinspired FWAVs either use an independent actuator for morphing (decoupled from flapping) or rely on passive unfolding, and thus cannot produce the bilateral asymmetric downstroke that gives birds their high rolling agility.", "The role of wrist supination/pronation in tuning the aerodynamic equilibrium state of level flight had not been quantitatively studied on a flyable platform with bioinspired morphing wings."], "addressed_by_this_work": ["The conical rocker mechanism (CRM) mechanically couples wing flapping and morphing at the same frequency through a single brushless DC motor, enabling a fully extended downstroke and fully tucked upstroke without a separate high-speed morphing actuator.", "The morphing decoupler allows the servo to take over wing morphing independently from the CRM during downstroke, enabling bilateral asymmetric wingspan control for roll maneuvers without requiring the servo to match flapping frequency.", "Wind tunnel tests with four wrist mounting angles quantitatively demonstrate how wrist angle tunes the trimmed angle of attack, lift/thrust magnitude, and power consumption, providing engineering evidence for the aerodynamic role of wrist supination/pronation.", "Tethered rolling maneuver tests and outdoor free-flight tests validate that RoboFalcon achieves a 90-degree roll in 2.5 wingbeat cycles (open loop), confirming the agility benefit of the bilateral asymmetric morphing-coupled downstroke.", "System identification yields a state-space lateral model that agrees with measured flight data and shows that the vehicle can be flown with a simple PID controller."], "remaining_unresolved": ["The energy efficiency advantage of the morphing-coupled wingbeat pattern over conventional wingbeat has not been rigorously quantified; more detailed experiments with a feathered wing are needed.", "Replicating the distinctly different wing kinematics used by birds and bats during take-off and perching remains outside the capability of the current RoboFalcon platform.", "The mechanism underlying adverse roll-yaw coupling generated during asymmetric morphing-coupled flapping is acknowledged but not fully characterized or mitigated."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "Limitations",
+            future_works:   "Future Works",
+            motivation:     "Motivation Resolution",
+            mot_problems:   "Motivating Problems",
+            mot_addressed:  "Addressed by This Work",
+            mot_remaining:  "Remaining Unresolved"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

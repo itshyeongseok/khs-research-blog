@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>A Multi-Modal Tailless Flapping-Wing Robot Capable of Flying, Crawling, Self-Righting and Horizontal Take-Off</title>
+    <meta name="keywords" content="tailless flapping-wing robot, multi-modal locomotion, aerial-terrestrial, stroke-plane modulation, horizontal take-off, self-righting, hexapod crawling, JT-fly, bio-inspired robot">
+    <meta name="paper-authors" content="Chaofeng Wu, Yiming Xiao, Jiaxin Zhao, Jiawang Mou, Feng Cui, Wu Liu">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters, Vol. 9, No. 5, May 2024, pp. 4734-4741 · DOI: 10.1109/LRA.2024.3384910">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">A Multi-Modal Tailless Flapping-Wing Robot Capable of Flying, Crawling, Self-Righting and Horizontal Take-Off</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Chaofeng Wu, Yiming Xiao, Jiaxin Zhao, Jiawang Mou, Feng Cui, Wu Liu</div>
+            <div class="journal">IEEE Robotics and Automation Letters, Vol. 9, No. 5, May 2024, pp. 4734-4741 · DOI: 10.1109/LRA.2024.3384910</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 비행, 기어가기, 자가 기립, 수평 이륙을 하나의 플랫폼에 통합한 35.4 g, 날개폭 33 cm의 무미익 날갯짓 로봇 <span class="term">JT-fly</span>를 제시한다. 비행은 6자유도 자세 제어를 위해 <span class="term">날갯짓 스트로크 평면 변조</span>를 적용한 두 쌍의 날개를 사용하며, 별도의 2모터 6족 메커니즘이 지상 기어가기를 구동하여 두 모드를 분리함으로써 상호 간섭을 방지한다. 수평 이륙 방식은 기어가기 동체 높이를 5 cm(수직 이륙 설계의 1/3)로 낮춰, 좁은 틈 통과, 0.8초의 기어가기-비행 전이, 0.5초 자가 기립을 가능하게 한다. 로봇은 온보드 배터리로 최대 5 m/s로 8.2분 비행하거나 최대 30 cm/s로 60분 이상 기어갈 수 있으며, 배터리 동력으로 자유 비행하면서 날고 기어가는 것을 모두 할 수 있는 최초의 무미익 날갯짓 로봇이라고 주장한다. 비행은 PID 제어로 안정화되고 기어가기는 개루프로 동작하므로, 본 플랫폼은 학습 기반 제어 없이 다중모드 날갯짓+지상 이동을 입증한다.</div>
+            <div class="keywords"><span class="keyword-chip">tailless flapping-wing robot</span><span class="keyword-chip">multi-modal locomotion</span><span class="keyword-chip">aerial-terrestrial</span><span class="keyword-chip">stroke-plane modulation</span><span class="keyword-chip">horizontal take-off</span><span class="keyword-chip">self-righting</span><span class="keyword-chip">hexapod crawling</span><span class="keyword-chip">JT-fly</span><span class="keyword-chip">bio-inspired robot</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 재난 구조와 환경 모니터링 같은 협소한 실내/실외 임무를 위한 다중모드 공중-지상 로봇의 동기를 부여하며, 소형 규모에서 날갯짓 비행이 로터보다 효율적이고 안전하다고 주장한다. 기존 무미익 날갯짓 로봇의 한계(복잡한 구조, 짧은 지구력)와 기존 다중모드 로봇의 한계(단일 구동기 결합 또는 높은 무게중심)를 조사한 뒤, 비행·기어가기·자가 기립·수평 이륙 로봇으로서 JT-fly를 소개한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 무미익 날갯짓 지구력 기록, 단일 구동기 대 다중 메커니즘 다중모드 로봇, 그리고 점프 이륙·협력 발사·지면 대비 날갯짓 전이를 포함한 모드 전이 전략에 걸쳐 있다. JT-fly는 날갯짓 비행을 독립 기어가기 로봇 및 수평 이륙 전이와 결합한 것으로, 기존의 결합형 또는 수직 발사 설계와 구별되게 자리매김된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">JT-fly의 비행 모드는 두 개의 이중 크랭크-로커 날갯짓 메커니즘(네 개의 날개)과, 스트로크 평면을 기울여 롤·피치·요 제어 토크를 생성하는 두 개의 서보를 사용한다. 기어가기 모드는 두 개의 기어 모터로 구동되는 독립 6족 메커니즘을 사용하며, 각 모터가 세 개의 다리를 작동시키고 차동 조향을 한다. 스트로크 평면 변조를 통한 수평 이륙 방식은 기어가기 높이를 낮추고 기어가기-비행 전이 및 자가 기립을 가능하게 하며, 이 모든 것은 PID 자세·고도 제어를 갖춘 온보드 오토파일럿이 조율한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 전력 소비와 지구력, 기어가기 및 비행 기동성, 모드 전이, 자가 기립, 환경 적응성을 특성화한다. JT-fly는 비행 시 7.46 W, 기어가기 시 0.93 W, 대기 시 0.45 W를 소비하며, 고속 영상은 0.8초 수평 이륙과 0.5초 자가 기립을 확인하고, 8자 시험은 안정적 기어가기와 장애물 비행을 입증한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결과는 비행과 기어가기를 독립 메커니즘으로 분리하고 배터리를 공유하면 지구력을 늘리고 운용 환경을 넓히는 유연한 모드 전환이 가능함을 보인다. 수평 이륙이 핵심 조력자로, 기어가기 프로파일을 낮추고 빠른 전이와 자가 기립을 지원하여, 단일 구동기 설계와 높은 무게중심의 결합 설계 모두에 대해 JT-fly를 유리하게 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">JT-fly는 온보드 배터리로 자유 비행하면서 날고 기어갈 수 있는 최초의 무미익 날갯짓 로봇으로 제시되며, 비행·기어가기·자가 기립·수평 이륙을 35.4 g 플랫폼에 통합한다. 수평 이륙 모드가 핵심 기여로, 기어가기 높이를 줄이고 공중-지상 임무를 위한 빠른 모드 전이를 가능하게 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "많은 비행 동물은 다리도 사용해 지상 이동을 하는데, 이는 공중 배치와 좁은 틈으로의 지상 기어가기를 결합하여 구조, 모니터링, 탐사에 사용하는 로봇의 동기가 된다."}, {"type": "bullet", "text": "다중 로터 다중모드 로봇과 비교하여, 날갯짓 초소형 비행체(FW-MAV)는 소형 규모에서 더 높은 공력 효율, 빠르게 회전하는 프로펠러가 없어 더 큰 안전성, 그리고 더 낮은 시각적 눈에 띔을 제공한다."}, {"type": "bullet", "text": "곤충에서 영감을 받은 무미익 FW-MAV는 양력과 제어 모두에 동기화된 날갯짓에 의존하여, 호버링, 높은 기동성, 정밀 착륙, 신속 배치를 제공하므로 실내 및 협소 공간에 적합하다."}, {"type": "bullet", "text": "무미익 날갯짓 로봇은 안정성을 위해 능동 피드백 제어가 필요하다. 기존 플랫폼(Nano-Hummingbird ~11분, KUBeetle-S 8.8분, NUS-Roboticbird 3.5분, DelFly Nimble 5분, Quad-thopter 9분)은 배터리 에너지 밀도와 높은 비행 전력에 의해 제한된 지구력을 보인다."}, {"type": "bullet", "text": "기어가기는 저전력 이동 모드이지만, 기어가기만으로는 느린 배치, 장애물 취약성, 복잡한 지형에서 빠른 이동 시 전복을 겪는다."}, {"type": "bullet", "text": "단일 구동기 다중모드 로봇(예: 다리를 갖춘 곤충 크기 날갯짓 로봇 BOLT, 다리 구동 비행 구동기를 갖춘 벌새 로봇)은 구동기 수를 줄이지만, 클러치가 없어 두 메커니즘이 동시에 동작하여 상호 간섭한다."}, {"type": "bullet", "text": "다중 메커니즘 로봇(하이브리드 공중-지상 차량, LEONARDO, M4 Morphobot, Flying Monkey)은 양력이 충분할 때 더 풍부한 기능을 달성하며, 이는 JT-fly의 분리된 비행·기어가기 메커니즘의 동기가 된다.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "자유 비행 무미익 날갯짓 로봇의 지구력 벤치마크(Nano-Hummingbird, KUBeetle-S, NUS-Roboticbird, DelFly Nimble, Quad-thopter)는 JT-fly가 기어가기를 추가하면서도 견주는 최신 기술 수준을 규정한다."}, {"type": "bullet", "text": "BOLT와 무미익 벌새 로봇은 날갯짓과 이족/다리 기어가기 모두에 단일 구동기를 사용하지만, 클러치 부재로 두 메커니즘이 함께 움직여 간섭한다."}, {"type": "bullet", "text": "LEONARDO(Kim 등)는 분산 추진기와 다관절 다리를 동기화하여 날고, 슬랙라인을 타고, 스케이트보드를 타는 다중 메커니즘 다중모드를 예시한다."}, {"type": "bullet", "text": "M4 Morphobot은 부속지를 바퀴, 추진기, 다리로 재활용하고, Flying Monkey는 쿼드로터, 1자유도 보행기, SMA 그리퍼를 결합하여 부속지 재활용 접근법을 보인다."}, {"type": "bullet", "text": "기존 연구의 모드 전이는 점프 이륙, 날갯짓 로봇을 위한 협력형 6족 발사기, 또는 엎드린 자세에서 일어서기 위한 지면 대비 날갯짓을 사용한다."}, {"type": "bullet", "text": "RoboFly(Chukewad 등)와 기타 곤충 크기 로봇은 비행/지상 결합 이동으로 인용되어, JT-fly를 곤충 영감 다중모드 설계 안에 맥락화한다."}]}, "method": {"content": [{"type": "bullet", "text": "비행은 두 개의 날갯짓 메커니즘과 두 개의 서보를 사용해 6자유도 자유 비행과 호버링을 한다. 이중 크랭크-로커 메커니즘이 모터 회전을 1:25.4 기어비로 날갯짓으로 변환한다.", "figure_refs": [2]}, {"type": "bullet", "text": "각 쌍은 진동을 상쇄하고 양력을 위한 clap-fling 효과를 활용하기 위해 55도 진폭으로 반대 방향으로 날갯짓한다. 날개는 1 mm 탄소 앞전 위에 12.5 µm PET 막을 사용하며, 길이 135 mm, 시위 60 mm, 종횡비 2.25이다."}, {"type": "bullet", "text": "각 날갯짓 메커니즘(모터 + 두 날개)은 4.6 g이며 26 Hz에서 최대 23.2 g 양력을 낸다. 총 비행 양력은 46.4 g으로 양력-무게비 1.31이다."}, {"type": "bullet", "text": "중력을 극복하는 연속 호버링을 위해 각 메커니즘은 20.9 Hz에서 17.7 g 양력(총 35.4 g)을 생성하며 2.7 W를 소비하여, 양력-전력비 6.56 g/W를 낸다."}, {"type": "bullet", "text": "자세 제어는 스트로크 평면 변조를 사용한다. 좌/우 모터 속도(주파수) 차이가 롤을, 두 메커니즘을 같은 방향으로 기울이면 피치를, 반대로 기울이면 요를 만든다. 스트로크 평면 변조는 날개 비틀림이나 상반각 변조보다 선호되는데, 날개가 지면에 부딪히지 않으면서 수평 이륙을 위한 더 높은 피치 토크를 내기 때문이다.", "figure_refs": [3]}, {"type": "bullet", "text": "독립 기어가기 메커니즘(5.4 g)은 2단 유성 기어(1:26.45, -1500~1500 rpm)를 가진 두 개의 모터로 구동되며, 각 모터가 한쪽의 세 다리를 구동한다.", "figure_refs": [4]}, {"type": "bullet", "text": "가운데 다리는 걸음당 15 mm 이동하는 왕복 다리 들기 동작을 수행해 전진 추력을 생성하고, 연결 로드가 앞·뒤 다리를 흔들어 지지한다. 차동 모터 속도가 제자리 회전을 포함해 로봇을 조향한다.", "figure_refs": [4, 5]}, {"type": "bullet", "text": "수평 이륙은 날개가 빠르게 날갯짓하는 동안 스트로크 평면을 위로 기울여 머리를 드는 피칭 모멘트를 만들어 기어가기 자세에서 로봇을 들어올린다. 동일한 동작이 전복 후 자가 기립도 가능하게 한다.", "figure_refs": [7]}, {"type": "bullet", "text": "전자장치는 2.3 g 오토파일럿(STM32F446ME Cortex-M4 MCU, IMU, 무선, 모터 드라이버, SPL06 기압계)과 0.5 g 기어가기 보드를 포함하며 380 mAh 단일 셀 LiPo로 구동된다. 비행은 IMU/기압계 융합으로부터 PID 각도·각속도·고도 제어기를 사용하고 기어가기는 개루프로 동작한다.", "figure_refs": [8]}]}, "experiment": {"content": [{"type": "bullet", "text": "평균 전력은 비행 7.46 W, 기어가기 0.93 W, 대기 0.45 W(기어가기 보드 0.1 W + 오토파일럿 0.35 W)로, 비행 전력은 기어가기 전력의 8배이다."}, {"type": "bullet", "text": "이론적 지구력 모델은 총 임무 시간을 비행, 기어가기, 대기에 소비한 시간 비율과 연관시켜, 연속 비행 대비 모드 전환으로 지구력이 크게 향상됨을 보인다.", "figure_refs": [10]}, {"type": "formula", "label": "식 (1) — 모드 의존 이론 지구력", "latex": "x + y + z = q,\\qquad T = \\frac{W}{P_x}x + \\frac{W}{P_y}y + \\frac{W}{P_z}z", "description": "배터리 용량 $W$와 비행·기어가기·대기 각각의 전력 소모 $P_x,P_y,P_z$에 대한 시간 비율 $x,y,z$가 주어졌을 때의 지구력 시간 $T$이다. 저전력 기어가기/대기로 전환할수록 총 임무 시간이 늘어난다."}, {"type": "bullet", "text": "8.2 g, 1.44 Wh LiPo 배터리로 로봇은 8.2분 연속 호버링했는데, 이는 비슷한 무미익 날갯짓 로봇과 동등하면서 기어가기 능력이 추가된 것이다."}, {"type": "bullet", "text": "기어가기 기동성은 탁자 위에서 8자를 그리며 입증되었고, 조향은 두 기어 모터의 차동 제어로 이루어졌다.", "figure_refs": [11]}, {"type": "bullet", "text": "자유 비행 기동성은 1.2 m 간격으로 놓인 직경 0.5 m 두 링 사이로 8자를 비행하여 입증되었으며, 실내 장애물 환경에서 좋은 안정성을 보였다.", "figure_refs": [12]}, {"type": "bullet", "text": "수평 이륙의 고속 영상(Canon R7, 100 fps)은 로봇이 0.1초에 앞다리를 들고, 0.2초에 지면을 떠나고, 0.3초에 90도에 도달하며, 최대 115도까지 오버슈트한 뒤 0.8초에 호버링으로 안정화됨을 보였다.", "figure_refs": [13]}, {"type": "bullet", "text": "착륙은 비행-기어가기 전환을 약 0.4초에 완료했고(0.1초에 꼬리 접지, 접촉 시 날개 접힘), 자가 기립은 위로 날갯짓했다가 다시 똑바로 떨어지며 0.5초에 완료되었다.", "figure_refs": [13]}, {"type": "bullet", "text": "환경 적응성 시험은 비행 배치, 운용 시간 연장을 위한 횃대 대기, 좁은 5 cm 틈 기어가기, 그리고 기어가기로 넘을 수 없는 장애물 위 비행을 입증했다.", "figure_refs": [14]}]}, "discussion": {"content": [{"type": "bullet", "text": "독립적인 비행·기어가기 메커니즘은 단일 구동기 설계의 상호 간섭을 피하여, 로봇이 완전한 6자유도 날갯짓 비행을 유지하면서 매우 낮은 전력(0.93 W)으로 기어갈 수 있게 한다."}, {"type": "bullet", "text": "비행 전력이 기어가기 전력의 8배라는 점은, 기어가기와 대기를 선호하는 임무 계획이 연속 비행을 넘어 운용 시간을 상당히 연장함을 의미한다."}, {"type": "bullet", "text": "스트로크 평면 변조는 날개 비틀림이나 상반각 변조보다 높은 피치 토크를 제공하고 날개-지면 접촉을 피하는데, 이는 신뢰성 있는 수평 이륙에 매우 중요하다."}, {"type": "bullet", "text": "동체를 5 cm(수직 이륙 높이의 1/3)로 낮추는 것은 기어가기 안정성과 잔해·협소 공간 진입 능력을 직접적으로 향상시킨다."}, {"type": "bullet", "text": "빠른 0.8초 기어가기-비행 전이와 0.5초 자가 기립은 운용 견고성을 부여하여, 단일 임무 내에서 다수의 이착륙을 허용한다."}, {"type": "bullet", "text": "비교표는 JT-fly가 기존 무미익 날갯짓 로봇의 지구력에 견주면서 기어가기를 독보적으로 통합하여 작업공간 유연성을 넓힘을 보인다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "35.4 g, 33 cm 로봇은 6자유도로 호버링·비행하고, 지상에서 기어가며, 스트로크 평면 변조 기반 수평 이륙을 사용해 모드 간 전이한다."}, {"type": "bullet", "text": "온보드 배터리로 8.2분 연속 비행하거나 60분 이상 기어가며, 기어가기는 비행보다 훨씬 적은 전력을 소비한다."}, {"type": "bullet", "text": "수평 이륙은 로봇 높이를 수직 이륙 모드의 1/3로 줄여, 5 cm 틈 통과를 허용한다."}, {"type": "bullet", "text": "기어가기-비행 전이는 0.8초 이내에, 전복 후 자가 기립은 0.5초 이내에 완료된다."}, {"type": "bullet", "text": "입증된 시나리오에는 비행 배치, 횃대 대기, 좁은 틈 기어가기, 장애물 위 비행이 포함된다."}, {"type": "bullet", "text": "저자들은 이것이 배터리 동력으로 동시에 날고 기어갈 수 있는 최초의 무미익 날갯짓 로봇이라고 주장하며, 공중-지상 날갯짓 로봇을 위한 실현 가능한 방안을 제공한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [], "motivation_resolution": {"motivating_problems": ["대부분의 다중모드 로봇은 다수의 로터로 비행을 구현하는데, 소형 규모에서 로터는 날갯짓 비행보다 공력 효율과 안전성이 낮다.", "무미익 날갯짓 로봇은 구조가 복잡하고 능동 피드백 제어가 필요하며, 긴 지구력으로 자유 비행을 달성한 사례는 소수에 불과하다.", "단일 구동기 다중모드 로봇은 하나의 전동장치로 날갯짓과 기어가기를 결합하므로 두 메커니즘이 동시에 움직여 상호 간섭하여, 운동 효율과 신뢰성을 저하시킨다.", "무미익 날갯짓 로봇을 수직 이륙 6족 기어가기 로봇과 단순 결합하면 높은 무게중심(15 cm 동체 높이)이 생겨 기어가기 안정성을 떨어뜨리고 좁은 공간 통과 능력을 제한한다."], "addressed_by_this_work": ["JT-fly는 스트로크 평면 변조를 이용한 무미익 날갯짓 비행으로 소형 규모에서 6자유도 호버링 비행을 제공하며, 로터 대비 날갯짓 날개의 효율성·안전성 장점을 갖는다.", "능동 PID 기반 피드백 제어 시스템이 불안정한 무미익 날갯짓 로봇을 안정화하여, 온보드 배터리로 8.2분의 자유 비행을 달성하는데 이는 전용 무미익 날갯짓 로봇과 비슷하면서 기어가기 기능을 추가한 것이다.", "자체 2개의 기어 모터로 구동되는 독립 6족 기어가기 메커니즘이 기어가기를 비행과 분리하여 상호 간섭을 피하며, 기어가기는 0.93 W(비행 전력의 1/8)만 소비하여 60분 이상의 지구력을 낸다.", "스트로크 평면 변조를 통한 수평 이륙이 기어가기 높이를 5 cm(수직 모드의 1/3)로 낮춰, 5 cm 틈 통과, 0.8초 기어가기-비행 전이, 전복 후 0.5초 자가 기립을 가능하게 한다."], "remaining_unresolved": ["비행 지구력은 배터리 에너지 밀도와 높은 비행 전력 소비에 근본적으로 제약된다. 모드 전환은 이 제약을 완화하지만 제거하지는 못한다.", "기어가기는 지형이나 고유수용 피드백 없이 개루프 원격 제어로 수행되므로, 자율적 적응형 지상 이동은 다루지 않는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

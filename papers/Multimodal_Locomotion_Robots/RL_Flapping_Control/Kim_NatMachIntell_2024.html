@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Wing-strain-based flight control of flapping-wing drones through reinforcement learning</title>
+    <meta name="keywords" content="wing strain sensing, fly-by-feel, flapping-wing drone, reinforcement learning, soft actor-critic, campaniform sensilla, crack-based strain sensor, bio-inspired flight control">
+    <meta name="paper-authors" content="Taewi Kim, Insic Hong, Sunghoon Im, Seungeun Rho, Minho Kim, Yeonwook Roh, Changhwan Kim, Jieun Park, Daseul Lim, Doohoe Lee, Seunggon Lee, Jingoo Lee, Inryeol Back, Junggwang Cho, Myung Rae Hong, Sanghun Kang, Joonho Lee, Sungchul Seo, Uikyum Kim, Young-Man Choi, Je-sung Koh, Seungyong Han, Daeshik Kang">
+    <meta name="paper-journal" content="Nature Machine Intelligence, Vol. 6, September 2024, pp. 992-1005 · DOI: 10.1038/s42256-024-00893-9">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Wing-strain-based flight control of flapping-wing drones through reinforcement learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Taewi Kim, Insic Hong, Sunghoon Im, Seungeun Rho, Minho Kim, Yeonwook Roh, Changhwan Kim, Jieun Park, Daseul Lim, Doohoe Lee, Seunggon Lee, Jingoo Lee, Inryeol Back, Junggwang Cho, Myung Rae Hong, Sanghun Kang, Joonho Lee, Sungchul Seo, Uikyum Kim, Young-Man Choi, Je-sung Koh, Seungyong Han, Daeshik Kang</div>
+            <div class="journal">Nature Machine Intelligence, Vol. 6, September 2024, pp. 992-1005 · DOI: 10.1038/s42256-024-00893-9</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">곤충의 <span class="term">종상 감각기(campaniform sensilla)</span>에서 영감을 받아, 본 논문은 가속도계나 자이로스코프 없이 오로지 <span class="term">날개 변형률(wing-strain)</span> 신호만으로 날갯짓 드론의 자세와 주변 기류를 추론하는 <span class="term">감각 비행(fly-by-feel)</span> 비행 제어기를 제시한다. 날개 기부의 초고감도 균열 기반 변형률 센서가 1D-CNN 인코더에 입력되고, <span class="term">소프트 액터-크리틱(soft actor-critic, SAC)</span> 강화 학습 제어기가 그 결과 상태를 모터(추력/방향) 행동으로 사상한다. 본 연구는 다섯 가지 실험에 걸친다: 변형률 기반 공기역학적 특징 추출(풍향/풍속 및 자세), 1-자유도 및 2-자유도 제어 환경, 풍동에서의 위치 제어, 그리고 무풍의 6×8×4 m 공간에서의 자유 비행 경로 제어(지그재그/원형). 단 두 개의 변형률 센서만으로 RL 에이전트는 미훈련 기준선을 능가하고 날개 변형 오도메트리를 통해 궤적을 재구성한다. 프로젝트 맥락에서 이는 종단 간(end-to-end) RL이 비전통적 고유수용성 감각으로부터 날갯짓 비행 제어 루프를 닫을 수 있음을 보이는 Tier-1 시연으로 — 멀티모달 플랫폼에서 날갯짓 비행과 RL 지상 보행을 잇는 학습 제어 구축에 직접적으로 관련된다.</div>
+            <div class="keywords"><span class="keyword-chip">wing strain sensing</span><span class="keyword-chip">fly-by-feel</span><span class="keyword-chip">flapping-wing drone</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">soft actor-critic</span><span class="keyword-chip">campaniform sensilla</span><span class="keyword-chip">crack-based strain sensor</span><span class="keyword-chip">bio-inspired flight control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">생물 비행체는 즉각적인 고유수용성 비행 제어를 가능하게 하는 날개 기부의 변형률 감지 기계수용기인 종상 감각기를 통해 복잡한 공기역학적 하중을 감지한다. 기존 FWMAV는 유연하고 작으며 바람이 부는 조건의 비행에 부적합한 IMU, 비전, PID 제어에 의존한다. 저자들은 관성 또는 시각 센서 없이 날개 변형률 신호와 강화 학습을 사용하여 날갯짓 드론을 제어하는 감각 비행 제어기를 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 기존 날갯짓 플랫폼과 그 감지/제어 스택, 종상 감각기에 대한 생물학적 연구, 그리고 기류 감지를 IMU 기반 멀티로터 제어와 융합한 기존 오도메트리 접근법들 사이에 자신의 기여를 위치시킨다. 이러한 IMU/비전 의존적 접근을 제안된 변형률 전용 학습 기반 방법과 대조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">드론 제어는 부분 관측 가능 마르코프 결정 과정(POMDP)으로 정식화되며, 에이전트는 1D CNN으로 인코딩된 최근 날개 변형률 관측 윈도우로부터 자신의 상태를 구성한다. 최대 엔트로피 목적을 가진 소프트 액터-크리틱(SAC) 알고리즘이 실세계 경험에서 직접 훈련되며, 모션 캡처 카메라와 모터 엔코더는 보상 계산에만 사용된다. 균열 기반 센서는 폴리이미드 필름 위 금속 증착으로 제작되고, 정책/가치 신경망은 CNN 인코더를 공유한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">시스템은 점증하는 다섯 가지 실험에 걸쳐 검증된다: 공기역학적 특징 추출(186개 바람 사례), 1-자유도 및 2-자유도 제어 회전 환경, 풍동에서의 위치 제어, 그리고 무풍 실내에서의 자유 비행 경로 제어. 각 실험에서 RL 에이전트는 단 하나 또는 두 개의 날개 변형률 센서만을 사용하고 일관되게 미훈련 또는 수동 기준선을 능가하며, 외란에서 회복하고 날개 변형으로부터 궤적을 재구성한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 날개 변형률 정보가 높은 날갯짓 진동 하에서도 환경과 비행 방향을 효과적으로 부호화하여, IMU·GPS·비전 없이 감각 입력을 모터 출력으로 사상하는 종단 간 RL 제어를 가능하게 함을 확립한다. 저자들은 이것이 수동 개입을 최소화하고 공기역학적 변화에 적응하며 독특한 항법 방법을 제공한다고 주장하는 한편, 센서 소형화와 중력 감지를 위한 추가 센서의 필요성을 언급한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 초고감도 균열 센서와 소프트 액터-크리틱 RL 에이전트를 결합한 생체 모방 날개 변형률 기반 감각 비행 제어기가 날개 변형률만으로 날갯짓 드론의 자세와 기류 반응을 제어할 수 있다고 결론짓는다. 시연된 환경 변화에 대한 적응성은 돌풍 저항부터 바람 보조 비행에 이르는 응용에 유익한 것으로 자리매김된다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "드론 기술이 빠르게 발전했음에도, 생물 비행의 동적 제어 및 바람 감지 능력을 복제하는 것은 여전히 도달하기 어려운 과제로 남아 있다."}, {"type": "bullet", "text": "곤충 날개에는 <span class=\"term\">종상 감각기</span>라 불리는 기계수용기가 있어 비행 민첩성에 결정적인 복잡한 공기역학적 하중을 감지하며, 즉각적인 고유수용성 비행 제어를 제공한다.", "figure_refs": [1]}, {"type": "bullet", "text": "기존 FWMAV(RoboBee, DelFly, KUBeetle, Purdue Hummingbird)는 높은 민첩성과 효율을 제공하지만 비행 제어와 경량 설계에서, 특히 바람 부는 조건에서의 제어에서 어려움에 직면한다."}, {"type": "bullet", "text": "기존 IMU/비전/PID 피드백은 불충분하다: 몸체 장착 IMU는 외란을 감지하기 위해 몸체 움직임을 요구하여(안정화가 지연됨), 기존 센서는 유연한 날갯짓 몸체를 잘 다루지 못하며, 제한된 튜닝의 모델 기반 제어기는 유연 날개 공기역학에 어려움을 겪는다."}, {"type": "bullet", "text": "비행 곤충은 비정상 공기역학 속에서도 호버링, 선회, 활공을 수행하는데, 이는 기계감각, 시각, 후각 시스템이 뒷받침하는 능동 안정화에 기인한다."}, {"type": "bullet", "text": "감각 비행 제어 시스템은 상용 날갯짓 드론의 날개 기부에 부착된 균열 기반 변형률 센서를 사용하여 공탄성(aeroelastic) 정보를 수집하고 기류 변동에 빠르게 반응한다.", "figure_refs": [1]}, {"type": "bullet", "text": "날개 변형은 1차원 합성곱 신경망(CNN)으로 분석되어 상태를 추출하고, 강화 학습 제어기가 모터 행동을 생성한다 — 이로써 가속도계나 자이로스코프 없이 제어가 가능해진다."}]}, "related_works": {"content": [{"type": "bullet", "text": "RoboBee, DelFly, KUBeetle, Purdue Hummingbird 같은 기존 FWMAV는 소형 민첩 날갯짓 비행을 확립했으나 비행 제어와 경량 설계의 어려움에 직면했다."}, {"type": "bullet", "text": "기존 FWMAV 제어는 IMU, 비전 카메라, PID 제어기를 결합한다; 저자들은 바람 속 유연 날갯짓 몸체에 대해 각각이 부적합한 이유를 검토한다."}, {"type": "bullet", "text": "생물 전기생리학 및 수치 시뮬레이션 연구는 종상 감각기가 코리올리 힘을 감지하며 관성 센서로 기능할 수 있음을 시사하여, 변형률 기반 고유수용감각을 동기화한다."}, {"type": "bullet", "text": "일부 종(예: 된장잠자리)은 고고도 기류를 이용해 수천 킬로미터를 이동하는데, 이는 본 연구가 모방하고자 하는 우수한 감지/제어를 예시한다."}, {"type": "bullet", "text": "기존 연구는 기류 센서(풍속/풍향)를 IMU 기반의 자세 제어 가능 멀티로터와 결합하여 오도메트리 정확도를 개선했다; 본 연구는 대신 날개 변형만으로 경로를 재구성한다."}, {"type": "bullet", "text": "기존 연구의 초고감도 균열 기반 변형률 센서가 채택되어 날개 기부에 부착되며, 그 높은 감도와 금속-온-플라스틱의 단순 구조를 활용한다."}, {"type": "bullet", "text": "소프트 액터-크리틱(SAC)은 제한된 실세계 로봇 데이터에 적합한, 즉시 사용 가능하고 표본 효율적인 최대 엔트로피 정책 경사 알고리즘으로 인용된다."}]}, "method": {"content": [{"type": "bullet", "text": "시스템은 <span class=\"term\">POMDP</span> (S, A, r, P, Omega, O, gamma)로 모델링된다; 에이전트는 참 상태에 접근할 수 없으므로 센서 관측과 1D CNN 인코더로부터 신념 상태(belief state)를 구축한다.", "figure_refs": [1]}, {"type": "bullet", "text": "시간은 0.05초 스텝으로 이산화된다; 에이전트 상태는 가장 최근의 32개 관측(변형률 이력 1.6초에 해당)을 쌓는다."}, {"type": "formula", "label": "관측 이력으로부터의 상태 구성", "latex": "s_t=(o_t, o_{t-1}, \\ldots, o_{t-31})\\in\\mathbb{R}^{32}", "description": "시각 t에서 에이전트 상태는 가장 최근의 32개 변형률 관측 윈도우로, 정책에 시간적 맥락(~1.6초)을 제공한다."}, {"type": "bullet", "text": "행동 a_t는 [0,1] 범위의 연속 날갯짓 모터 토크이다(1 = 최대, 0 = 최소 출력); 할인 인자 gamma는 경험적으로 0.98로 설정된다."}, {"type": "formula", "label": "RL 목적 함수", "latex": "\\theta=\\arg\\max_\\theta \\mathbb{E}_{\\pi_\\theta}\\left[\\sum_t \\gamma^t r_t\\right]", "description": "정책 신경망 매개변수 theta는 정책 pi_theta 하의 기대 할인 수익을 최대화하도록 최적화된다."}, {"type": "bullet", "text": "천이 tau = (o_t, a_t, r_{t+1}, o_{t+1})가 리플레이 버퍼에 저장된다; 알고리즘은 수렴할 때까지 정책을 갱신하기 위해 64개 천이의 미니배치를 표집한다."}, {"type": "bullet", "text": "<span class=\"term\">소프트 액터-크리틱</span>(SAC) 알고리즘이 높은 표본 효율성(제한된 실로봇 데이터에 필수적)과 확률적 정책을 선호하는 최대 엔트로피 목적에서 오는 강건성 때문에 사용된다.", "figure_refs": [3]}, {"type": "formula", "label": "최대 엔트로피 SAC 목적 함수", "latex": "\\theta_{sac}=\\arg\\max_\\theta \\mathbb{E}_{\\pi_\\theta}\\left[\\sum_t \\gamma^t\\left(r_t+\\alpha\\,\\mathcal{H}(\\pi(\\cdot|s_t))\\right)\\right]", "description": "SAC는 궤적을 따라 보상과 정책 엔트로피 H의 합을 최대화하며, 온도 alpha가 엔트로피 항의 상대 가중치를 제어한다."}, {"type": "bullet", "text": "정책 신경망은 s_t를 두 개의 연속 1D CNN 계층(필터 32개, 너비 5)과 맥스풀링 계층(윈도우 2)에 통과시키고, 평탄화하여 256차원 벡터로 임베딩한 뒤, 행동을 표집하는 가우시안의 평균과 분산을 출력한다; Q_phi는 행동 연결 계층이 추가된 동일 구조를 공유한다."}, {"type": "bullet", "text": "보상은 모션 캡처 카메라와 모터 엔코더로부터 계산된다(제어 입력이 아닌 보상에만 사용); 소프트 가치, 행동-가치, 정책 매개변수는 안정성을 위한 목표 신경망(psi의 EMA)과 함께 각각의 잔차/KL 목적으로 갱신된다."}, {"type": "bullet", "text": "바람 분류를 위해, 두 개의 1D 합성곱 계층(각 크기 50의 필터 5개)과 드롭아웃 및 소프트맥스를 가진 두 개의 완전 연결 계층(교차 엔트로피 손실)으로 구성된 별도 신경망이 0.2초의 센서 신호로부터 186개의 바람 사례를 분류한다.", "figure_refs": [2]}, {"type": "bullet", "text": "균열 기반 변형률 센서(폴리이미드 위 Au/Cr, 3 um 간격의 채널형 나노스케일 균열)는 금속 증착으로 제작되고 소형화를 위해 광식각 또는 레이저 어블레이션으로 패터닝된다.", "figure_refs": [1]}]}, "experiment": {"content": [{"type": "bullet", "text": "공기역학적 특징 추출: 12,416개 검증 사례에 걸쳐 평균 자세(theta) 오차는 29도(76%가 0-33도 이내), 속도 오차는 26%(63.5%가 0-30% 이내)였다; 분류기는 186개 사례에 대해 ~80% 평균 정확도(AUC ~0.99)로 풍향/풍속을 예측했다.", "figure_refs": [2]}, {"type": "bullet", "text": "예측 정확도는 전방, 좌하, 우하 바람(가장 큰 날개 기부 변형)에서 가장 높았고 후상방 바람에서 가장 낮았는데, 이는 두 개의 날개 기부 센서가 풍향과 풍속을 포착함을 확인한다.", "figure_refs": [2]}, {"type": "bullet", "text": "1-자유도 환경: 회전 엔코더에 고정된 SAC 제어 드론은 변하는 겉보기 바람(3 vs 5 m/s)에 맞서 날갯짓 출력을 조절하여 180도 목표에 도달·유지했으며, 상태 변화에 민감하게 반응하고 이후 더 매끄러운 출력 전략을 채택했다.", "figure_refs": [3]}, {"type": "bullet", "text": "1-자유도 드론은 누적 보상에서 최소·최대·무작위 출력의 미훈련 기준선들을 능가했고, 대안 목표(270도)를 유지했으며, 후방으로 끌리는 외란에서 회복했다.", "figure_refs": [3]}, {"type": "bullet", "text": "2-자유도 환경: 피치 관절(beta -30~60도)에 회전을 더한 상황에서 단일 왼쪽 날개 센서로 충분했다; 드론은 추락 상태(피치 < 0도)를 0.1초 내에 인식하고 모터 출력을 0으로 끊어 주변 바람을 통해 최적 피치를 회복했다.", "figure_refs": [4]}, {"type": "bullet", "text": "바람 속 위치 제어: 모션 캡처 카메라가 있는 풍동에서(위치는 보상에만 사용), 드론은 두 날개와 꼬리 핀을 사용해 1D 변형률로부터 x,y,z 위치와 속도를 추론하여 목표로 항법했으며, 자신의 운동을 시계/반시계 방향, 가속, 감속으로 분류했다.", "figure_refs": [5]}, {"type": "bullet", "text": "무풍 자유 비행(6 m x 8 m x 4 m, 모션 캡처 카메라 12대, 40 mg/m 테더): 에이전트는 인간 시연으로 초기화된 리플레이로부터 지그재그 및 원형 궤적을 학습하여 수동 30% 성공률을 높였고, 추력을 제어하여 이륙 고도의 위/아래로 고도를 유지하기도 했다.", "figure_refs": [6]}, {"type": "bullet", "text": "변형률 기반 오도메트리: 0.5초 센서 윈도우(9:1 훈련/검증 분할, 드롭아웃)로 훈련된 모델은 다섯 세션에 걸쳐 MSE/RMSE를 줄이며 지그재그, 원형, S자 경로를 재구성하여 실측값과 일치시켰다.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "날개 변형률 정보는 높은 날갯짓 진동으로 인한 잡음 조건에서도 주변 환경과 비행 방향을 효과적으로 부호화하며, 다섯 개의 별개 실험 단계에 걸쳐 검증되었다."}, {"type": "bullet", "text": "두 개의 변형률 센서가 여러 방향의 바람 단서를 추적하기에 충분함이 입증되어, 전통적 IMU나 비전 시스템 없이 강력한 실시간 피드백을 제공했다."}, {"type": "bullet", "text": "종단 간 RL은 감각 입력을 제어 출력으로 직접 사상하여, 사례당 수렴에 며칠이 걸릴 수 있는 고충실도 날갯짓 시뮬레이션의 막대한 계산 비용을 회피한다."}, {"type": "bullet", "text": "시스템은 IMU·GPS·시각 단서와 무관하게 작동하며, 기존 시스템이 손상될 수 있는 공기역학적 변화에 적응한다."}, {"type": "bullet", "text": "종상 감각기는 중력 감지를 보조한다고 가설되며; 저자들은 날개 변형이 중력에 대한 방향에 따라 달라질 수 있으나 이를 구별하려면 다수의 센서가 필요하다고 언급한다."}, {"type": "bullet", "text": "균열 센서는 소형화에 유리하지만(단순 금속-온-필름 구조, 광식각/레이저 제작), 그램 미만 드론에는 추가적인 크기 축소가 필요하다."}, {"type": "bullet", "text": "저자들은 곡예적 감각 비행 제어 시스템이 가까운 미래에 다양한 시나리오에 적용될 수 있을 것으로 기대한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "날개 변형률 기반 비행 제어기는 가속도계나 자이로 센서 없이 날개에 가해지는 공기역학적 힘으로부터 자세와 기류 같은 핵심 비행 데이터를 추론한다."}, {"type": "bullet", "text": "다섯 가지 핵심 실험이 상태 제공, 1-자유도 및 2-자유도에서 변하는 바람 하의 제어, 바람 부는 조건의 위치 제어, 무풍 조건의 정밀 비행 경로 조작에 대해 센서 시스템을 검증한다."}, {"type": "bullet", "text": "강화 학습 구동 비행 제어기의 도움을 받아 날개 변형률 센서만을 사용하여 다양한 환경에서 날갯짓 드론의 제어가 성공적으로 시연된다."}, {"type": "bullet", "text": "시연된 환경 변화에 대한 적응성은 자율 비행 로봇의 돌풍 저항부터 바람 보조 비행까지의 응용 전반에 유익할 것으로 기대된다."}, {"type": "bullet", "text": "이 접근법은 종단 간 RL을 통해 감각 입력을 제어 출력으로 직접 사상함으로써 수동 개입을 최소화하고 복잡한 환경에서 정확도를 높인다."}, {"type": "bullet", "text": "감각 비행 패러다임은 IMU·GPS·시각 단서와 무관하고 공기역학적 변화에 강건한 독특한 항법 방법을 제공한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "균열 기반 변형률 센서는 경량(1 mm x 5 mm에 3 mg)임에도, 날개 무게가 약 3 mg인 그램 미만 드론에 적용되려면 추가 소형화가 필요하다.", "source_quote": "Although the sensor is lightweight (3 mg for 1 mm width x 5 mm length) and flexible with a thickness of 7.5 um and a Young's modulus of 2.5 GPa, further miniaturization is necessary for application in subgram drones with wing weights of 3 mg.", "source_section": "discussion"}, {"claim": "중력에 의한 날개 변형을 바람 및 가속에 의한 변형과 구별하려면, 비틀림이나 좌굴 같은 복잡한 시공간 변형을 포착하기 위해 다수의 센서가 필요할 가능성이 높다.", "source_quote": "to accurately differentiate this deformation from that caused by wind and acceleration, multiple sensors may be required to detect complex spatiotemporal deformations of the wing, such as twisting or buckling.", "source_section": "discussion"}, {"claim": "위치 제어 성능은 좌측과 우측 목표 위치 간에 차이를 보였는데, 이는 유동장 변화와 드론의 하드웨어 한계에 기인한다.", "source_quote": "The observed performance discrepancy between the two positions likely stems from variations in the flow field and the drone's hardware limitations.", "source_section": "experiment"}], "future_works": [{"claim": "저자들은 날개에 다수의 센서를 부착하면 가속도계와 자이로 센서 없이 중력 감지 및 고급 반응형 자율 비행(호버링 및 바람 보조 비행 등)이 가능한지 검증할 계획이다.", "source_quote": "In future research, we intend to verify whether attaching multiple sensors to the drone wings enables gravity detection and advanced reactive autonomous flight, such as hovering and wind-assisted flight, without the use of accelerometers and gyro sensors.", "source_section": "discussion"}, {"claim": "저자들은 자이로스코프와 가속도계를 변형률 센서와 통합하는 것을 탐구하여, 중복을 최소화하면서 더 높은 정밀도와 안정성을 위해 이들을 결합하는 최적화 전략을 연구할 것이다.", "source_quote": "Concurrently, we will explore the integration of gyroscopes and accelerometers to further enhance control performance.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["생물 비행의 동적 제어와 바람 감지 능력을 복제하는 것은, 특히 복잡한 동역학과 작은 크기를 가진 날갯짓 MAV를 바람 부는 조건에서 제어하는 것은, 현재 드론 기술로는 여전히 도달하기 어렵다.", "기존 감지/피드백(IMU, 비전 카메라, PID)은 FWMAV에 불충분하다: 몸체 장착 IMU는 외란 감지에 몸체 움직임을 요구하고(안정화 지연 유발), 기존 센서는 유연한 날갯짓 몸체에 부적합하며, 모델 기반 제어기는 유연 날개의 복잡한 공기역학에 어려움을 겪는다.", "고유수용성 날개 변형률 신호만으로 날갯짓 드론 제어에 필요한 상태 정보(자세, 풍향, 풍속)를 제공할 수 있는지는 알려지지 않았다."], "addressed_by_this_work": ["날개 변형률 기반 감각 비행 제어기가 균열 기반 변형률 센서와 RL을 사용하여 가속도계나 자이로스코프 없이 자세와 기류를 추론함으로써 IMU/비전 피드백의 한계를 우회한다.", "다섯 가지 실험에 걸쳐 시스템은 단 두 개의 변형률 센서만을 사용하여 풍향/풍속 및 자세 추정과 성공적인 1-자유도, 2-자유도, 바람 속 위치, 무풍 자유 비행 제어를 시연한다.", "날개 변형이 드론 궤적을 재구성(변형률 기반 오도메트리)하고 미훈련 및 수동 제어 기준선을 능가하기에 충분한 바람 및 자세 정보를 담고 있음이 입증된다."], "remaining_unresolved": ["그램 미만 규모 드론을 위한 센서 소형화는 아직 달성되지 않았다.", "중력 감지와 완전 반응형 자율 비행(호버링, 바람 보조)은 추가 센서를 요구하며 향후 연구로 남아 있다.", "최대 정밀도를 위한 변형률 감지와 기존 IMU/자이로 감지의 최적 융합은 여전히 미해결이다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

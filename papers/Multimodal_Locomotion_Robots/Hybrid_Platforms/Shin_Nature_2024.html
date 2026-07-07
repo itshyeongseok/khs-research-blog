@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Fast ground-to-air transition with avian-inspired multifunctional legs</title>
+    <meta name="keywords" content="multi-modal locomotion, ground-to-air transition, bird-inspired legs, jumping take-off, bipedal walking, winged drone, RAVEN, elastic energy storage, legged aerial robot">
+    <meta name="paper-authors" content="Won Dong Shin, Hoang-Vu Phan, Monica A. Daley, Auke J. Ijspeert, Dario Floreano">
+    <meta name="paper-journal" content="Nature, 2024 · DOI: 10.1038/s41586-024-08228-9 (analysis based on the author's accepted-manuscript preprint version)">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Fast ground-to-air transition with avian-inspired multifunctional legs</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Won Dong Shin, Hoang-Vu Phan, Monica A. Daley, Auke J. Ijspeert, Dario Floreano</div>
+            <div class="journal">Nature, 2024 · DOI: 10.1038/s41586-024-08228-9 (analysis based on the author's accepted-manuscript preprint version)</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 새의 다리에서 영감을 받은 2분절 다리(구동되는 고관절·발목 관절과 수동 발목·발가락 비틀림 스프링)를 갖춘 620 g 날개형 드론 <span class="term">RAVEN</span>을 제시하며, 대부분의 다중모드 공중 로봇을 단일 추가 이동모드로 제한해 온 복잡성-다재다능성 트레이드오프를 극복한다. RAVEN은 걷고, 틈을 뛰어넘고, 장애물 위로 점프하며, 능동적 점프 이륙을 수행하는데, 다리만으로 이륙 속도의 약 91.7%를 공급한다. 정량 실험은 점프 이륙이 가장 빠르고 에너지 효율이 높은 전이 전략으로, 프로펠러 단독 정지 이륙 대비 최대 9.7배 높은 에너지 효율을 달성함을 보인다. 조류 다리 질량 예산 비교 분석은 다리 질량 투자를 이동 생태와 연결한다. 지상 보행 보법은 개루프 발끝 궤적 명령으로 구동되어, 폐루프 균형 제어가 학습 기반 제어와 깊이 관련된 미해결 문제로 남는다.</div>
+            <div class="keywords"><span class="keyword-chip">multi-modal locomotion</span><span class="keyword-chip">ground-to-air transition</span><span class="keyword-chip">bird-inspired legs</span><span class="keyword-chip">jumping take-off</span><span class="keyword-chip">bipedal walking</span><span class="keyword-chip">winged drone</span><span class="keyword-chip">RAVEN</span><span class="keyword-chip">elastic energy storage</span><span class="keyword-chip">legged aerial robot</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">새는 다분절 뒷다리를 사용해 걷고, 호핑하고, 점프하며 비행으로 가속하는 동시에 근육-건 시스템에 탄성 에너지를 저장·방출하는데, 이는 공중 로봇을 위한 동등하게 다재다능한 다리의 동기가 된다. 서론은 핵심 장애물을 복잡성-다재다능성 트레이드오프로 규정하는데, 이 트레이드오프가 기존 다중모드 공중 로봇을 단일 추가 이동모드로 제한해 왔다고 본다. 또한 새 영감 다리가 날개형 드론으로 하여금 활주로 없이 걷고, 호핑하고, 지상과 공중을 능동적으로 전이하게 할 수 있다고 주장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 서론과 논의에 걸쳐 짜여 있다. 기존 다중모드 공중 로봇과 소형 점퍼를 조사하고 RAVEN의 세 가지 지상 모드 + 전이와 대조한다. 본 논문은 RAVEN을, 나는 이족 로봇(Kim 등의 LEONARDO), 횃대에 앉는 날갯짓 로봇, 점프-활공기, 그리고 BirdBot 같은 조류 영감 보행기와 비교하여 위치 짓는다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">각 다리는 구동되는 고관절·발목(경량 브러시리스 모터와 맞춤형 유성 기어박스로 구동), 탄성 에너지 저장을 위한 수동 발목 비틀림 스프링, 그리고 안정적 기립을 위한 수동 순응형 발가락 관절과 뒤 발톱을 갖춘 평평한 발로 구성된 2분절 메커니즘이다. 동역학은 6개의 일반화 좌표와 비미끄럼 발 구속을 가진 라그랑주 정식화로 2D에서 모델링되며, 기준 점프 궤적은 PD 법칙과 영공간 투영을 이용한 우선순위 작업공간 제어로 계산된다. 보행, 호핑, 높이 점프, 이륙을 위한 발 궤적은 MATLAB에서 생성되어 하드웨어에서 개루프로 실행된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">620 g RAVEN에 대한 이륙 실험은 네 가지 전략을 비교했으며, 점프 이륙이 0.17초 만에 약 2.4 m/s에 도달하고 다리만으로 이륙 속도의 약 91.7%를 기여하는 동시에 가장 폭발적이고 에너지가 크며 에너지 효율이 높은 전략임을 보였다. 지상 실험은 보행(0.23 m/s), 11.5 cm 틈 호핑, 26 cm 장애물 점프를 검증했다. 프루드 수와 이동 비용 비교는 RAVEN을, 세 가지 지상 모드 + 능동 전이를 제공하는 소수의 다중모드 로봇 중 하나로 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 점프 이륙이 출력을 증폭하는 발목 관절과 순응형 발에 의해 가능해진 빠르고 에너지 효율적인 지상-공중 전략이며, 다리 질량 투자가 대부분 공중 생활을 하는 새와 드론에게도 이롭다고 주장한다. 새와 로봇에 걸친 다리 질량 예산 비교 분석은 양의 상대성장(allometric) 스케일링을 보이고, 더 높은 다리 질량 투자를 더 지상 중심의 이동 생태와 연결하면서, 다리가 비행 적재량을 추가하며 규모 확장에는 추가 연구가 필요함을 인정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">RAVEN은 새 영감 다기능 다리가 경량 날개형 드론으로 하여금 걷고, 호핑하고, 장애물 위로 점프하며 능동적으로 비행에 진입하게 함을 입증하며, 점프 이륙이 빠르면서도 가장 에너지 효율적인 전이임을 보인다. 본 연구는 다리 질량 투자를 공중-지상 로봇의 의미 있는 설계 지렛대로 확립하고, 규모 확장과 자율 항법을 다음 단계로 제시한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "새는 공중과 지상 환경을 매끄럽게 오가는데, 이는 다분절 다리(고관절, 무릎, 발목, 발가락)가 보행, 호핑, 도약, 점프 이륙을 가능하게 하고 날개가 비행을 담당하기 때문이다."}, {"type": "bullet", "text": "새는 굴곡 시 다리 근육-건 시스템에 탄성 에너지를 저장했다가 신전 시 방출하여, 폭발적 점프 이륙을 위한 최대 출력을 증폭한다."}, {"type": "bullet", "text": "고정익 드론은 회전익 드론보다 에너지 효율과 지구력이 높지만 지상 이동성이 제한되며, 이륙에 일반적으로 활주로나 발사 장치가 필요하다.", "figure_refs": [1]}, {"type": "bullet", "text": "첫 번째 주요 과제는 이동모드를 추가하면 기계적 복잡성과 질량이 증가하여 비행이 비효율적이거나 불가능해질 수 있다는 점으로, 이 때문에 지금까지의 다중모드 공중 로봇 대부분은 비행 외에 단 하나의 이동모드만 추가한다."}, {"type": "bullet", "text": "두 번째 과제는 보행과 점프가 근본적으로 다른 추진을 요구한다는 점이다. 보행은 낮은 연속적 리드미컬 힘이 필요한 반면, 점프 이륙은 중력에 맞서 몸체를 가속하기 위해 짧은 시간 동안 훨씬 큰 힘이 필요하다."}, {"type": "bullet", "text": "대부분의 생체모방 이족 보행 플랫폼은 너무 부피가 크고 무거워 점프 가능한 드론에 통합하기 어렵고, 소형 스프링 방출형 점퍼는 일반적인 보행 보법을 수행할 수 없다."}, {"type": "bullet", "text": "대형 조류 규모에서의 호핑은 높은 에너지 비용을 수반하는데, 이는 큰 새가 걷는 이유를 설명하며, 날개형 드론이 새처럼 걷고, 호핑하고, 점프하고, 날기 위해서는 새로운 다리·발 설계가 필요함을 시사한다."}, {"type": "bullet", "text": "저자들은 복잡성-다재다능성 트레이드오프를 극복하기 위해 새 영감 다기능 다리를 사용하는 해법으로 <span class=\"term\">RAVEN</span>(Robotic Avian-inspired Vehicle for multiple ENvironments)을 소개한다.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "날고, 슬랙라인을 타고, 스케이트보드를 탈 수 있는 이족 보행 로봇(Kim 등, Science Robotics 2021 — LEONARDO)이 다중모드 플랫폼으로 인용되나, 그 이족 메커니즘은 상대적으로 부피가 크고 무겁다."}, {"type": "bullet", "text": "횃대에 앉거나 물체를 잡는 공중 플랫폼과 가지에 자율적으로 앉는 날갯짓 로봇(Zufferey 등, Nat. Commun. 2022)은 기존의 단일 추가 모드 공중 로봇을 대표한다."}, {"type": "bullet", "text": "EPFL 점프글라이더와 반복 점프-활공 설계(Kovac 등; Desbiens 등)는 점프와 활공을 결합하지만 보행 보법이 없다."}, {"type": "bullet", "text": "BirdBot(Badri-Sprowitz 등, Sci. Robot. 2022)은 다리 클러칭을 통해 최소한의 제어로 에너지 효율적인 조류 영감 보법을 달성하지만, 비행이 없는 전용 보행기이다."}, {"type": "bullet", "text": "탄성 스프링의 수동적 급속 방출에 의존하는 소형 로봇 점퍼(Haldane 등; Shin 등; Hawkes 등)는 점프를 생성하지만 보행 보법에는 부적합하다."}, {"type": "bullet", "text": "생체모방 다중모드 비행·보행 로봇(Daler 등, Bioinspir. Biomim. 2015)과 바퀴형 공중-지상 차량은 일반적으로 단일 지상 모드만 갖춘 기존 다중모드 시도로 인용된다."}, {"type": "bullet", "text": "비교 생물학 참고문헌(이륙 시 다리 추력, 뿔닭의 탄성 에너지 저장, 다리-날개 힘 전이)은 RAVEN의 생체 영감을 측정된 조류 이륙 역학에 근거시킨다."}]}, "method": {"content": [{"type": "bullet", "text": "각 로봇 다리는 고관절, 발목, 발을 갖춘 새의 뒷다리를 모방하며, 설계는 제어 가능한 고관절을 중심으로 회전하는 2분절 다리와 시상면에서 발 위치 범위를 확장하는 발목 관절로 단순화된다.", "figure_refs": [1]}, {"type": "bullet", "text": "조류의 질량 분포에 맞추기 위해 구동 전자기 구동기와 기어박스(다리 질량의 64.5%)를 고관절에 배치하여 다리 관성 모멘트와 에너지 비용을 최소화하며, 타이밍 벨트가 발목 구동기 출력을 발목 관절로 전달한다.", "figure_refs": [1]}, {"type": "bullet", "text": "발목 관절에 내장된 비틀림 스프링은 굴곡 시 에너지를 저장하고 신전 시 방출하여, 순간 발목 출력을 증대하고 점프 속도를 25% 향상시킨다.", "figure_refs": [1]}, {"type": "bullet", "text": "평평한 발은 뒤 발톱과 앞쪽으로 치우친 수동 탄성 발가락 관절을 가져 두 개의 접촉면을 형성하므로, 무게중심(CoM) 투영이 발자국 내에 있을 때 드론이 수동적으로 안정하게 서고, 미끄러짐을 완화하면서 발 방향을 조정한다.", "figure_refs": [1]}, {"type": "bullet", "text": "고관절은 날개 앞전 아래 가까이에 배치되어 CoM이 공력 중립점에 대해 두측/복측에 위치하게 함으로써, 수동 비행 안정성과 지상 안정성을 모두 만족한다.", "figure_refs": [1]}, {"type": "bullet", "text": "구동기 선정은 목표 이륙 기계 출력 14.7 W(600 g 플랫폼의 목표 이륙 속도 약 2.15 m/s로부터)를 겨냥했다. 모터를 정격 출력의 10%로 디레이팅하고 안전계수 2를 적용한 후, 최소 필요 다리 모터 출력은 294 W로 추정되었으며 18 g T-Motor AT2303 KV1500 모터 4개로 충족되었다."}, {"type": "formula", "label": "식 (1) — 필요 이륙 기계 출력", "latex": "P_{\\text{take-off}} = m_b\\, g\\, v_{\\text{take-off}}", "description": "이륙 순간의 목표 기계 출력으로, $m_b$는 몸체 질량, $g$는 중력 가속도(9.81 m/s$^2$), $v_{\\text{take-off}}$는 목표 이륙 속도이다. 600 g 플랫폼에 대해 14.7 W를 산출한다."}, {"type": "bullet", "text": "필요 최대 관절 속도(점프 중 약 4384 deg/s)가 모터 한계 내에 머물도록, 감속비 19.13인 맞춤형 유성 기어박스(9치 선기어, 10/32 복합 유성기어, 59치 링기어)가 선택되었다."}, {"type": "bullet", "text": "점프 이륙은 비미끄럼 발 구속 하에서 6개의 일반화 좌표(수평, 수직, 피치, 상지, 하지, 발가락 변형 각도)를 사용하는 라그랑주 정식화로 2D에서 모델링된다.", "figure_refs": [5]}, {"type": "formula", "label": "식 (10) — 구속된 운동 방정식", "latex": "\\mathbf{M}(\\mathbf{q})\\ddot{\\mathbf{q}} + \\mathbf{C}(\\mathbf{q},\\dot{\\mathbf{q}})\\dot{\\mathbf{q}} + \\mathbf{g}(\\mathbf{q}) + \\mathbf{J}_c^{T}(\\mathbf{q})\\mathbf{f}_c = \\mathbf{S}\\boldsymbol{\\tau} + \\mathbf{f}_{\\text{ext}}", "description": "점프 중 운동 방정식으로, 질량/관성 행렬 $\\mathbf{M}$, 코리올리/원심 항 $\\mathbf{C}$, 중력 $\\mathbf{g}$, 발 반력 $\\mathbf{f}_c$, 입력 사상 행렬 $\\mathbf{S}$, 구동기 입력 $\\boldsymbol{\\tau}$, 외력 $\\mathbf{f}_{\\text{ext}}$(프로펠러, 날개/꼬리 공력, 스프링 토크)를 포함한다."}, {"type": "bullet", "text": "우선순위 작업공간 제어(피치 > 수평 > 수직 변위)는 PD 피드백, 증강 자코비안, 영공간 투영, 감쇠 최소자승 의사역행렬을 사용해 필요한 일반화 가속도를 계산한다. 운동 방정식은 MATLAB ODE45로 풀리고, 고관절/발목 토크는 구속 자코비안의 QR 분해를 통해 복원된다.", "figure_refs": [5]}, {"type": "formula", "label": "식 (15) — 작업공간 PD 제어 법칙", "latex": "\\ddot{x}_{i,d} = k_p\\,(x_{i,d} - x_i) + k_d\\,(\\dot{x}_{i,d} - \\dot{x}_i)", "description": "작업 $i$에 대한 목표 작업 가속도를 생성하는 비례-미분 법칙으로, $k_p$와 $k_d$는 위치 및 속도 피드백 이득이고 하첨자 $d$는 목표값을 의미한다."}, {"type": "bullet", "text": "점프 이륙(밀어내기 후 뒤로 펴기), 보행(입각·유각 단계), 높이 점프, 전진 호핑(5단계)을 위한 발 궤적은 MATLAB에서 미리 계산되어 개루프로 실행되었다. 발목의 타이밍 벨트 건너뜀을 피하기 위해 고관절 활성화는 의도적으로 지연되었다.", "figure_refs": [7]}]}, "experiment": {"content": [{"type": "bullet", "text": "점프 다리와 앞 프로펠러를 동기 트리거함으로써 RAVEN은 0.17초 만에 약 2.4 m/s의 이륙 속도에 도달했는데, 이는 비슷한 몸체 질량의 새와 견줄 만하며 0.4 m 높이(몸 높이의 약 2배)에서 비행을 시작했다.", "figure_refs": [2]}, {"type": "bullet", "text": "프로펠러 추력 없는 점프 시험에서 다리만으로 2.2 m/s를 생성하여, 필요한 이륙 속도의 약 91.7%를 기여했다.", "figure_refs": [2]}, {"type": "bullet", "text": "프로펠러 단독 기준은 더 약했다. 낙하 이륙은 약 1.1 m/s(속도 확보를 위해 고도 손실 강제)를 냈고, 정지 이륙은 약 0.4 m/s에 그쳤으며 극단적 받음각으로 안정적 전이가 어려웠다.", "figure_refs": [2]}, {"type": "bullet", "text": "점프 이륙의 에너지 비용은 60.1 J로 정지 이륙(55.7 J) 및 낙하 이륙(56.2 J)보다 각각 7.9%와 6.9%만 높았으나, 가장 높은 이륙 속도를 냈다.", "figure_refs": [2]}, {"type": "bullet", "text": "점프 이륙은 정지 및 낙하 이륙 대비 각각 15.1배와 4.3배 높은 평균 가속도, 10.4배와 5.3배 높은 에너지 출력, 9.7배와 4.9배 높은 에너지 효율을 달성했다.", "figure_refs": [2]}, {"type": "bullet", "text": "지상 검증은 0.23 m/s의 개루프 보행을 보였다. 꼬리 지지 없이 직립한 드론은 몇 걸음 걷다가 불안정해져 넘어졌으나, 꼬리를 지면에 의지하자 보법이 수동적으로 안정화되었다.", "figure_refs": [3]}, {"type": "bullet", "text": "RAVEN은 11.5 cm 틈을 넘기 위해 26.6 cm(다리 길이의 1.1배)를 호핑하여 안정적으로 착지했고, 26 cm 높이 장애물에 올라서기 위해 최대 37.0 cm(다리 길이의 1.5배)를 점프했다.", "figure_refs": [3]}, {"type": "bullet", "text": "보행, 호핑, 장애물 점프를 결합하여 플랫폼은 한 임무 시나리오에서 낮은 천장을 통과하고, 틈을 호핑으로 넘고, 장애물 위로 점프할 수 있었는데, 이는 바퀴형 또는 점프 전용 고정익 드론에는 불가능하다.", "figure_refs": [1]}, {"type": "bullet", "text": "무차원 프루드 수와 이동 비용(CoT)을 사용했을 때, 다중모드 로봇은 순수 지상 로봇보다 낮은 프루드 수와 높은 CoT를 보였다. RAVEN은 상대적으로 높은 프루드 수, 중간 CoT를 나타내며 세 가지 지상 모드 + 지상-공중 전이를 독보적으로 제공한다.", "figure_refs": [3]}]}, "discussion": {"content": [{"type": "bullet", "text": "점프 이륙은 빠르고 에너지 효율적인 지상-공중 전략으로 결론지어지며, 일상적인 조류 전이 메커니즘이자 포식자를 피하는 수단으로서의 생물학적 역할을 강화한다."}, {"type": "bullet", "text": "RAVEN의 점프는 (새에서처럼) 빠른 이륙 가속을 위한 출력 증폭 발목 관절과, 원하는 피치 각도에서의 이륙을 허용하는 수동 순응형 발에 의해 가능했다."}, {"type": "bullet", "text": "다리는 비행 중 추가 적재량을 더하므로, 다리와 몸체 사이의 질량 분배('다리 질량 예산')는 몸체 크기, 비행 대 지상 보법 시간, 전이 빈도에 의존하는 중요한 진화적 트레이드오프로 규정된다."}, {"type": "bullet", "text": "수집된 새와 드론 데이터는 다리 질량이 몸체 질량에 대해 양의 상대성장으로 스케일링되며, 더 지상 중심의 새가 다리 질량에 더 많이 투자함을 확인한다.", "figure_refs": [4]}, {"type": "bullet", "text": "가장 전문화된 공중 조류는 다리 질량에 가장 적게 투자하는 반면, 주행성·섭금성·맹금성·등반성 조류는 더 많이 투자한다. 횃대에 앉는 새(예: 큰까마귀)는 중간이지만 공중·지상·수목 모드를 오가는 다재다능함을 갖는다.", "figure_refs": [4]}, {"type": "bullet", "text": "로봇 플랫폼은 생물학적 근육 출력 한계에 덜 제약되므로, 새의 질량 규모를 넘어서도 능동적 지상-공중 전이를 위한 점프가 여전히 유효할 수 있다."}, {"type": "bullet", "text": "저자들은 이 설계 원리를, 증가한 기계적 복잡성의 에너지 트레이드오프를 최소화하면서 다중 이동모드를 활용하는 더 다재다능한 기계를 향한 경로로 자리매김한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "탄성 발목·발가락 관절을 갖춘 새 영감 2분절 다리는 단일 ~620 g 날개형 플랫폼이 세 가지 지상 보법과 능동적 지상-공중 전이를 수행하게 하여, 복잡성-다재다능성 트레이드오프를 극복한다."}, {"type": "bullet", "text": "점프 이륙은 이륙 속도의 지배적 비중(~91.7%)을 기여하며 프로펠러 단독 이륙보다 에너지 효율적이어서, 활주로나 발사 장치의 필요를 제거한다."}, {"type": "bullet", "text": "비교 분석은 다리 질량 투자가 새의 이동 생태를 따른다는 것을 보여, 빈번히 전이하는 대부분 공중 시스템에서도 다리 질량에 투자할 가치가 있음을 시사한다."}, {"type": "bullet", "text": "순응형 발과 출력 증폭 발목은 안정적이고 피치가 제어된 이륙 및 적응적 지상 보법의 핵심 기계적 조력자이다."}, {"type": "bullet", "text": "지상 보법은 개루프이며 수동적으로만 안정화된 채로 남아 있어, 폐루프 균형과 학습된 제어를 자연스러운 다음 연구 방향으로 규정한다."}, {"type": "bullet", "text": "새 영감 다기능 다리를 더 큰 자율 공중-지상 드론으로 확장하는 것이 향후 연구로 제시된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "추가된 다리는 비행 중에 운반해야 하는 추가 적재량을 구성하며, 이는 다중모드 설계의 본질적인 질량 트레이드오프이다.", "source_quote": "Despite their utility for take-off, legs represent an extra payload in flight.", "source_section": "discussion"}, {"claim": "근육(구동기) 출력 한계가 점프 이륙을 제약하며, 이 효과는 규모가 커질수록 더 제한적이 된다.", "source_quote": "Constraints on power output of muscles43 may prevent some large birds from generating sufficient jumping acceleration for take-off, leading to the use of a running take-off from land or water to get airborne (e.g. swans, albatrosses44).", "source_section": "discussion"}], "future_works": [{"claim": "새에서 영감을 받은 다기능 다리를, 지상과 공중 환경을 자율적으로 오갈 수 있는 더 큰 드론으로 규모를 확장한다.", "source_quote": "Further research is required to scale up bird-inspired multifunctional legs to large drones capable of autonomously navigating between terrestrial and aerial environments.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["다중모드 공중 로봇은 복잡성-다재다능성 트레이드오프에 직면한다. 이동모드를 추가하면 기계적 복잡성과 질량이 증가하여 비행이 비효율적이거나 불가능해질 수 있으므로, 대부분은 추가 이동모드를 하나로 제한한다.", "보행과 점프는 서로 다른 보법 운동학과 추진 특성(보행은 낮은 연속 힘, 점프 이륙은 높은 충격 힘)을 요구하는데, 이를 단일 경량 메커니즘으로 달성하기는 어렵다.", "기존 생체모방 이족 플랫폼은 너무 부피가 크고 무거워 드론에 통합하기 어렵고, 소형 스프링 기반 점퍼는 일반적인 보행 보법을 수행할 수 없다.", "고정익 드론은 에너지 효율은 높지만 지상 이동성이 없고 이륙에 활주로나 발사 장치가 필요한 경우가 많다."], "addressed_by_this_work": ["RAVEN의 새 영감 2분절 다리는 보행, 호핑, 장애물 점프, 점프 이륙을 단일 ~620 g 날개형 플랫폼에 통합하여, 세 가지 지상 모드와 능동적 지상-공중 전이가 비행과 공존할 수 있음을 입증한다.", "구동되는 고관절·발목 구동기와 수동 발목·발가락 비틀림 스프링의 조합이 연속적 저력 보행과 폭발적 고력 점프를 모두 생성하며, 발목 스프링은 점프 속도를 25% 향상시킨다.", "점프 이륙은 필요한 이륙 속도의 약 91.7%를 공급하며 가장 에너지 효율적인 전략(정지 이륙 대비 최대 9.7배 효율)으로, 날개형 드론의 활주로/발사 장치 요구를 제거한다."], "remaining_unresolved": ["지상 보행은 개루프 발끝 궤적 명령으로 생성되며 수동적으로만 안정화된다(꼬리를 지면에 의지). 폐루프 균형 및 견고한 보법 제어는 해결되지 않았다.", "실시간 온보드 제어가 경량 마이크로컨트롤러의 연산 능력에 제한되어, 이산화·지연된 제어 명령을 강제하는 시뮬레이션-현실 격차를 초래한다.", "다기능 다리 원리를 더 큰 자율 공중-지상 드론으로 확장하는 것은 미해결로 남아 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

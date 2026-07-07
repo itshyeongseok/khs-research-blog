@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Reinforcement Learning With Energy-Exchange Dynamics for Spring-Loaded Biped Robot Walking</title>
+    <meta name="keywords" content="model-based reinforcement learning, spring-loaded biped robot, energy-exchange dynamics, compliant bipedal locomotion, probabilistic model predictive control, energy-state, sample efficiency, on-site learning, Gaussian process dynamics">
+    <meta name="paper-authors" content="Cheng-Yu Kuo, Hirofumi Shin, Takamitsu Matsubara">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters, Vol. 8, No. 10, October 2023, pp. 6243-6250 · DOI: 10.1109/LRA.2023.3303786">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Reinforcement Learning With Energy-Exchange Dynamics for Spring-Loaded Biped Robot Walking</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Cheng-Yu Kuo, Hirofumi Shin, Takamitsu Matsubara</div>
+            <div class="journal">IEEE Robotics and Automation Letters, Vol. 8, No. 10, October 2023, pp. 6243-6250 · DOI: 10.1109/LRA.2023.3303786</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 레터는 에너지 보존 법칙을 통해 작동기를 에너지원으로 간주하여, 스프링 부하 순응형 이족 로봇의 에너지 교환 동역학(Energy-exchange Dynamics, EED)을 학습하는 확률적 <span class="term">Model-based Reinforcement Learning (MBRL)</span> 접근법을 제시한다. 로봇 상태를 콤팩트한 에너지-상태로 재정식화하고 구성 요소 간 상호작용을 에너지 교환으로 특성화함으로써, 동역학은 9차원 모델로 축소되어 40 Hz 실시간 확률적 모델 예측 제어(pMPC) 계획을 지원한다. 이 방법은 에너지-상태 기반 기준 보행 궤적과, 이론적으로 신뢰할 수 있는 제어 주위로 pMPC 탐색을 제약하는 상태 인지(state-aware) 제어 공간을 추가하여, 학습 효율과 보행 성공률을 크게 향상시킨다. 4-DoF 스프링 부하 이족 로봇에 대해 MuJoCo 시뮬레이션과 하드웨어에서 평가한 결과, 본 접근법은 수 분 이내에 무(無)에서 현장 보행을 획득하며(시뮬레이션 샘플 2분에서 약 97% 성공, ~180 s 샘플로 하드웨어 73.3% 성공), 동일한 프레임워크로 보행 속도와 불균일 지형 전반에 일반화된다.</div>
+            <div class="keywords"><span class="keyword-chip">model-based reinforcement learning</span><span class="keyword-chip">spring-loaded biped robot</span><span class="keyword-chip">energy-exchange dynamics</span><span class="keyword-chip">compliant bipedal locomotion</span><span class="keyword-chip">probabilistic model predictive control</span><span class="keyword-chip">energy-state</span><span class="keyword-chip">sample efficiency</span><span class="keyword-chip">on-site learning</span><span class="keyword-chip">Gaussian process dynamics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 인간 중심 환경을 위한 순응형 이족 로봇을 동기 부여하면서, 그 순응성이 해석적 접근법을 무력화하는 복잡한 동역학을 낳음을 지적한다. 학습 기반 대안(MFRL, 베이지안 최적화, 매개변수화 정책, 확률적 MPC를 갖춘 MBRL)과 그들의 샘플 효율, 일반화, 제어 주파수 측면의 단점을 검토한다. 이어 저자들은 세 가지 목표를 제시하고, 작동기를 에너지원으로 다루어 에너지 교환 동역학(EED)을 학습함으로써 스프링 부하 이족 로봇을 보행시키는 방법을 도입한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">배경 및 관련 방법은 가우시안 프로세스 동역학을 갖춘 샘플 효율적 MBRL을 중심으로 구성되는데, 그 pMPC 제어 주파수는 학습 샘플 크기에 따라 지수적으로 증가하여 이족 운동과 같은 고주파 과제에 부적합하다. 본 논문은 샘플 크기/제어 주파수 절충을 깨기 위해 푸리에 특징 선형 가우시안 모델(LGM-FF)을 채택하고, 다단계 예측을 위한 재귀적 모멘트 정합과 유한 구간 pMPC를 검토한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법은 세 가지 전략을 결합한다: 에너지-상태 표현을 갖춘 EED 모델, 에너지 보존에 근거한 에너지-상태 기반 기준 보행 궤적, 그리고 pMPC 탐색을 제약하는 상태 인지 제어 공간. 시스템 에너지는 중력, 운동, 탄성 항으로 분해되며, 작동기가 유일한 에너지원으로 도입되어 시스템 에너지가 작동기 위치와 속도의 함수가 되어 차원 축소를 가능하게 한다. 보행 보법은 양다리 지지(Double-Support) 및 단다리 지지(Single-Support) 단계로 나뉘며 단계별 기준 궤적과 손실 함수를 갖는다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 평행 링크 다리를 갖춘 4-DoF, 11.25 kg 스프링 부하 이족 로봇을 사용하며, 회전 붐에 부착되어 시상면(sagittal plane)에 구속되고 40 Hz로 제어되며, MuJoCo 복제본도 함께 사용한다. 시뮬레이션 연구는 EED의 이점, 상태 인지 제어 공간의 효과, 속도 및 불균일 지형 전반의 일반화 능력을 평가하고, 하드웨어 시험은 저사양 CPU에서 무에서부터의 실세계 현장 학습을 시연한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토의는 입증된 성공에도 불구하고 상태 인지 제어 공간이 수동 사용자 조정을 필요로 하며 제어 정식화가 작동기 위치와 속도 모두를 관측 가능해야 함을 인정한다. 기여를 순응형 이족 운동을 위한 에너지 교환 동역학 활용에 대한 통찰을 제공하는 것으로 규정하고 구체적인 향후 개선 사항을 나열한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 순응형 스프링 부하 이족 로봇의 에너지 교환 동역학을 학습하고 pMPC를 사용하여 최적 보행 제어를 찾는 MBRL 접근법을 요약한다. EED는 차원을 축소하고 스프링 부하 이족 로봇의 동역학을 효과적으로 표현하며, 빠르게 학습하면서 속도, 변화하는 속도, 불균일 지형 전반에 일반화되고, 하드웨어에서 실세계 실현 가능성이 입증된다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "순응형 이족 로봇은 인간의 해부 구조와 행동을 닮을 수 있고, 충격을 처리하며, 다양한 지형을 주파할 수 있어 매력적이지만, 증가한 순응성은 해석적 모델링을 어렵게 만드는 복잡한 동적 시스템을 낳는다.", "figure_refs": [1]}, {"type": "bullet", "text": "선행 학습 기반 이족 연구는 Model-free RL(MFRL)과 베이지안 최적화(BO)를 사용하였으나, 둘 다 블랙박스이고 과제 특정적이며 데이터 집약적인 접근법으로, 각 보행을 학습하기 위해 Sim-to-Real과 같은 가상 스케일링을 필요로 한다.", "figure_refs": []}, {"type": "bullet", "text": "MFRL/BO로 학습한 매개변수화 정책은 서로 다른 보행 속도나 높이를 달성할 수 있으나, 사전 정의된 학습 매개변수에 국한되므로 새 매개변수 추가에는 긴 재학습이 필요하고 현장 학습이 제약된다.", "figure_refs": []}, {"type": "bullet", "text": "확률적 MBRL은 데이터 기반 동역학 모델을 학습하고 확률적 모델 예측 제어(pMPC)를 통해 기술을 수행하지만, 그 계산 비용으로 인해 선행 이족 연구는 시뮬레이션이나 오프라인 계획에 머물렀으며, 샘플 크기와 모델 차원을 끌어올리는 고차원 순응 동역학이 이를 악화시킨다.", "figure_refs": []}, {"type": "bullet", "text": "저자들은 세 가지 목표를 설정한다: 높은 샘플 효율로 순응형 이족 로봇의 동역학을 현장에서 학습, 높은 온라인 계획 주파수로 운동 달성, 기술 조건 전반의 일반화 능력 확보.", "figure_refs": []}, {"type": "bullet", "text": "제안된 접근법은 에너지 보존 방정식을 도입하고 작동기를 에너지원으로 다룸으로써 에너지 교환 동역학(EED)을 학습하며, 무게중심·탄성·작동기 에너지 간 상호작용을 에너지 교환으로 특성화하여 차원을 축소한다.", "figure_refs": [1]}, {"type": "bullet", "text": "시뮬레이션에서 스프링 동역학만 학습한 저자들의 선행 호핑 연구와 비교하여, 본 연구는 작동기 에너지 보존 방정식을 추가하여 차원을 더욱 축소하고, pMPC 계획 신뢰성을 향상시키며, 일반화 능력을 시험하고, 실제 하드웨어에서 검증한다.", "figure_refs": []}]}, "related_works": {"content": [{"type": "bullet", "text": "가우시안 프로세스(GP) 동역학을 갖춘 MBRL은 샘플 효율적이지만, pMPC 제어 주파수가 학습 샘플 크기에 따라 지수적으로 증가하여 이족 운동과 같은 고제어주파수 과제에 부적합하다.", "figure_refs": []}, {"type": "bullet", "text": "저자들은 샘플 크기 대 제어 주파수 절충을 완화하기 위해, 선행 로봇 분야의 성공에 기반하여 푸리에 특징 선형 가우시안 모델(LGM-FF)을 채택한다.", "figure_refs": []}, {"type": "bullet", "text": "LGM-FF는 미래 상태를 가우시안 분포로 예측하며, pMPC가 필요로 하는 다단계 불확실성 전파를 위해 재귀적 모멘트 정합을 사용한다.", "figure_refs": []}, {"type": "formula", "label": "Eq. (1) - 예측 상태 분포", "latex": "p(x_{t+1}) = f_M(p(x_t), u_t) = \\int f(x_t, u_t)\\, p(x_t)\\, dx_t", "description": "다음 상태 분포는 LGM-FF 잠재 동역학 $f(\\cdot)$를 현재 상태 분포 $p(x_t)$에 대해 적분하여 얻으며, 선행 연구로부터 해석적 모멘트 정합 해를 이용할 수 있다."}, {"type": "bullet", "text": "결정적으로, LGM-FF 계산 비용은 O(DM^2)로 확장되며, 특징 크기 M은 수집된 샘플 크기 N보다 훨씬 작은 반면 표준 GP 모델은 O(DN^2)이므로, 비용은 수집된 샘플 수와 무관하다.", "figure_refs": []}, {"type": "bullet", "text": "유한 구간 pMPC는 재귀적 모멘트 정합으로 유도된 기대 유한 구간 손실을 최소화하여 최적 H단계 제어 시퀀스를 반환하며, 새로 관측된 상태로 후퇴 구간(receding horizon)에 걸쳐 재해결함으로써 환경 변화에 강건하게 유지된다.", "figure_refs": []}, {"type": "bullet", "text": "사용된 로봇은 프리즘 순응성과 평행 링크 다리를 갖춘 알려진 스프링 부하 이족 로봇이며, 선행 에너지 전용 호핑 연구(TDE2-MBRL)가 비교 기준선으로 사용된다.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "전략 1은 EED를 에너지-상태(무게중심, 탄성 요소, 작동기)로 모델링하며, 그 상호작용을 에너지 교환으로 특성화하여, 일부 상태 인스턴스가 암묵적으로 표현 가능해지므로 차원을 축소한다.", "figure_refs": [1]}, {"type": "formula", "label": "Eq. (3) - 시스템 에너지 분해", "latex": "E := [E_g, E_k, E_s]^{\\top} = \\left[ m|g|h,\\; \\tfrac{1}{2} m v^{\\circ 2},\\; \\tfrac{1}{2}(K\\Theta_S)^{\\top}\\Theta_S \\right]^{\\top}", "description": "시스템 에너지는 중력 에너지 $E_g$(질량 $m$, 중력 $g$, 무게중심 높이 $h$), 운동 에너지 $E_k$(무게중심 속도 $v$), 스프링의 총 탄성 에너지 $E_s$(스프링 상수 행렬 $K$, 편향 $\\Theta_S$)로 구성되며, 외부 에너지원이 없으면 총 에너지는 일정하게 유지된다."}, {"type": "bullet", "text": "작동기를 유일한 에너지원으로 다루면, 그 에너지는 운동 방정식의 운동에 대한 적분이 되어, 시스템 에너지를 작동기 위치와 속도의 함수로 만드는 에너지 보존 방정식을 준다.", "figure_refs": []}, {"type": "formula", "label": "Eq. (5) - 구동기 에너지 보존 관계", "latex": "\\mathbf{1}^{\\top} E = E_{act} + \\text{Const.} = \\tfrac{1}{2}(J\\dot{\\Theta})^{\\top}\\dot{\\Theta} + \\tfrac{1}{2}(K\\Theta)^{\\top}\\Theta + \\text{Const.}", "description": "작동기 에너지 $E_{act}$(관성 행렬 $J$, 스프링 행렬 $K$, 작동기 위치 $\\Theta$ 및 속도 $\\dot{\\Theta}$)를 도입하면 시스템 에너지가 작동기 상태의 함수임을 보이며, 콤팩트한 에너지-상태를 가능하게 한다."}, {"type": "bullet", "text": "전략 2는 보행 과제를 에너지 제어 문제로 전환한다: 에너지 보존과 보법 매개변수(지지 다리 길이, 들어 올린 다리 길이, 보폭 각, 무게중심 최대 속도)로부터 목표 에너지를 정의하고, 양다리 지지 및 단다리 지지 단계에 대한 에너지-상태 기반 기준 궤적을 제공한다.", "figure_refs": [2]}, {"type": "formula", "label": "Eq. (8) - 목표 보행 에너지", "latex": "E^{*} = E_g^{*} + \\mathbf{1}^{\\top} E_k^{*} = m|g|L_{stan} + 0.5\\, m\\, \\mathbf{1}^{\\top} v_p^{\\circ 2}", "description": "원하는 보법을 따르기 위해 시스템이 보유해야 하는 목표 에너지는 목표 중력 에너지(지지 다리 길이 $L_{stan}$)와 목표 운동 에너지(원하는 무게중심 최대 속도 $v_p$)를 결합한다."}, {"type": "bullet", "text": "양다리 지지 단계는 필요한 에너지를 주입하기 위해 차기(kicking) 제어를 사용하고, 단다리 지지 단계는 다리를 역진자처럼 스윙하며, 스윙 다리 기준은 지지 다리 자세의 함수로 만들어 그 종단 구성이 다음 지지 구성과 일치하게 한다.", "figure_refs": [2]}, {"type": "bullet", "text": "전략 3은 현재 상태와 기준 궤적에 기반하여 pMPC 탐색 범위를 수정하는 상태 인지 제어 공간을 도입하며, 이론적 속도 주위에 plus/minus delta의 속도 대역을 추가하여 신뢰할 수 없는 제어를 생성할 가능성을 줄인다.", "figure_refs": []}, {"type": "bullet", "text": "하드웨어 탐색 대역 delta는 0.6 rad/s(시뮬레이션 1.2 rad/s)로, pMPC가 작동기 전체 능력의 약 10%(시뮬레이션 20%)를 탐색하게 하며, DS 및 SS 단계의 동역학 모델은 각 단계에서 수집된 샘플로 독립적으로 학습된다.", "figure_refs": [3]}, {"type": "bullet", "text": "기본 구간 H=3인 선행(ahead)-pMPC 방식은 40 Hz 단계마다 최적 제어 시퀀스를 찾고, 첫 제어를 한 단계 앞선 명령으로 할당하여 제어 지연을 완화하며, 매 시도 후 이전에 수집된 모든 샘플을 사용하여 MBRL 모델을 갱신한다.", "figure_refs": [4]}]}, "experiment": {"content": [{"type": "bullet", "text": "하드웨어는 스프링 부하 이족 로봇(질량 11.25 kg, 레버 및 대퇴 링크를 구동하는 4개 스프링 부하 작동기)으로, plus/minus 6 rad/s로 제한된 40 Hz 속도 제어 작동기를 가지며, 시상면 내 회전 붐에 장착되고 온로봇 i7-4700EQ CPU를 갖춘다.", "figure_refs": [3]}, {"type": "formula", "label": "Eq. (19) - 구체적 목표 에너지", "latex": "E^{*} = m|g|L_{stan} + 0.5\\, m\\, \\mathbf{1}^{\\top} v_p^{\\circ 2} \\approx 54.426\\ \\text{J}", "description": "측정된 지지 구성(phi 14도에서 37도 사이), 보폭 각 28도, 목표 최대 속도 0.4 m/s를 사용하면, 목표 보행 에너지는 약 54.426 J로 평가된다."}, {"type": "bullet", "text": "표준 MBRL, 선행 TDE2-MBRL(스프링 탄성 에너지만), 제안된 EED(스프링 + 작동기 운동)를 비교한 결과, EED 학습은 학습을 방해하지 않았고 반복당 pMPC 최적화 시간을 줄여, 축소 차원 모델로 더 높은 성공률을 주었다.", "figure_refs": [5]}, {"type": "bullet", "text": "상태 인지 제어 공간의 경우, 'No pMPC'는 관절 탄성을 상쇄하지 못해 실패하였고, 'Standard pMPC'는 넓은 탐색 범위로 인해 느리게 학습한 반면, 제안된 제약 공간은 단 2분의 학습 샘플 후 97.1% 성공률에 도달하였다.", "figure_refs": [7]}, {"type": "bullet", "text": "성공적 보행 중의 에너지-상태 궤적은 모델이 중력·탄성·운동 에너지 간 교환과 관절 마찰 및 감쇠로 인한 DS 단계의 에너지 손실을 포착함을 보여준다.", "figure_refs": [6]}, {"type": "bullet", "text": "무작위 지면 높이를 갖는 불균일 지형에서의 일반화는, 지면 상태를 모르고도 0-10 mm(다리 길이의 2%)에서 95% 이상, 0-15 mm(다리 길이의 3%)에서 약 80% 성공을 달성하였다.", "figure_refs": [9]}, {"type": "bullet", "text": "0.3 m/s, 0.7 m/s, 교번 속도 보행 전반에서 본 접근법은 90% 이상의 성공을 달성하였고, 0.3 m/s 모델로 0.7 m/s 보행(및 그 반대)을 수행하는 '교차 성능' 시험은 75% 이상의 성공을 넘어, 과제가 아닌 로봇 동역학을 학습하는 것의 이점을 보였다.", "figure_refs": [10]}, {"type": "bullet", "text": "하드웨어에서 무에서부터의 학습은 단 약 180 s의 샘플로 7.5 m 목표에서 73.3% 성공률에 도달한 반면 'No pMPC'는 실패하였으며, pMPC는 온로봇 CPU에서 반복당 평균 2.44 ms가 소요되었다.", "figure_refs": [11, 12]}]}, "discussion": {"content": [{"type": "bullet", "text": "상태 인지 제어 공간은 로봇의 능력을 제한하지 않으면서 신뢰할 수 없는 제어를 걸러내기 위해 사용자 조정을 필요로 하며, 이는 본 접근법의 실용적 한계이다.", "figure_refs": []}, {"type": "bullet", "text": "작동기 위치와 속도 모두를 요구하는 제어 문제는 둘 중 어느 하나라도 은닉되면 적용할 수 없어, 적용 가능성이 제한된다.", "figure_refs": []}, {"type": "bullet", "text": "이러한 한계에도 불구하고, 본 연구는 순응형 이족 운동을 위한 EED 활용에 대한 통찰을 제공하며, 에너지가 실제 에너지 손실을 포착하면서 차원을 축소함을 입증한다.", "figure_refs": [6]}, {"type": "bullet", "text": "시뮬레이션 조건이 실세계에서 재현 가능한지 검증하기 위한 향후 하드웨어 실험이 제안된다.", "figure_refs": []}, {"type": "bullet", "text": "저자들은 고차원 이족 로봇에서 에너지 사용의 계산 부담이 해결되어야 하며, 경사면과 같이 위치 에너지 영점이 변하는 경우 적응형 모델이 필요함을 지적한다.", "figure_refs": []}, {"type": "bullet", "text": "또한 다양한 동적 기동을 위한 안정성 인지 기준 궤적 생성기와, 변화하는 환경에서 일반화를 개선하기 위한 모델 전이 연구를 촉구한다.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 순응형 이족 로봇의 EED를 학습하고 pMPC를 사용하여 최적 보행 제어를 식별하는 MBRL 접근법을 제안한다.", "figure_refs": []}, {"type": "bullet", "text": "EED는 차원을 축소하고 스프링 부하 이족 로봇의 동역학을 효과적으로 표현한다.", "figure_refs": []}, {"type": "bullet", "text": "시뮬레이션 결과는 본 접근법이 빠르게 학습하면서 서로 다른 속도, 변화하는 속도, 불균일 지형 전반에 일반화하는 능력을 입증한다.", "figure_refs": [9, 10]}, {"type": "bullet", "text": "스프링 부하 이족 로봇에 대한 하드웨어 실험으로 실세계 실현 가능성이 입증된다.", "figure_refs": [11]}, {"type": "bullet", "text": "결과는 콤팩트한 9차원 동역학 모델, 40 Hz 실시간 계획, 수 분 이내 현장 학습을 사용한 성공적 현장 학습을 보여준다.", "figure_refs": [12]}, {"type": "bullet", "text": "에너지-상태 모델링, 에너지-상태 기반 기준 궤적, 상태 인지 제어 공간의 결합이 순응형 이족 보행을 위한 신뢰성 있는 고주파 pMPC를 가능하게 하는 요인이다.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "상태 인지 제어 공간은 로봇의 능력을 의도치 않게 제한하지 않으면서 신뢰할 수 없는 제어를 걸러내기 위해 수동 사용자 조정을 필요로 한다.", "source_quote": "The state-aware control space requires user adjustment to filter out unreliable controls without limiting the robot's capabilities", "source_section": "discussion"}, {"claim": "제어 정식화는 작동기 위치와 속도 모두를 필요로 하므로, 둘 중 어느 하나라도 은닉되면 적용할 수 없다.", "source_quote": "and control problems requiring both actuator positions and velocities cannot be applied if either is concealed.", "source_section": "discussion"}], "future_works": [{"claim": "시뮬레이션에서 검증된 거동이 실세계에서 재현 가능한지 확인하기 위해 추가 하드웨어 실험을 수행한다.", "source_quote": "1) Additional hardware experiments to validate that conditions in simulation experiment is reproducible in the real world.", "source_section": "discussion"}, {"claim": "고차원 이족 로봇으로 확장할 때 상태량으로 에너지를 사용하는 계산 부담을 줄인다.", "source_quote": "While energy is a physical quantity that exists in all systems, we need to address the computational burden when implementing it in high-dimensional bipedal robots.", "source_section": "discussion"}, {"claim": "경사면과 같이 위치 에너지 영점이 변하는 시나리오를 처리하기 위한 적응형 모델을 개발한다.", "source_quote": "An adaptive model is required to handle scenarios where the zero point of potential energy changes, such as slops.", "source_section": "discussion"}, {"claim": "다양한 동적 기동을 가능하게 하도록 안정성을 고려한 기준 궤적 생성기를 구축한다.", "source_quote": "Developing a reference trajectory generator that considers stability will be helpful in achieving various dynamic maneuvers.", "source_section": "discussion"}, {"claim": "변화하는 환경에서 일반화 능력을 개선하기 위해 학습된 모델을 전이하는 능력을 조사한다.", "source_quote": "Investigating the ability to transfer models can improve the generalizability of handling changing environments.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["스프링 부하 이족 로봇의 증가한 순응성은 해석적 모델링 접근법을 어렵게 만드는 복잡한 동적 시스템을 낳는다.", "Model-free RL과 베이지안 최적화는 블랙박스이고 과제 특정적이며 데이터 집약적이어서, 각 보행을 학습하기 위해 Sim-to-Real과 같은 가상 스케일링을 필요로 한다.", "매개변수화 정책은 학습에 사용된 사전 정의 보행 매개변수에 국한되므로, 새 매개변수 추가에는 긴 재학습이 필요하고 현장 학습 능력이 제약된다.", "MBRL은 계산적으로 비싸다: pMPC 제어 주파수가 학습 샘플 크기나 모델 차원에 따라 증가하므로 선행 MBRL 이족 연구는 시뮬레이션에 머물거나 오프라인 계획에 의존하였으며, 고차원 순응 동역학이 이를 악화시킨다."], "addressed_by_this_work": ["에너지 보존 방정식을 통해 작동기를 에너지원으로 다루어 데이터 기반 에너지 교환 동역학 모델을 MBRL로 학습하며, 해석적 순응 모델의 필요성을 피한다.", "상태를 에너지 교환 상호작용을 갖춘 에너지-상태로 재정식화하여, 모델을 콤팩트한 9차원으로 축소함으로써 40 Hz 실시간 pMPC 계획을 가능하게 한다.", "계산 비용 O(DM^2)가 샘플 크기 N과 무관한 푸리에 특징 선형 가우시안 모델(LGM-FF)을 사용하여, 제어 주파수를 수집된 샘플 수로부터 분리한다.", "동일한 학습 프레임워크가 보행 속도, 연속적으로 변하는 속도, 불균일 지형 전반에 일반화되며, 무에서부터의 현장 학습이 하드웨어에서 수 분 이내에 성공함을 입증한다."], "remaining_unresolved": ["상태 인지 제어 공간은 여전히 자동 적응이 아닌 수동 조정을 필요로 한다.", "작동기 위치 또는 속도 중 하나라도 이용할 수 없으면 이 방법은 실패한다.", "고차원 이족 로봇을 위한 에너지-상태 MBRL의 계산 부담은 아직 해결되지 않았다.", "변화하는 위치 에너지 영점(예: 경사면)의 처리에는 아직 개발되지 않은 적응형 모델이 필요하다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

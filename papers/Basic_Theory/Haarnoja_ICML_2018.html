@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor</title>
+    <meta name="keywords" content="soft actor-critic, maximum entropy reinforcement learning, off-policy, stochastic actor, entropy regularization, soft policy iteration, continuous control, reparameterization trick, sample efficiency">
+    <meta name="paper-authors" content="Tuomas Haarnoja, Aurick Zhou, Pieter Abbeel, Sergey Levine">
+    <meta name="paper-journal" content="Proceedings of the 35th International Conference on Machine Learning (ICML), PMLR 80:1861-1870, 2018 (arXiv:1801.01290) · DOI: 10.48550/arXiv.1801.01290">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Tuomas Haarnoja, Aurick Zhou, Pieter Abbeel, Sergey Levine</div>
+            <div class="journal">Proceedings of the 35th International Conference on Machine Learning (ICML), PMLR 80:1861-1870, 2018 (arXiv:1801.01290) · DOI: 10.48550/arXiv.1801.01290</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 <span class="term">최대 엔트로피(maximum entropy)</span> 프레임워크 위에 구축된 오프폴리시 액터-크리틱 심층 RL 알고리즘 <span class="term">Soft Actor-Critic (SAC)</span>을 소개한다. 여기서 액터는 기대 보상과 정책 엔트로피를 함께 최대화한다 — 과제를 성공시키면서 가능한 한 무작위로 행동한다. SAC은 세 요소를 결합한다: 별도의 정책망과 (소프트) 가치망을 가진 액터-크리틱 구조, 표본 효율을 위해 재생 버퍼를 재사용하는 오프폴리시 정식화, 그리고 안정성과 탐험을 위한 엔트로피 최대화. 저자들은 표 형태 설정에서 <span class="term">소프트 정책 반복(soft policy iteration)</span>을 유도하고 그것이 최적 최대 엔트로피 정책으로 수렴함을 증명한 뒤, 이를 함수 근사기로 근사하여 소프트 가치망 $V_\psi$, 소프트 Q망 $Q_\theta$, 그리고 재파라미터화 기법으로 훈련되는 다루기 쉬운(스쿼시드 가우시안) 정책 $\pi_\phi$를 사용하는 실용 알고리즘을 얻는다. 가치 과대추정을 억제하기 위해 SAC은 두 개의 Q함수를 훈련하고 그 최소값을 사용한다. MuJoCo 연속 제어 벤치마크(21자유도 Humanoid까지)에서 SAC은 쉬운 과제에서 기준선과 필적하고 가장 어려운 과제에서 오프폴리시(DDPG) 및 온폴리시(PPO) 방법을 큰 차이로 능가하며, 무작위 시드 전반에서 눈에 띄게 더 안정적이다.</div>
+            <div class="keywords"><span class="keyword-chip">soft actor-critic</span><span class="keyword-chip">maximum entropy reinforcement learning</span><span class="keyword-chip">off-policy</span><span class="keyword-chip">stochastic actor</span><span class="keyword-chip">entropy regularization</span><span class="keyword-chip">soft policy iteration</span><span class="keyword-chip">continuous control</span><span class="keyword-chip">reparameterization trick</span><span class="keyword-chip">sample efficiency</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 높은 표본 복잡도와 취약한 초매개변수 민감성을 실세계에서 모델 없는 심층 RL을 제한하는 두 도전으로 지목하고, 낮은 표본 효율을 온폴리시 학습 탓으로 돌린다. 안정성을 유지하면서 과거 경험을 재사용하는 오프폴리시 최대 엔트로피 액터-크리틱을 동기화하며, SAC을 온폴리시 방법(TRPO/PPO/A3C), 오프폴리시 DDPG, 기존 소프트 Q-학습과 대비시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구 절은 SAC을 세 요소 — 액터-크리틱 구조, 오프폴리시 재사용, 엔트로피 최대화 — 로 틀짓고, 기존 최대 엔트로피 RL(역강화학습, 최적 제어, 소프트 Q-학습)과 오프폴리시 액터-크리틱(DDPG, SVG(0))을 검토한다. SAC을 정책 파라미터화와 무관한 수렴 보장을 가진, 최대 엔트로피 프레임워크 최초의 진정한 오프폴리시 액터-크리틱으로 구별한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법론은 먼저 최대 엔트로피 목적을 진술한 뒤, 소프트 정책 반복 — 소프트 정책 평가(소프트 벨만 백업)와 소프트 정책 개선(정책을 소프트 Q함수의 지수에 정보 투영) 을 번갈음 — 을 유도하고 표 형태에서 수렴을 증명한다. 그다음 이를 세 함수 근사기를 가진 실용 SAC 알고리즘으로 바꾼다: 소프트 가치망 $V_\psi$, 소프트 Q망 $Q_\theta$, 재파라미터화 기법으로 훈련되는 스쿼시드 가우시안 정책 $\pi_\phi$, 쌍둥이 Q함수와 느리게 갱신되는 목표 가치망을 사용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 MuJoCo 연속 제어 과제(21자유도 Humanoid까지)에서 DDPG, PPO, 소프트 Q-학습(SQL), 동시기의 TD3에 대해 표본 복잡도와 안정성을 평가한다. SAC은 쉬운 과제에서 기준선과 필적하고 어려운 과제에서 학습 속도와 최종 성능 모두에서 큰 차이로 능가하며, 절제 실험은 확률적 엔트로피 최대화 정책이 훈련을 안정화함을 보인다. 보상 척도와 목표 평활 계수가 가장 민감한 초매개변수이다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 (절제와 분석에 분산되어) 엔트로피 최대화가 도움이 되는 이유를 해석한다: 정책 분산의 조기 붕괴를 막고, 높은 엔트로피 영역을 가치 있게 평가해 탐험을 장려하며, 시드 전반에서 훈련을 안정화한다. 또 보상 척도가 역온도로 작동하는 방식과, 별도 가치망 및 쌍둥이 Q함수가 안정성을 개선하는 이유를 명확히 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 SAC을, 엔트로피 최대화를 증명 가능하게 수렴하는 소프트 정책 반복과 결합하여 표본 효율적이고 안정적인 학습을 제공하는 오프폴리시 최대 엔트로피 액터-크리틱으로 요약한다. 경험적으로 최신 모델 없는 방법(오프폴리시 DDPG와 온폴리시 PPO)을 능가하고 DDPG의 표본 효율을 상당한 차이로 넘어서며, 최대 엔트로피 RL을 유망한 방향으로 가리킨다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "모델 없는 심층 RL은 실세계 사용을 제한하는 두 가지 주요 도전을 겪는다: 매우 높은 표본 복잡도(단순 과제에도 수백만 단계)와 세심한 초매개변수 튜닝을 요구하는 취약한 수렴."}, {"type": "bullet", "text": "낮은 표본 효율의 핵심 원인은 온폴리시 학습이다: TRPO, PPO, A3C는 매 경사 단계마다 새로 수집한 표본을 요구하여, 과제 복잡도가 커질수록 지나치게 비싸진다."}, {"type": "bullet", "text": "오프폴리시 알고리즘은 과거 경험을 재사용하지만, 오프폴리시 학습을 고차원 비선형 함수 근사와 결합하는 것은 특히 연속 행동 공간에서 안정성과 수렴에 큰 도전이다."}, {"type": "bullet", "text": "DDPG는 표본 효율적이지만 악명 높게 취약하고 초매개변수에 민감하여 복잡한 고차원 과제로 확장하기 어렵다. 그런 곳에서는 온폴리시 방법이 여전히 최고의 결과를 주는 경우가 많다."}, {"type": "bullet", "text": "저자들은 <span class=\"term\">최대 엔트로피(maximum entropy)</span> 프레임워크를 활용하여, 보상 목적에 엔트로피 항을 추가해 정책이 과제를 성공시키면서 가능한 한 무작위로 행동하게 함으로써 탐험과 모델/추정 오차에 대한 강건성을 개선한다."}, {"type": "bullet", "text": "SAC은 표본 효율적 학습과 안정성을 함께 제공하고 복잡한 과제(21자유도 Humanoid)로 확장되는 오프폴리시 최대 엔트로피 액터-크리틱으로 제시되며, 동시기의 TD3 연구와 비교된다."}]}, "related_works": {"content": [{"type": "bullet", "text": "최대 엔트로피 RL은 기대 수익에 기대 정책 엔트로피를 더해 최대화하며, 역강화학습(Ziebart 등, 2008)에서 최적 제어와 안내 정책 탐색에 이르기까지 사용되어 왔다."}, {"type": "bullet", "text": "기존 온폴리시 최대 엔트로피 방법은 흔히 엔트로피를 (PPO/A3C처럼) 최대화하기보다 정규화기로만 사용하며 표본 복잡도가 나쁘다."}, {"type": "bullet", "text": "소프트 Q-학습(Haarnoja 등, 2017)은 가치 함수와 액터 신경망을 갖지만 진정한 액터-크리틱은 아니다: 액터는 근사 표집기이며 그 수렴은 사후 분포를 얼마나 잘 근사하는지에 의존한다."}, {"type": "bullet", "text": "이와 대조적으로 SAC은 파라미터화와 무관하게 정책 종류 내 최적 정책으로 증명 가능하게 수렴하며, 기존 최대 엔트로피 방법은 보통 처음부터 학습할 때 DDPG 같은 최신 오프폴리시 알고리즘을 능가하지 못한다."}, {"type": "bullet", "text": "DDPG(Lillicrap 등, 2015)는 결정론적 정책 경사 기반 오프폴리시 액터-크리틱/근사 Q-학습 방법이지만, 결정론적 액터와 Q함수의 상호작용이 안정화를 어렵게 한다."}, {"type": "bullet", "text": "SVG(0)(Heess 등, 2015)은 관련된 확률적 방법이지만 표준 기대 수익 목적을 최적화하고 별도의 가치망을 사용하지 않는데, 저자들은 별도 가치망이 훈련을 더 안정적으로 만든다는 것을 발견했다."}, {"type": "bullet", "text": "과대추정 편향을 줄이기 위해 사용된 쌍둥이 Q(이중 Q-학습) 기법은 Fujimoto 등(2018)/Hasselt(2010)에서 채택되어, SAC을 동시기의 TD3 연구와 연결한다."}]}, "method": {"content": [{"type": "bullet", "text": "최대 엔트로피 목적은 표준 수익에 각 단계 정책의 기대 엔트로피를 더하며, 엔트로피 대 보상의 상대적 중요도를 정하고 최적 정책의 확률성을 제어하는 온도 $\\alpha$로 가중한다(식 1). $\\alpha \\to 0$이면 통상의 RL 목적이 회복된다."}, {"type": "formula", "label": "식 (1) — 최대 엔트로피 RL 목적", "latex": "J(\\pi) = \\sum_{t=0}^{T} \\mathbb{E}_{(s_t,a_t)\\sim\\rho_\\pi}\\!\\left[ r(s_t,a_t) + \\alpha\\, \\mathcal{H}\\!\\left( \\pi(\\cdot \\mid s_t) \\right) \\right]", "description": "기대 보상에 기대 정책 엔트로피 $\\mathcal{H}(\\pi(\\cdot\\mid s_t))$를 더해 최대화한다. 온도 $\\alpha$는 탐험(엔트로피)과 활용(보상)을 절충하며, $\\alpha\\to0$이면 표준 RL을 회복한다. SAC을 정의하는 목적이다."}, {"type": "bullet", "text": "소프트 정책 평가는 보상에 다음 상태의 할인된 소프트 상태 가치를 더하는 수정된(소프트) 벨만 백업 연산자(식 2)를 반복 적용하여 정책의 가치를 계산한다."}, {"type": "formula", "label": "식 (2) — 소프트 벨만 백업 연산자", "latex": "\\mathcal{T}^\\pi Q(s_t,a_t) \\triangleq r(s_t,a_t) + \\gamma\\, \\mathbb{E}_{s_{t+1}\\sim p}\\!\\left[ V(s_{t+1}) \\right]", "description": "벨만 연산자의 소프트 유사물. 반복 적용하면 $\\pi$의 소프트 Q값으로 증명 가능하게 수렴한다(보조정리 1, 소프트 정책 평가)."}, {"type": "bullet", "text": "소프트 상태 가치는 기대 Q값에서 로그 정책(엔트로피 항)을 뺀 것으로, $V$와 $Q$를 연결한다(식 3)."}, {"type": "formula", "label": "식 (3) — 소프트 상태 가치 함수", "latex": "V(s_t) = \\mathbb{E}_{a_t\\sim\\pi}\\!\\left[ Q(s_t,a_t) - \\log \\pi(a_t \\mid s_t) \\right]", "description": "소프트 가치는 기대 Q값에 정책 엔트로피($-\\log\\pi$)를 더한다. 이 엔트로피 보너스가 가치 함수를 통해 탐험을 장려한다."}, {"type": "bullet", "text": "소프트 정책 개선은 정책을 새 소프트 Q함수의 지수로 갱신하며, 상태 의존 분배 함수 $Z$로 정규화하여 다루기 쉬운 정책 집합 $\\Pi$로의 정보 투영(KL 발산)을 사용한다(식 4). 보조정리 2가 이것이 더 높은 소프트 가치를 산출함을 보장한다."}, {"type": "formula", "label": "식 (4) — 소프트 정책 개선(정보 투영)", "latex": "\\pi_{new} = \\arg\\min_{\\pi' \\in \\Pi} D_{\\mathrm{KL}}\\!\\left( \\pi'(\\cdot \\mid s_t) \\;\\Big\\|\\; \\frac{\\exp\\!\\left( Q^{\\pi_{old}}(s_t,\\cdot) \\right)}{Z^{\\pi_{old}}(s_t)} \\right)", "description": "개선된(볼츠만) 정책 $\\propto \\exp(Q)$를 KL 발산 최소화로 파라미터화된 종류 $\\Pi$에 다시 투영한다. 분배 함수 $Z$는 목표를 정규화하지만 새 정책에 대한 경사에는 영향을 주지 않으므로 무시할 수 있다."}, {"type": "bullet", "text": "소프트 정책 평가와 개선을 번갈으면 $\\Pi$ 내 최적 최대 엔트로피 정책으로 증명 가능하게 수렴한다(정리 1, 소프트 정책 반복). 연속 영역에서는 SGD로 함께 훈련되는 함수 근사기로 이를 근사한다."}, {"type": "bullet", "text": "소프트 가치망 $V_\\psi$는 $V_\\psi(s_t)$와 기대(Q 빼기 로그 정책) 목표 사이의 제곱 잔차(식 5)를 최소화하도록, 불편 단일 표본 경사(식 6)로 훈련된다."}, {"type": "formula", "label": "식 (5) — 소프트 가치 목적 $J_V(\\psi)$", "latex": "J_V(\\psi) = \\mathbb{E}_{s_t\\sim\\mathcal{D}}\\!\\left[ \\tfrac{1}{2}\\left( V_\\psi(s_t) - \\mathbb{E}_{a_t\\sim\\pi_\\phi}\\!\\left[ Q_\\theta(s_t,a_t) - \\log \\pi_\\phi(a_t \\mid s_t) \\right] \\right)^2 \\right]", "description": "가치망을 엔트로피 증강 기대 Q값에 회귀시킨다. 상태는 재생 버퍼 $\\mathcal{D}$에서 오지만 행동은 버퍼가 아니라 현재 정책에서 표집된다."}, {"type": "bullet", "text": "소프트 Q망 $Q_\\theta$는 느리게 갱신되는 목표 가치망 $V_{\\bar\\psi}$(식 8)로 구성된 목표에 대해 소프트 벨만 잔차(식 7)를 최소화하도록 훈련되며, 경사는 식 9이다."}, {"type": "formula", "label": "식 (7)-(8) — 소프트 Q 목적과 목표", "latex": "J_Q(\\theta) = \\mathbb{E}_{(s_t,a_t)\\sim\\mathcal{D}}\\!\\left[ \\tfrac{1}{2}\\left( Q_\\theta(s_t,a_t) - \\hat{Q}(s_t,a_t) \\right)^2 \\right], \\qquad \\hat{Q}(s_t,a_t) = r(s_t,a_t) + \\gamma\\, \\mathbb{E}_{s_{t+1}\\sim p}\\!\\left[ V_{\\bar\\psi}(s_{t+1}) \\right]", "description": "제곱 소프트 벨만 잔차를 최소화한다. 부트스트랩 목표는 안정성을 위해 $V_\\psi$의 지수 이동 평균(평활 $\\tau$)인 가중치를 가진 목표 가치망 $V_{\\bar\\psi}$를 사용한다."}, {"type": "bullet", "text": "정책은 식 4의 기대 KL 발산(식 10)을 최소화하여 학습된다. 우도비 추정량 대신 SAC은 더 낮은 분산의 경사를 위해 <span class=\"term\">재파라미터화 기법(reparameterization trick)</span> $a_t = f_\\phi(\\epsilon_t; s_t)$(식 11)를 사용한다."}, {"type": "formula", "label": "식 (10)-(11) — 정책 목적과 재파라미터화", "latex": "J_\\pi(\\phi) = \\mathbb{E}_{s_t\\sim\\mathcal{D}}\\!\\left[ D_{\\mathrm{KL}}\\!\\left( \\pi_\\phi(\\cdot\\mid s_t) \\;\\Big\\|\\; \\frac{\\exp(Q_\\theta(s_t,\\cdot))}{Z_\\theta(s_t)} \\right) \\right], \\qquad a_t = f_\\phi(\\epsilon_t; s_t)", "description": "볼츠만 목표로의 KL을 최소화하여 액터를 훈련한다. 행동을 상태와 입력 잡음 $\\epsilon_t$(예: 가우시안)의 결정론적 함수 $f_\\phi$로 재파라미터화하면 경사가 행동을 통해 흘러, 우도비보다 낮은 분산의 추정량을 준다."}, {"type": "bullet", "text": "재파라미터화를 대입하면 실용적 정책 목적 식 12와 그 경사 식 13을 얻으며, 이는 DDPG 방식 결정론적 정책 경사를 임의의 다루기 쉬운 확률적 정책으로 일반화한다."}, {"type": "formula", "label": "식 (12) — 재파라미터화된 정책 목적", "latex": "J_\\pi(\\phi) = \\mathbb{E}_{s_t\\sim\\mathcal{D},\\, \\epsilon_t\\sim\\mathcal{N}}\\!\\left[ \\log \\pi_\\phi\\!\\left( f_\\phi(\\epsilon_t; s_t) \\mid s_t \\right) - Q_\\theta\\!\\left( s_t, f_\\phi(\\epsilon_t; s_t) \\right) \\right]", "description": "분배 함수 $Z$는 ($\\phi$와 무관하므로) 사라진다. 이를 최소화하면 정책이 높은 Q, 높은 엔트로피 행동으로 밀린다. $\\log\\pi$ 항은 엔트로피 기여이고 $-Q$는 활용 항이다."}, {"type": "bullet", "text": "가치 기반 방법을 저하시키는 것으로 알려진 양의 편향을 완화하기 위해, SAC은 두 Q함수를 파라미터화하고 독립적으로 훈련하여 가치 경사(식 6)와 정책 경사(식 13) 모두에 그 최소값을 사용한다 — TD3의 쌍둥이 Q 기법이다. 이는 어려운 과제에서 훈련을 크게 가속한다."}, {"type": "bullet", "text": "행동 한계는 무계 가우시안 표본에 tanh 스쿼싱 함수를 적용하여 강제되며, 로그 우도에 변수 변환 보정을 한다(식 20-21). 대각 야코비안이 단순한 닫힌 형태 보정을 준다."}, {"type": "formula", "label": "식 (21) — 스쿼시드 가우시안 로그 우도 보정", "latex": "\\log \\pi(a \\mid s) = \\log \\mu(u \\mid s) - \\sum_{i=1}^{D} \\log\\!\\left( 1 - \\tanh^2(u_i) \\right), \\qquad a = \\tanh(u)", "description": "$a=\\tanh(u)$이고 $u$가 가우시안 표본일 때, tanh 변수 변환이 기저 로그 밀도에서 $\\sum_i \\log(1-\\tanh^2(u_i))$를 뺀다. 행동이 $(-1,1)$로 한계 지어질 때 올바른 엔트로피를 위해 필수적이다."}, {"type": "bullet", "text": "알고리즘 1은 한 환경 단계 수집(전이를 재생 버퍼 $\\mathcal{D}$에 저장)과 $\\psi, \\theta_i, \\phi$의 하나 또는 여러 경사 갱신, 그리고 목표 가치 가중치의 지수 이동 평균 갱신 $\\bar\\psi \\leftarrow \\tau\\psi + (1-\\tau)\\bar\\psi$를 번갈아 한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "SAC은 OpenAI Gym MuJoCo 과제(Hopper, Walker2d, HalfCheetah, Ant, Humanoid-v1)와 더 어려운 21자유도 rllab Humanoid에서, 알고리즘당 다섯 개 무작위 시드로 DDPG, PPO, SQL, 동시기의 TD3에 대해 벤치마크된다.", "figure_refs": [1]}, {"type": "bullet", "text": "SAC은 더 쉬운 과제에서 기준선과 비슷하고 더 어려운 과제에서 큰 차이로 능가한다. DDPG는 Ant, Humanoid-v1, rllab Humanoid에서 아무 진전도 보지 못한다.", "figure_refs": [1]}, {"type": "bullet", "text": "PPO가 고차원 과제에서 안정적으로 학습하려면 큰 배치 크기가 필요하므로 SAC은 PPO보다 상당히 빠르게 학습한다. SQL은 모든 과제를 학습하지만 더 느리고 점근 성능이 더 나쁘다.", "figure_refs": [1]}, {"type": "bullet", "text": "확률적 SAC 정책을 (두 Q함수를 가진 DDPG와 유사한) 결정론적 변형과 비교한 절제 실험은, 확률적 엔트로피 최대화 정책이 시드 전반에서 극적으로 더 일관되며 결정론적 변형은 시드 간 변동성이 매우 높음을 보인다.", "figure_refs": [2]}, {"type": "bullet", "text": "보상 척도 민감성을 조사한다: 너무 작은 보상 크기는 정책을 거의 균일하게 만들어(보상을 활용하지 못함) 너무 큰 크기는 거의 결정론적으로 만든다(불충분한 탐험으로 인한 나쁜 국소 최소). 적절한 척도가 탐험과 활용을 균형 짓는다.", "figure_refs": [3]}, {"type": "bullet", "text": "목표 평활 계수 $\\tau$는 안정성과 속도를 절충한다 — 큰 $\\tau$(빠르게 움직이는 목표)는 불안정성을 유발할 수 있고 작은 $\\tau$는 훈련을 늦춘다 — 하지만 적합 범위가 넓어 모든 과제에 단일 값(0.005)이 사용되었다.", "figure_refs": [3]}, {"type": "bullet", "text": "훈련된 확률적 정책을 그 평균 행동으로 평가(결정론적 평가)하면 일반적으로 확률적 평가보다 더 높은 수익을 낸다. 공통 초매개변수에는 학습률 $3\\times10^{-4}$의 Adam, $\\gamma=0.99$, 재생 버퍼 $10^6$, 256 ReLU 유닛 은닉층 두 개, 미니배치 크기 256이 포함된다.", "figure_refs": [3]}]}, "discussion": {"content": [{"type": "bullet", "text": "엔트로피는 정책과 가치 함수 모두에 나타난다: 정책에서는 정책 분산의 조기 수렴을 막고, 가치 함수에서는 높은 엔트로피 행동으로 이어지는 상태의 가치를 높여 탐험을 장려한다."}, {"type": "bullet", "text": "엔트로피 최대화로 확률적 정책을 학습하면 훈련을 극적으로 안정화할 수 있는데, 이는 초매개변수 튜닝이 어려운 더 어려운 과제에서 특히 중요하다.", "figure_refs": [2]}, {"type": "bullet", "text": "보상 척도는 에너지 기반 최적 정책의 온도 역할을 하므로, 역온도라는 자연스러운 해석이 그것을 어떻게 조정할지에 대한 좋은 직관을 준다 — 저자들이 튜닝이 필요하다고 본 유일한 초매개변수이다."}, {"type": "bullet", "text": "(SVG(0)과 달리) 별도의 소프트 가치망을 사용하는 것이 훈련을 더 안정적으로 만든다는 것을 발견하여, 두 신경망 대안보다 세 신경망 설계를 정당화한다."}, {"type": "bullet", "text": "최소값을 가진 쌍둥이 Q함수는 가치 기반 방법을 저하시키는 것으로 알려진 양의 편향을 완화하고 어려운 과제에서 훈련을 크게 가속하는데, 단일 Q함수로도 21자유도 Humanoid를 학습할 수는 있다."}, {"type": "bullet", "text": "가치 추정기와 정책 모두 전적으로 오프폴리시 재생 데이터로 훈련할 수 있으므로, SAC은 환경 단계당 여러 경사 단계를 취해 추가 계산을 표본 효율 향상과 맞바꿀 수 있다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "SAC은 엔트로피 최대화(탐험)와 안정성의 이점을 유지하면서 표본 효율적 학습을 제공한다."}, {"type": "bullet", "text": "이론적 기여는 최적 최대 엔트로피 정책으로 수렴함이 입증된 소프트 정책 반복이며, 이로부터 실용 SAC 알고리즘이 유도된다."}, {"type": "bullet", "text": "경험적으로 SAC은 오프폴리시 DDPG와 온폴리시 PPO를 포함한 최신 모델 없는 심층 RL 방법을 능가하며, DDPG의 표본 효율을 상당한 차이로 넘어선다."}, {"type": "bullet", "text": "결과는 확률적 엔트로피 최대화 RL 알고리즘이 강건성과 안정성 향상을 위한 유망한 길임을 시사한다."}, {"type": "bullet", "text": "Isaac Lab에서 RL 이족 보행을 구축하는 입문자에게 SAC은 PPO에 대한 선도적 오프폴리시 대안이다: 재생 버퍼 재사용이 훨씬 표본 효율적일 수 있으나, 보상 척도/온도 튜닝과 단계당 더 많은 계산이 대가이다."}, {"type": "bullet", "text": "향후 과제는 2차 정보(신뢰 영역)와 더 표현력 있는 정책 종류를 목표로 한다. 이후 버전의 SAC은 온도 $\\alpha$도 자동화하여 여기서 강조된 주요 수동 초매개변수를 제거한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "SAC은 보상 신호의 척도에 특히 민감하다. 보상 척도가 에너지 기반 최적 정책의 역온도(inverse temperature) 역할을 하여 확률성을 제어하기 때문이다.", "source_quote": "Soft actor-critic is particularly sensitive to the scaling of the reward signal, because it serves the role of the temperature of the energy-based optimal policy and thus controls its stochasticity.", "source_section": "experiment"}, {"claim": "최적 보상 척도는 환경에 따라 달라지며, 탐험과 활용의 균형을 위해 각 과제마다 별도로 튜닝되어야 한다.", "source_quote": "The optimal reward scale varies between environments, and should be tuned for each task separately.", "source_section": "experiment"}], "future_works": [{"claim": "신뢰 영역 같은 2차 정보의 통합과 더 표현력 있는 정책 종류의 사용을 포함한 최대 엔트로피 방법의 추가 탐구가 향후 과제로 제안된다.", "source_quote": "further exploration of maximum entropy methods, including methods that incorporate second order information (e.g., trust regions (Schulman et al., 2015)) or more expressive policy classes is an exciting avenue for future work.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["모델 없는 심층 RL 방법은 표본 복잡도가 매우 높아, 비교적 단순한 연속 제어 과제에도 수백만 단계가 필요하다.", "이 방법들은 초매개변수(학습률, 탐험 상수)에 취약하여 문제별로 세심한 튜닝이 필요하다.", "온폴리시 방법(TRPO, PPO, A3C)은 각 경사 단계마다 새 표본을 요구하여 지나치게 비싸고, 오프폴리시 재사용은 정책 경사와 결합하기 어렵다.", "인기 있는 오프폴리시 액터-크리틱인 DDPG는 표본 효율적이지만 안정화가 극히 어렵고 초매개변수에 취약하며, 특히 21자유도 Humanoid 같은 고차원 과제에서 그렇다.", "기존 오프폴리시 최대 엔트로피 방법(소프트 Q-학습)은 연속 행동 공간에서 복잡한 근사 추론 절차를 요구하며 진정한 액터-크리틱 알고리즘이 아니다."], "addressed_by_this_work": ["SAC은 안정성을 유지하면서 재생 버퍼를 통해 오프폴리시 데이터를 재사용하여, 온폴리시 PPO보다 상당히 나은 표본 효율을 달성하고 DDPG의 효율을 큰 차이로 능가한다.", "확률적 액터를 가진 엔트로피 최대화는 SAC을 무작위 시드 전반에서 DDPG보다 훨씬 안정적으로 만들어 세심한 튜닝의 필요를 줄인다(실무에서는 보상 척도만 튜닝하면 됨).", "SAC은 최대 엔트로피 프레임워크의 첫 오프폴리시 액터-크리틱 방법으로, 다루기 쉬운 스쿼시드 가우시안 액터와 재파라미터화를 통해 기존 소프트 Q-학습의 복잡한 근사 추론을 피한다.", "소프트 정책 반복에 대한 수렴 증명이 실용 알고리즘을 뒷받침하며, 쌍둥이 Q 최소값이 가치 기반 방법을 저하시키는 양의 편향을 완화한다.", "SAC은 DDPG 같은 오프폴리시 방법이 보통 진전을 보지 못하는 21자유도 Humanoid로 확장된다."], "remaining_unresolved": ["보상 척도 민감성이 남는다: 가장 중요한 단일 초매개변수를 여전히 환경마다 튜닝해야 한다(이 버전은 고정 수동 온도를 사용하며, 이후 SAC v2에서 자동화됨).", "목표 평활 계수와 경사 단계 대 환경 단계의 절충은 여전히 성능과 계산 비용에 영향을 준다.", "2차 정보와 더 표현력 있는 정책 종류의 통합은 미해결로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

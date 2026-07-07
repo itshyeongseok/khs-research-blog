@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Crossing the Reality Gap: A Survey on Sim-to-Real Transferability of Robot Controllers in Reinforcement Learning</title>
+    <meta name="keywords" content="reality gap, sim-to-real transfer, reinforcement learning, robot control, domain randomization, adversarial reinforcement learning, transfer learning, deep reinforcement learning, robotics">
+    <meta name="paper-authors" content="Erica Salvato, Gianfranco Fenu, Eric Medvet, Felice Andrea Pellegrino">
+    <meta name="paper-journal" content="IEEE Access, Vol. 9, 2021, pp. 153171-153187 · DOI: 10.1109/ACCESS.2021.3126658">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Crossing the Reality Gap: A Survey on Sim-to-Real Transferability of Robot Controllers in Reinforcement Learning</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Erica Salvato, Gianfranco Fenu, Eric Medvet, Felice Andrea Pellegrino</div>
+            <div class="journal">IEEE Access, Vol. 9, 2021, pp. 153171-153187 · DOI: 10.1109/ACCESS.2021.3126658</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 서베이는 <span class="term">reality gap</span>(RG)을 다룬다: 시뮬레이션에서 학습한 제어기를 실제 로봇에 배치할 때 생기는 성능 불일치로, 최악의 경우 정책이 과제에 실패하게 만든다. 실세계 강화학습(RL) 학습이 느리고 안전하지 않은 반면 시뮬레이터는 근사에 불과하다는 사실에 동기하여, 저자들은 RL 기반 로봇 제어와 RG에 대한 통합적 제어 시스템 형식론을 제공한다. 기존 해법을 세 가지 계열로 분류한다: <span class="term">domain randomisation</span>(DR), <span class="term">adversarial RL</span>(ARL), <span class="term">transfer learning</span>(TL). 각각을 공통 형식론 안에서 정의하고, 서베이한 논문들을 알고리즘·과제·시뮬레이터, 그리고 sim-to-sim인지 sim-to-real 평가가 수행되었는지로 표로 정리한다. 세 가지 목표는 (1) RG 문헌을 체계화하고, (2) 세 접근의 상대적 장단점을 명확히 하며, (3) 미해결 과제 — 특히 RG를 정량화할 지표의 부재와 현재 기법의 빈약한 샘플 효율 — 를 개략하는 것이다.</div>
+            <div class="keywords"><span class="keyword-chip">reality gap</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">robot control</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">adversarial reinforcement learning</span><span class="keyword-chip">transfer learning</span><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">robotics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 자율 로봇 제어에 RL을 사용하는 동기를 부여하면서, 실세계 RL 학습이 느리고 안전하지 않은 행동을 초래할 수 있어 학습을 가속하고 위험을 낮추기 위해 시뮬레이터가 쓰임을 짚는다. 시뮬레이터가 근사 모델만 제공하므로 시뮬레이션에서 학습한 정책이 실제 로봇에서 저하되거나 실패할 수 있다 — reality gap이다. 서베이의 세 가지 목표는 RL 기반 로봇 제어에서 RG에 대처하는 주요 접근을 식별하고, 그 단점을 지적하며, 새로운 연구 영역을 개략하는 것이다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">배경으로 이 논문은 RL을 마르코프 결정 과정으로, 또한 제어 시스템 지향 표기로 형식화하고, 세 고전적 RL 해법 범주(가치 함수, 정책 탐색, 액터-크리틱)를 검토한다. 자신을 sim-to-real 전이에 대한 기존의 개략 수준 서베이와, 그리고 진화 계산·모델 예측 제어 같은 다른 시뮬레이터 의존 프레임워크의 이전 RG 연구와 견주어 위치시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">분석 프레임워크는 시뮬레이션을 근사 시뮬레이터 E' = phi(E)를 산출하는 환경 매핑 연산자 phi로 모델링하며, RG는 E와 E'의 불일치에서 발생한다. 저자들은 RG의 존재를 시험하는 일반 절차와, domain-randomisation 및 adversarial-RL 범주의 기반이 되는 공통 오염 시뮬레이터 형식론을 제시하고, 서베이를 RG를 명시적으로 다루고 로봇 제어를 표적하며 RL을 사용하는 연구로 한정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서베이의 근거 기반은 각 범주의 대표 논문들에 대한 구조화된 검토로, 학습 알고리즘·과제·시뮬레이터와 sim-to-sim 또는 sim-to-real 평가 여부를 보고한다. domain randomisation은 무작위화된 모델 앙상블 전반에서 학습하고, adversarial RL은 min-max 게임에서 최악 외란을 생성하는 적대자를 추가하며, transfer learning은 명시적 정보 교환을 통해 시뮬레이션과 현실 간 지식을 재활용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토론은 DR과 ARL이 견고성을 전이 가능성과 혼동하며, 과제 이질성과 더불어 실제 sim-to-real 평가의 빈번한 부재가 최선 접근의 식별을 막는다고 주장한다. 학습 중 실제 시스템과의 상호작용이 여전히 필요하여 효율 비용에도 불구하고 TL이 유망하다고 결론짓고, 혼합 DR/ARL/TL 기법, 메타 학습, PILCO를 유망한 향후 방향으로 부각한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 RL 로봇 제어기를 실제 환경에서 직접 학습하는 것이 비용이 크고, 시뮬레이터 근사가 정확도-비용 절충을 통해 제어기 효과성을 결정적으로 좌우함을 재진술한다. 형식적 RG 프레임워크를 제공하고 DR, ARL, TL을 알고리즘·과제·평가 방법으로 검토한 뒤, 저자들은 일반적 과제 독립 전이 가능성 보장이 여전히 없다고 결론짓고 두 미해결 문제 — RG를 정량화할 지표와 RL의 샘플 효율 — 를 강조한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "RL은 시행착오를 통해 상태-행동 쌍의 최적 <span class=\"term\">policy</span>를 학습하는 제어기(에이전트)를 설계한다. 작은 상태/행동 공간에는 표 기반 기법으로 충분하지만 시스템 복잡도가 커지면 다루기 어려워지므로, 로봇 제어는 상태와 행동을 함수 근사를 갖는 연속 변수로 다뤄야 한다."}, {"type": "bullet", "text": "심층 신경망을 근사기로 쓰면 그 접근을 Deep RL(DRL)이라 부르며, 수작업 특징 공학을 줄이지만 로봇에서 실시간으로 직접 적용하면 매우 긴 학습 시간과 안전하지 않은 탐험을 낳는다."}, {"type": "bullet", "text": "시뮬레이터가 이 문제를 다룬다: 로봇 동역학 모델이 주어지면 제어기를 더 빠르고 안전하게 학습한 뒤 실제 시스템으로 전이한다(<span class=\"term\">sim-to-real transfer</span>)."}, {"type": "bullet", "text": "sim-to-real 전이는 시뮬레이터가 충분히 정확할 때만 효과적이지만 절충이 있다: 시뮬레이션이 정확할수록 계산 비용이 커지므로, 전이 품질을 희생하더라도 덜 정확한 시뮬레이터가 흔히 선호된다."}, {"type": "bullet", "text": "<span class=\"term\">reality gap</span>(RG)은 시뮬레이터에서 학습한 제어기가 실세계에 적용될 때 저하되는 — 최악의 경우 과제에 실패하는 — 현상이다. RG는 RL에만 고유한 것이 아니며(진화 계산과 모델 예측 제어에도 영향을 준다), 이 서베이는 RL 로봇 제어기에 초점을 둔다."}, {"type": "bullet", "text": "할인 계수가 주어지면, 최적 정책은 정책 집합에 대해 무한 지평 할인 보상을 최대화하는 것이다."}, {"type": "formula", "label": "Eq. (4) — optimal policy", "latex": "\\pi^{*} = \\arg\\max_{\\pi\\in\\Pi}\\sum_{k=0}^{+\\infty}\\gamma^{k}\\,h\\big(x(k),\\pi(o(k))\\big) = \\arg\\max_{\\pi\\in\\Pi} J_{\\pi}\\big(x(0)\\big)", "description": "최적 정책은 임의의 초기 상태에 대해 무한 지평 할인 보상 $J_{\\pi}(x(0))$을 최대화한다. 여기서 $\\gamma\\in[0,1]$은 할인 계수, $h$는 보상 함수이다."}, {"type": "bullet", "text": "명시된 목표는 (1) RL 로봇 제어 과제에서 RG를 푸는 문헌의 체계적 그림을 제공하고, (2) 식별된 세 접근의 차이와 상대적 장단점을 명확히 하며, (3) 가능한 새 연구 영역을 식별하는 것이다."}, {"type": "bullet", "text": "이 분석은 RG 대처 접근을 세 광범위 범주로 묶는다 — <span class=\"term\">domain randomisation</span>(DR), <span class=\"term\">adversarial reinforcement learning</span>(ARL), <span class=\"term\">transfer learning</span>(TL) — 각각 일반 RL 프레임워크에서 발전한 것이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "RL은 보통 마르코프 결정 과정, 즉 튜플 (X, A, p, r)로 기술된다. 저자들은 대신 환경이 보상 함수 h를 더하는 동역학 이산 시간 시스템 (X, A, O, f, g)을 갖는 제어 시스템 형식론을 채택한다."}, {"type": "bullet", "text": "폐루프 시스템에서 정책은 환경에 제어 입력을 가하고, 환경은 관측과 보상을 출력한다. g(f(·)) = f(·) 가정 하에서는 상태 피드백 제어이고, 그렇지 않으면 출력 피드백 제어이다.", "figure_refs": [1]}, {"type": "bullet", "text": "정책 학습 알고리즘 L은 환경 E와 상호작용하여 제어기를 학습한다(L↔E로 표기). f와 g의 지식에 의존하면 모델 기반, 그렇지 않으면 모델 프리이다.", "figure_refs": [2]}, {"type": "bullet", "text": "RL 접근은 세 계열로 분류된다: 가치 함수 기법(가치 함수 $V_{\\pi}(x)$와 행동 가치 함수 $Q_{\\pi}(x,a)$ 기반), 정책 탐색 기법(경사 기반 또는 경사 프리 최적화로 갱신되는 매개화 정책 $\\pi_{\\theta}$), 그리고 둘을 결합하는 액터-크리틱 기법."}, {"type": "formula", "label": "Eq. (5) — optimal value function", "latex": "V^{*}(x(k)) = \\max_{\\pi} J_{\\pi}\\big(x(k)\\big)", "description": "최적 가치 함수는 임의의 정책 하에서 상태 $x(k)$로부터 얻을 수 있는 최대 누적 할인 보상이다."}, {"type": "formula", "label": "Eq. (6) — optimal action-value function", "latex": "Q^{*}(x(k),a(k)) = \\max_{\\pi}\\Big[ h\\big(x(k),a(k)\\big) + \\gamma J_{\\pi}\\big(x(k+1)\\big)\\Big]", "description": "최적 행동 가치 함수는 상태 $x(k)$에서 먼저 행동 $a(k)$를 취하고 이후 $\\pi$를 따를 때의 보상이다. $V^{*}$나 $Q^{*}$를 추정하면 최적 정책을 얻는다."}, {"type": "bullet", "text": "RG는 실제 시스템의 시뮬레이터에 의존하는 다른 제어 설계 프레임워크에도 영향을 준다: 저자들은 진화 계산과 모델 예측 제어에서 RG에 직면한 여러 선행 연구를 인용한다."}, {"type": "bullet", "text": "Zhao 등 [22]의 이전 서베이는 현재 최신 기술을 개략만 한다. 본 연구는 제안된 통합 형식론에 기반해 더 심층적인 분석을 수행한다."}, {"type": "bullet", "text": "추가적 RL 기술 사항에 대해 저자들은 표준 참고문헌(예: Sutton과 Barto, Bertsekas)을 독자에게 안내하며, 서베이의 범위에 더 상세한 내용은 불필요하다고 본다."}]}, "method": {"content": [{"type": "bullet", "text": "RL로 로봇 제어를 다루려면, 설계자는 환경 E가 로봇 주변 동역학을 포착하고, 관측이 고유수용 측정치(예: 관절 위치와 속도)를 포함하며, 제어 입력이 액추에이터 명령(예: 관절 토크 또는 목표 가속도/속도/위치)에 대응하도록 보장해야 한다."}, {"type": "bullet", "text": "시뮬레이터는 E' = phi(E) = (X', A', O', f', g', h')가 E의 디지털 근사 복제가 되도록 하는 환경 매핑 연산자 phi로 모델링된다. 제어기 설계는 E'에서 에이전트를 학습시켜 정책을 산출하고 이를 실제 E에 배치하는 것, 즉 E'-to-E(sim-to-real) 전이로 나뉜다.", "figure_refs": [3]}, {"type": "bullet", "text": "RG의 가능한 원천은: (a) phi가 비현실적이어서 E와 E'가 f/g(또는 다른 최적화 문제를 낳는 보상)에서 달라 같은 입력에 다른 관측을 내거나, (b) 학습 알고리즘 L이 phi의 작고 불가피한 오차에 견고한 정책을 출력하지 못하는 것이다."}, {"type": "bullet", "text": "전이에 앞선 필수 단계는 학습된 정책을 시뮬레이터 자체에서 시험하는 것이다. 전형적 정지 기준(누적 보상의 이동 평균이 안정되는 것)이 올바른 과제 수행을 보장하지 않으며 — 제어기가 국소 최대에 갇힐 수 있기 — 때문이다.", "figure_refs": [4]}, {"type": "bullet", "text": "저자들은 RG를 조사하는 일반 절차를 제시한다: (1) E'에서 학습; (2) 같은 E'에서 정책 시험; (3) 효과적이면 실제 E에서 시험; (4) E와 E'에서 얻은 성능을 비교.", "figure_refs": [4]}, {"type": "bullet", "text": "서베이는 (i) RG를 명시적으로 다루고, (ii) 로봇 제어 응용을 다루며, (iii) RL을 사용하는 세 조건을 동시에 만족하는 논문만 포함한다. 이들을 세 주요 범주 DR, ARL, TL로 조직하고 분류표로 요약한다."}, {"type": "bullet", "text": "DR과 ARL은 통합 형식론을 공유한다: 과정 외란과 측정 외란 집합, 그리고 매개적·오염된 전이/관측 함수를 갖는 오염 시뮬레이터로, 그 위에서 제어기를 무작위화된 환경 모델 집합 전반에 걸쳐 학습시킨다."}, {"type": "formula", "label": "Eq. (7) — corrupted simulator state transition", "latex": "\\tilde{x}'(k+1) = \\tilde{f}'_{\\xi'}\\big(\\tilde{x}'(k),\\,\\tilde{a}'(k),\\,\\zeta'(k)\\,\\big|\\,\\xi'\\big)", "description": "오염 시뮬레이터는 파라미터 $\\xi'$와 과정 외란 시퀀스 $\\zeta'(k)$를 갖는 매개적 전이 함수를 전개한다. 유사한 오염 관측(Eq. 8)과 보상(Eq. 9)이 DR과 ARL이 사용하는 모델을 완성한다."}, {"type": "bullet", "text": "서베이한 로봇 과제는 내비게이션, 조작, 보행, 동작 제어에 걸치며, Fetch 로봇, Minitaur 4족, 다섯 손가락 휴머노이드 손, 쿼드로터 같은 예시 플랫폼으로 예시된다.", "figure_refs": [5]}]}, "experiment": {"content": [{"type": "bullet", "text": "domain randomisation은 전이 가능성을 무작위화된 환경 모델 집합 전반의 학습으로 얻는 제어기 견고성의 한 형태로 취급한다. 서베이한 예로는 Sadeghi와 Levine의 비전 기반 쿼드로터 내비게이션, UCSOB 정지 한계를 갖는 SPOTA 강건 최적화 알고리즘, 그리고 빈약한 보정에도 전이되는 Peng 등의 메모리 기반 RDPG 밀기 과제가 있다.", "figure_refs": [6]}, {"type": "bullet", "text": "Tan 등 [54]은 PPO에 DR을 더해 민첩한 보행을 위한 Minitaur 4족에 적용하여, system identification으로 시뮬레이터를 개선하는 것이 필수 요건이고 지나치게 큰 관측 공간이 오히려 실제 로봇 전이를 저하시킬 수 있음을 발견했다.", "figure_refs": [5]}, {"type": "bullet", "text": "Automatic Domain Randomisation(ADR) [57]은 무작위화 분포를 적응적으로 만든다: 더 어려운 환경(새 파라미터 설정)은 성능 하한에 도달했을 때만 학습 집합에 추가되며, 루빅스 큐브 로봇 손 조작 과제에서 입증되었다."}, {"type": "bullet", "text": "순환 및 비전 기반 DR 변형이 검토되며, 시뮬레이션 및 실제 이미지를 공통 정준 도메인으로 사상하는 Randomised-to-Canonical Adaptation Network(RCAN), 그리고 시각 없는 2족 계단 통과를 위한 LSTM 정책의 Siekmann 등 지형 무작위화 — LSTM+DR이 가장 높은 과제 성공을 주는 보행 관련 결과 — 가 포함된다."}, {"type": "bullet", "text": "adversarial RL에서 에이전트는 주인공과 적대자로 구성된다. 적대자는 주인공의 누적 보상을 최소화하는 환경 교란을 탐색하여, 최악(min-max / H-무한대 유사) 최적화를 낳는다.", "figure_refs": [7]}, {"type": "formula", "label": "Eqs. (10)-(11) — adversarial RL min-max objective", "latex": "\\max_{\\pi_{P}}\\min_{\\pi_{A}} J_{\\pi_{P},\\pi_{A}}\\big(\\tilde{x}'(0)\\big) \\qquad \\pi_{L}^{*} = \\arg\\max_{\\pi_{P}}\\,\\arg\\min_{\\pi_{A}} J_{\\pi_{P},\\pi_{A}}", "description": "주인공 정책 $\\pi_{P}$는 최대화하고 적대자 정책 $\\pi_{A}$는 동일한 할인 보상을 최소화하는, 제어 이론에서 min-max(H-무한대) 최적 제어로 알려진 최악 형식화이다."}, {"type": "bullet", "text": "대표적 ARL 연구로는 OpenAI Gym 과제에서 주인공과 적대자를 교대로 학습시켜 평균과 분산에서 TRPO를 능가하는 RARL [51], 그리고 Q 가치 네트워크 앙상블에 대한 경험적 분산을 사용해 주인공을 위험 회피적으로 적대자를 위험 추구적으로 만드는 RARARL [58]이 있다."}, {"type": "bullet", "text": "transfer learning은 RG를 풀지 않고 후속적 또는 동시적 시뮬-실제 학습 단계를 통해 회피한다. 서베이는 TL 연구를 교환 정보의 종류, 전이 시점(연속 C-TL 대 일회 1-TL), 방향(단방향 또는 양방향), 그리고 실제 환경에 에이전트나 제어기가 존재하는지로 분류한다.", "figure_refs": [8]}, {"type": "bullet", "text": "TL 예로는 lateral connection을 통해 시뮬레이션 지식을 전이하는 Rusu 등의 progressive net [43], 휴머노이드 2족 보행을 위한 행동 사상을 학습하는 Grounded Action Transformation(GAT) 알고리즘 [60], 그리고 Fetch 로봇에서 연속 양방향 제어 입력 적응을 위한 역동역학 모델을 학습하는 Christiano 등 [49]이 있다."}]}, "discussion": {"content": [{"type": "bullet", "text": "고려된 과제들의 균일성 결여가 RG 관점에서 어느 해법 계열이 가장 적절한지 결정할 수 없게 한다."}, {"type": "bullet", "text": "제안된 접근의 상당 부분이 실제 sim-to-real 시나리오에서 실험적으로 평가되지 않아, 보고된 견고성이 항상 입증된 전이로 이어지지는 않는다."}, {"type": "bullet", "text": "특정 모델 외란이나 파라미터 변동에 견고한 제어기가 반드시 sim-to-real 전이 가능한 것은 아니다: 그 변동이 현실에 대한 시뮬레이터의 부정확성을 올바르게 대표하지 않으면 전이는 여전히 실패할 수 있다."}, {"type": "bullet", "text": "이는 학습 중 실제 시스템과의 상호작용이 여전히 필요함을 시사한다. TL 접근이 이 점에서 유망해 보이지만, 서베이한 TL 연구는 흔히 견고성 평가가 결여되었고 두 학습 단계 때문에 효율이 낮을 수 있다."}, {"type": "bullet", "text": "DR, ARL, TL의 아이디어를 빌린 혼합 접근이 존재한다. 예를 들어 [114]는 무작위화된 시뮬레이션에서 정책을 학습한 뒤 실세계 성능을 토대로 시뮬레이션 파라미터 분포를 적응시킨다."}, {"type": "bullet", "text": "메타 학습(Meta-RL)이 유망한 방향으로 부각된다: 과제에 대한 분포가 주어지면, 에이전트는 새 과제에서 기대 보상을 최대화하는 적응적 정책을 학습하며, 학습 중 사용된 것과 매우 다른 환경으로의 강한 일반화를 보였다."}, {"type": "bullet", "text": "PILCO는 적은 수의 실제 시도로부터 확률적 동역학 모델을 학습하여 RG를 애초에 회피하는 방법으로 제시되지만 미래 스텝 상태 불확실성을 과소평가하며, 반면 Meta-RL은 계산 요구가 크고 많은 실세계 평가를 필요로 한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "RL 로봇 제어기를 실제 환경에서 실시간으로 학습하는 것은 비용이 큰 과정이다. 시뮬레이터가 이를 완화하지만, 사용된 모델에 존재하는 근사가 학습된 제어기의 효과성을 결정하는 데 결정적 역할을 한다."}, {"type": "bullet", "text": "근본적 절충이 있다: 로봇과 그 주변의 모델이 정확할수록 제어기는 더 효과적이지만, 그것을 학습하는 계산 비용은 더 커진다."}, {"type": "bullet", "text": "제어기의 시뮬레이터 성능과 실제 로봇 성능이 다를 때 RG가 존재하며, 그 제어기는 sim-to-real 전이 불가능하다고 한다."}, {"type": "bullet", "text": "서베이는 RG에 대한 형식적 프레임워크를 제공하고 가장 관련 있는 기법들을 검토하여, 이를 domain randomisation, adversarial reinforcement learning, transfer learning으로 분류하고, 각각을 사용된 알고리즘·관련 과제·평가 방법 측면에서 기술했다."}, {"type": "bullet", "text": "검토된 각 접근은 특정 과제에 맞춰진 듯 보이며, 다른 잠재적으로 상이한 과제로의 적용 가능성은 불확실하다. 효과적 sim-to-real 전이 가능성을 보장할 수 있는 일반적 과제 독립 접근이 여전히 없다."}, {"type": "bullet", "text": "중요한 미해결 문제는 RG를 드러내고 정량화할 수 있는 적절한 지표를 제공하는 것으로, 이는 기법 간 체계적 비교를 가능하게 하고 RG 측정치를 RG 인식 제어기의 최적화 목적으로 직접 사용할 수 있게 한다."}, {"type": "bullet", "text": "또 다른 중요한 미해결 문제는 개발된 접근들의 샘플 효율이다: RL은 매우 데이터 집약적이며, 서베이한 패러다임 — 특히 서로 다른 환경 도메인과의 상호작용을 수반하는 것들 — 이 이 문제를 더욱 악화시켜 실용적 적용성을 제한한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "서베이한 연구 전반의 과제 이질성 탓에 reality gap을 닫는 데 어느 해법 계열이 가장 적절한지 결정할 수 없다.", "source_quote": "the lack of uniformity of the considered tasks does not allow to determine which solution is the more appropriate in terms of the RG.", "source_section": "discussion"}, {"claim": "서베이한 접근의 상당 부분이 실제 sim-to-real 시나리오에서 검증된 적이 없고 오직 시뮬레이션에서만 검증되었다.", "source_quote": "a considerable fraction of the proposed approaches were not experimentally evaluated in an actual sim-to-real scenario.", "source_section": "discussion"}, {"claim": "서베이한 논문들이 결과를 균일한 방식으로 보고하지 않아, 기법 간 체계적 정량 비교가 불가능하다.", "source_quote": "the surveyed articles do not present their results in a way that permit a systematic comparison.", "source_section": "method"}, {"claim": "특정 모델 외란이나 파라미터 변동에 견고한 제어기가 반드시 sim-to-real 전이 가능한 것은 아니다.", "source_quote": "A controller robust to certain model disturbances or parametric variations, is not necessarily sim-to-real transferable.", "source_section": "discussion"}, {"claim": "transfer learning 접근은 연속적이거나 동시적인 두 학습 단계를 요하기 때문에 효율이 낮을 수 있다.", "source_quote": "since TL requires two successive (or simultaneous) training phases, it may be exhibit low efficiency.", "source_section": "discussion"}], "future_works": [{"claim": "메타 학습(Meta-RL)이 시뮬레이션에서 얻은 경험을 실제 시스템에 빠르게 적응시키는 유망한 방향으로 제안된다.", "source_quote": "A promising research direction to tackle the RG problem could be the meta-learning strategy application in RL, in order to quickly adapt experience gained in simulation on the real system.", "source_section": "discussion"}, {"claim": "PILCO(Probabilistic Inference for Learning Control)가 적은 수의 실제 상호작용으로 모델을 학습하여 RG를 회피하는 방법으로 부각된다.", "source_quote": "Another promising solution to avoid a direct RL training on the real robot seems to be the Probabilistic Inference for Learning Control (PILCO) proposed by [118].", "source_section": "discussion"}, {"claim": "주요 미해결 문제는 reality gap을 드러내고 정량화할 수 있는 적절한 지표를 제공하여, 체계적 비교와 RG를 최적화 목적으로 사용하는 것을 가능하게 하는 것이다.", "source_quote": "we believe that a significant open problem is that of providing a proper index able to reveal and quantify the RG.", "source_section": "conclusion"}, {"claim": "RL이 매우 데이터 집약적이므로, 개발된 접근들의 샘플 효율 개선이 또 다른 중요한 미해결 문제로 식별된다.", "source_quote": "Another significant open problem is the sample efficiency of the developed approaches. As highlighted in [121], RL is very data-intensive.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["로봇 제어기의 실세계 RL 학습은 느리고, 시행착오적 성격 탓에 로봇이나 환경을 손상시킬 안전하지 않은 행동을 낳을 수 있다.", "시뮬레이터는 reality gap을 도입한다: 근사 시뮬레이터에서 학습한 제어기가 실제 로봇으로 전이될 때 저하되거나 실패한다.", "제안된 대부분의 RG 해법은 과제 의존적이고 단일 과제에서 시험되어, 일반화가 보장되지 않고 접근들을 비교할 수 없다.", "RL 기반 로봇 제어에서 RG 문제가 어떻게 풀리는지에 대한 체계적이고 심층적인 그림이 없다. 유일한 이전 서베이는 개략만 제공한다.", "주요 RG 접근들 간의 차이, 장점, 단점이 명확히 서술되어 있지 않다."], "addressed_by_this_work": ["RL 기반 로봇 제어를 위한 통합적 제어 시스템 형식론과 환경 매핑 연산자 phi를 통한 reality gap의 형식적 정의를 제공한다.", "문헌을 세 접근 계열(DR, ARL, TL)로 체계화하고, 각각을 공통 형식론 안에서 정의하며, 논문들을 알고리즘·과제·시뮬레이터·sim-to-sim/sim-to-real 평가로 표로 정리한다.", "DR, ARL, TL의 상대적 강점과 약점을 명확히 하고, RG의 존재를 시험하는 일반 절차를 제공한다."], "remaining_unresolved": ["효과적 sim-to-real 전이 가능성을 보장하는 일반적이고 과제 독립적인 접근이 여전히 없다.", "RG를 정량화할 적절한 지표/지수가 없어, 기법들의 완전 체계적 비교가 여전히 불가능하다.", "RL 접근의 샘플 효율/데이터 집약성이 여전히 주요 장애로 남으며, 다중 도메인 학습 패러다임이 이를 악화시킨다.", "견고성이 전이 가능성을 함의하지 않으므로, 학습 중 실제 시스템과의 상호작용이 여전히 필요하다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

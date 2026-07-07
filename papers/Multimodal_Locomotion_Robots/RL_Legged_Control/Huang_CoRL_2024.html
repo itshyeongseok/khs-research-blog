@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>DiffuseLoco: Real-Time Legged Locomotion Control with Diffusion from Offline Datasets</title>
+    <meta name="keywords" content="diffusion policy, offline learning, legged locomotion, multi-skill control, real-time control, behavior cloning, sim-to-real transfer, receding horizon control">
+    <meta name="paper-authors" content="Xiaoyu Huang, Yufeng Chi, Ruofeng Wang, Zhongyu Li, Xue Bin Peng, Sophia Shao, Borivoje Nikolic, Koushil Sreenath">
+    <meta name="paper-journal" content="Conference on Robot Learning (CoRL) 2024 (arXiv:2404.19264v1, Apr 2024) · codebase and checkpoints to be open-sourced upon acceptance">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">DiffuseLoco: Real-Time Legged Locomotion Control with Diffusion from Offline Datasets</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Xiaoyu Huang, Yufeng Chi, Ruofeng Wang, Zhongyu Li, Xue Bin Peng, Sophia Shao, Borivoje Nikolic, Koushil Sreenath</div>
+            <div class="journal">Conference on Robot Learning (CoRL) 2024 (arXiv:2404.19264v1, Apr 2024) · codebase and checkpoints to be open-sourced upon acceptance</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 오프라인 데이터셋만으로 다중 스킬 확산(diffusion) 기반 보행 정책을 학습하여, 실제 다리형 로봇에서 다양한 민첩한 스킬의 실시간 제어를 가능하게 하는 프레임워크 <span class="term">DiffuseLoco</span>를 제시한다. 단일 정책이 네 가지 사족 스킬(트로팅, 페이싱, 호핑, 바운싱)과 민첩한 이족 보행 스킬을 학습하고, 하드웨어로 제로샷(zero-shot) 전이되며, 데이터에 명시적으로 존재하지 않는 스킬 간에도 자유롭게 전환한다. 핵심 구조는 지연된 고유수용성(proprioceptive) 상태 및 목표 이력에 조건화되어 관절 수준 PD 목표 시퀀스를 노이즈 제거하는 트랜스포머 기반 <span class="term">잡음 제거 확산 확률 모델(Denoising Diffusion Probabilistic Model, DDPM)</span>이다. 두 가지 설계 선택이 실시간 제어를 가능하게 한다: 빠른 재계획을 위한 <span class="term">후퇴 지평 제어(Receding Horizon Control, RHC)</span>와, 현재 상태가 도착하기 전에 추론을 시작하여 대형 모델 지연을 숨기는 지연 입력 방식이다. 실세계 벤치마크에서 DiffuseLoco는 넘어지지 않고 모든 속도 추적 시험을 완료한 유일한 방법으로, 안정성과 추적 오차 모두에서 다중 스킬 RL(AMP)과 비확산 행동 복제 베이스라인을 능가한다. 다중모드 로봇의 RL 보행 제어 서브시스템에 대해, 이 연구는 여러 단일 스킬 RL 전문가로부터의 오프라인 데이터가 온라인 롤아웃이나 보상 엔지니어링 없이 다중 모드 보행 거동을 포착하는 하나의 표현력 있는 정책으로 증류될 수 있음을 보여준다.</div>
+            <div class="keywords"><span class="keyword-chip">diffusion policy</span><span class="keyword-chip">offline learning</span><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">multi-skill control</span><span class="keyword-chip">real-time control</span><span class="keyword-chip">behavior cloning</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">receding horizon control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">대규모 오프라인 데이터셋으로부터의 학습은 비전, 언어, 로봇 조작에서 돌파구를 이끌었지만, 다리형 보행, 특히 하나의 정책에 여러 스킬을 학습하기 위한 학습 확장은 온라인 롤아웃의 비용 때문에 온라인 RL에는 어렵다. 대부분의 기존 보행 제어기는 특화된 단일 스킬 모델이며, 안정적인 이족 보행과 사족 호핑 같은 다양한 민첩 스킬을 하나의 정책에 결합하는 것은 시연된 적이 없었다. DiffuseLoco는 두 가지 과제를 동시에 해결하는 것을 제안한다: 다양한 데이터 소스로부터의 오프라인 학습과 다양한 스킬 집합의 학습이다. 수동 스킬 레이블링 없이 다양한 오프라인 데이터셋의 다중 모드성을 포착하기 위해 표현력 있는 확산 모델을 사용한 뒤, 학습된 제어기를 실제 다리형 로봇에서 강건한 실시간 제어를 위해 배치한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 세 가지 흐름을 검토한다: 보행에서의 다중 스킬 RL, 보행 제어를 위한 오프라인 학습, 그리고 로봇공학에서의 확산 모델이다. 다중 스킬 RL은 고수준 계획이나 증류로 조정되는 별도 정책을 학습하거나, 매개화된 동작과 동작 모방(보상 정형 또는 적대적 모방)을 통해 직접 학습하지만, 안정적 이족 보행과 사족 호핑 같은 다양한 민첩 스킬을 하나의 정책에 결합하는 것은 보여지지 않았다. 오프라인 학습은 더 나은 확장성과 데이터 재사용을 제공하지만, 기존 보행 연구는 지나치게 단순화된 시뮬레이션 과제나 단일 스킬에 국한되었다. 확산 모델은 조작, 계획, 목표 생성에 적용되었지만, 다리형 로봇을 위한 고빈도 저수준 제어는 대체로 미탐구로 남아 있었다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">DiffuseLoco는 세 단계 프레임워크이다: 데이터 소스, 학습, 배치. (임의의 방법으로 얻은) 소스 단일 스킬 정책을 롤아웃하여 소스 불가지론적(source-agnostic) 고유수용성 상태, 관절 수준 PD 목표 행동, 목표 튜플을 오프라인 데이터셋으로 수집한다. 그다음 트랜스포머 기반 DDPM을 학습하여, 단순화된 MSE 잡음 예측 목적함수를 사용해 지연된 상태 및 목표 이력에 조건화된 행동 시퀀스를 노이즈 제거한다. 배치 시 정책은 제로샷으로 전이되어 후퇴 지평 제어 방식으로 실행된다: 미래 행동 시퀀스를 노이즈 제거하지만 즉각적인 행동만 실행하고, 새로운 상태로 빠르게 재계획한다. 대형 모델 지연에도 30-50 Hz 제어 요구를 충족하기 위해, 지연 입력은 현재 상태가 도착하기 전에 추론을 시작하게 하고, (DDIM 대신 유지된) DDPM은 안정적 실시간 제어를 위해 행동 정확도를 보존한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실세계 평가는 두 질문에 답한다: DiffuseLoco가 다양한 시연 소스로부터 학습될 수 있는가, 그리고 다양한 스킬 집합을 통합할 수 있는가. 단일 사족 정책이 AMP, CPG 곡선, 대칭 증강으로 학습된 소스로부터 다섯 스킬(트로팅, 페이싱, 호핑, 바운싱, 민첩한 이족 보행)을 학습하고, 하드웨어로 제로샷 전이되어, 5회 연속 실행에서 실패 없이 스킬 간에 자유롭게 전환한다. 다섯 가지 속도/선회 명령 하에 4미터 보행을 측정하는 정량 벤치마크는 다중 스킬 RL(AMP, 이력 포함 AMP)과 비확산 BC 베이스라인(자기회귀 트랜스포머 TF, RHC 포함 TF) 대비 안정성(무낙상 시험)과 속도 추적 오차 E_v를 측정한다. DiffuseLoco는 넘어지지 않고 모든 시험을 완료한 유일한 방법으로, AMP를 무력화하는 모드 붕괴를 피하고, RHC 포함 TF보다 평균 38.97% 낮은 추적 오차를 달성한다. 절제 실험은 RHC, 도메인 무작위화, DDIM 대비 DDPM 샘플링, 트랜스포머 백본이 각각 기여함을 확인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">DiffuseLoco는 다리형 보행 학습에 대한 확장 가능한 접근을 시연한다: 제어를 표현력 있는 확산 백본을 가진 오프라인 모방으로 취급함으로써, 다른 관측/행동 공간을 가진 다양한 RL 알고리즘의 시연을 흡수하고 동일 명령 하에서 여러 모드를 실행한다. 다른 다중 스킬 정책과 비교하여, 비확산 BC보다 더 부드러운 행동과 더 나은 sim-to-real 전이를 제공하고 AMP 같은 적대적 방법의 모드 붕괴를 피한다. 대규모 오프라인 데이터셋 패러다임은 시뮬레이션에 묶인 온라인 RL을 넘어 확장 가능한 실세계 데이터 수집과 학습으로 가는 실용적 경로를 제공한다. 저자들은 다른 로봇 형태로의 적응과 비전/언어 목표의 통합을 유망한 확장으로 가정하면서, 강건성이 여전히 데이터셋 다양성에 의존함을 인정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">DiffuseLoco는 다중 모드 오프라인 데이터셋으로부터 다양한 민첩 다리형 보행 스킬을 학습하고 실세계 로봇으로 실시간으로 강건하게 전이하는 확장 가능한 학습 프레임워크이다. 확산 모델을 활용하여 오프라인 데이터의 다중 모드성을 포착함으로써, 이족 보행과 사족 스킬을 하나의 정책 안에 결합한 최첨단 제어기를 학습하고 그들 사이를 자유롭게 전환한다. 처음으로, 저자들은 그러한 다양한 오프라인 학습 보행 정책을 실세계 응용으로 제로샷 전이하는 것이 실현 가능함을 보여주어, 데이터셋을 지속적으로 확장하고 다양한 데이터 소스로부터의 다양한 스킬을 학습 기반 제어를 위해 통합할 가능성을 연다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "대규모 오프라인 데이터셋으로부터의 학습은 컴퓨터 비전, 자연어 처리, 로봇 조작에서 돌파구를 이끌었으며, 여기서 모델과 데이터의 확장은 성능과 일반화를 향상시킨다."}, {"type": "bullet", "text": "이러한 영역은 일반적으로 저차원 행동 공간(예: 엔드이펙터 궤적), 낮은 재계획 빈도, 그리고 로봇 팔이나 자동차 같은 본질적으로 안정한 시스템을 수반한다."}, {"type": "bullet", "text": "다리형 로봇은 더 높은 자유도와 더 복잡한 동역학을 가지므로, 데이터 기반 보행은 주로 온라인 강화학습에 의존해 왔는데, 이는 온라인 롤아웃 요구 때문에 큰 모델과 데이터셋 모두로 확장하기 어렵다."}, {"type": "bullet", "text": "대부분의 기존 연구는 특화된 단일 스킬 모델을 사용한다. 다양한 도전적 보행 스킬 집합을 재현하는 단일 모델로의 확장은 여전히 열린 문제로 남아 있다."}, {"type": "bullet", "text": "DiffuseLoco는 두 가지 과제를 함께 다룬다: 다양한 데이터 소스로부터의 오프라인 학습과 다양한 스킬 집합을 학습하는 능력이며, 수동 스킬 레이블링 없이 다중 모드성을 학습하기 위해 표현력 있는 확산 모델을 사용한다.", "figure_refs": [1, 2]}, {"type": "bullet", "text": "기여 1: 민첩한 이족 보행과 다양한 사족 스킬을 단일 정책 안에서 학습하고 실제 사족 로봇에 제로샷으로 배치되는 최첨단 다중 스킬 제어기."}, {"type": "bullet", "text": "기여 2: 실시간 제어를 위해 다양한 오프라인 데이터셋으로부터 직접 학습하는 새로운 프레임워크로, 실세계 시나리오에서 보행을 위한 대규모 오프라인 학습의 실용적 이점을 보여준다."}, {"type": "bullet", "text": "기여 3: 베이스라인보다 높은 안정성과 낮은 속도 추적 오차를 보이는 광범위한 실세계 검증으로, 다중 모드 거동, 스킬 전환, 그리고 다양한 지면 마찰의 지형 전반에 걸친 강건성을 포함한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "모델-프리 RL은 민첩한 단일 스킬 보행(이족에서 점프, 달리기, 급선회; 사족에서 두 발 보행)을 만들어냈지만, 이들은 단일 스킬로 학습되며 대규모 다중 스킬 학습으로 확장 불가능하게 남아 있다."}, {"type": "bullet", "text": "고수준 계획이나 증류(예: DAgger)로 조정되는 별도 정책을 학습하여 다중 스킬 보행을 학습하는 것은 조정의 어려움과 온라인 증류 비용을 겪어, 스킬이 늘어남에 따라 확장성을 제한한다."}, {"type": "bullet", "text": "처음부터 직접 다중 스킬 학습하는 것은 매개화된 동작이나 보상 정형/적대적 모방을 통한 동작 모방을 사용하지만, 모델 기반 궤적 최적화나 잘 학습된 전문가 참조를 필요로 하며 온라인 RL에서 표현력이 제한된다."}, {"type": "bullet", "text": "안정적 이족 보행과 사족 호핑 같은 다양한 민첩 스킬의 조합을 단일 정책에서 다루는 것은 기존 RL 프레임워크에 의해 아직 시연되지 않았다."}, {"type": "bullet", "text": "오프라인 학습은 더 나은 확장성, 더 단순한 학습 방식, 데이터 재사용을 제공하지만, 기존 보행 연구는 지나치게 단순화된 시뮬레이션 과제(BC, 오프라인 RL)에 집중하거나 온라인 학습을 부트스트랩하는 데에만 오프라인 데이터를 사용했다."}, {"type": "bullet", "text": "최근의 오프라인 학습 휴머노이드 연구는 단일 보행 스킬에 국한되어, 더 큰 규모에서 완전히 오프라인 데이터셋으로부터 학습하는 것이 다리형 제어에 대해 입증되지 않은 채로 남았다."}, {"type": "bullet", "text": "로봇공학의 확산 모델은 조작, 궤적 및 안전 계획, 목표 생성, 보상 모델에 적용되었지만, 대부분 저차원 행동 공간과 낮은(약 10 Hz) 재계획 빈도의 시뮬레이션에서 적용되었다."}, {"type": "bullet", "text": "다리형 로봇의 고빈도 저수준 제어에 확산 모델을 사용하는 것은 여전히 제한적이다. 가장 관련된 기존 연구는 더 단순한 시뮬레이션 환경에서 온라인 RL을 사용한 반면, DiffuseLoco는 실세계 고빈도 제어를 목표로 한다."}]}, "method": {"content": [{"type": "bullet", "text": "1단계(데이터 소스): 스킬 불가지론적 목표(예: 속도 명령, 베이스 높이)에 조건화된 단일 스킬 소스 정책을 롤아웃하여, 소스 불가지론적 고유수용성 상태 s_t와 관절 수준 PD 목표 행동 a_t를 목표 g_t와 함께 오프라인 데이터셋에 기록한다.", "figure_refs": [2]}, {"type": "bullet", "text": "소스 정책은 저수준 제어 빈도가 일치하는 한, 크게 다른 관측/행동 공간을 가진 다양한 방법으로 얻을 수 있다. 여기서는 AMP, CPG 곡선, 대칭 증강 RL로부터의 저렴한 시뮬레이션 데이터를 예시 소스로 사용한다.", "figure_refs": [4]}, {"type": "formula", "label": "식 (1) — DDPM 역방향(확률적 랑주뱅 동역학) 단계", "latex": "x^{k-1} = \\alpha\\left(x^{k} - \\gamma\\,\\epsilon_{\\theta}(x^{k},k) + \\mathcal{N}(0,\\sigma^{2}I)\\right)", "description": "생성 과정은 반복적 노이즈 제거로 모델링된다: alpha는 노이즈 추가 속도, gamma는 노이즈 제거 강도, sigma는 각 단계에서 DDPM 스케줄러로부터 주입되는 노이즈 수준을 조절한다."}, {"type": "formula", "label": "식 (2) — RHC 조건부 행동 시퀀스 노이즈 제거", "latex": "a^{k-1}_{t:t+n} = \\alpha\\left(a^{k}_{t:t+n} - \\gamma\\,\\epsilon_{\\theta}(a^{k}_{t-h-1:t+n}, s_{t-h:t}, g_{t-h:t}, k) + \\mathcal{N}(0,\\sigma^{2}I)\\right)", "description": "예측된 행동 윈도우 a_{t:t+n}의 노이즈 제거는 상태 이력 s_{t-h:t}, 목표 이력 g_{t-h:t}, 확산 단계 k에 조건화된다. 즉각적인 행동 a_t만 관절 수준 PD 목표로 실행된다."}, {"type": "formula", "label": "식 (3) — 단순화된 DDPM 학습 목적함수", "latex": "l = \\mathrm{MSE}\\left(\\epsilon_{k}, \\epsilon_{\\theta}(a_{t-h-1:t+n} + \\epsilon_{k}, s_{t-h:t}, g_{t-h:t}, k)\\right)", "description": "트랜스포머 노이즈 제거기는 상태 및 목표 이력에 조건화되어 행동 시퀀스에 추가된 샘플 노이즈 epsilon_k를 회귀하도록 학습된다. 즉, 잡음 예측을 통한 종단간(end-to-end) 모방이다."}, {"type": "bullet", "text": "상태와 목표를 하나의 임베딩으로 연결하는 대신, 별도의 MLP 인코더가 트랜스포머의 교차 어텐션에 입력되어, 정책이 로봇 I/O 대 정적 목표에 다른 어텐션 가중치를 할당하게 한다. 이전 행동(I/O 이력)을 포함하면 시스템 식별과 상태 추정에 도움이 된다."}, {"type": "bullet", "text": "후퇴 지평 제어는 n개의 미래 행동 시퀀스를 예측하지만 즉각적인 행동 a_t만 실행한 뒤 새로운 로봇 상태로 재계획하여, 사전 계산된 행동 시퀀스를 고빈도로 보간하기보다 빠른 재계획을 가능하게 한다.", "figure_refs": [3]}, {"type": "bullet", "text": "지연 입력(이전 시간단계의 s, a, g 사용)은 현재 상태 s_t가 도착하기 전에 추론을 시작하여 트랜스포머 지연을 숨겨 30-50 Hz 제어를 충족한다. DDIM의 덜 정확한 출력이 실시간 다리형 제어에서 누적 오차와 분포 외(out-of-distribution) 실패를 증가시키기 때문에 DDPM이 DDIM보다 유지된다."}]}, "experiment": {"content": [{"type": "bullet", "text": "단일 사족 정책이 이질적 소스로부터 다섯 스킬을 학습한다: AMP를 통한 트로팅과 페이싱, 공칭 CPG 곡선을 통한 호핑과 바운싱, 대칭 증강을 통한 민첩한 이족 보행이며, 그다음 실제 하드웨어로 제로샷 전이된다.", "figure_refs": [4]}, {"type": "bullet", "text": "DiffuseLoco는 데이터셋에 전환으로 존재하지 않는 스킬 간에도(예: 호핑에서 이족 보행으로 페이싱으로) 5회 연속 실행에서 실패 없이 자유롭게 전환하며, 동일 명령 하에서 트로팅과 페이싱을 모두 수행하고 외란이 있을 때만 전환할 수 있다.", "figure_refs": [1, 5]}, {"type": "bullet", "text": "MuJoCo의 사람 크기 Cassie 이족 로봇에서, 통합된 걷기+달리기 데이터셋으로 학습하면 두 스킬을 모두 학습하고 특정 전환 데이터 없이 걷기에서 달리기로 부드럽게 전환하는 단일 정책이 생성된다."}, {"type": "bullet", "text": "실세계 벤치마크는 다섯 명령(0.3/0.5/0.7 m/s 전진, 0.3 rad/s 좌·우 선회) 하에 4미터를 걸으며, 안정성(무낙상 시험)과 속도 추적 오차 E_v를 5회 반복의 평균과 표준편차로 보고한다.", "figure_refs": [8]}, {"type": "bullet", "text": "DiffuseLoco는 모든 베이스라인 중 넘어지지 않고 모든 시험을 안정적으로 완료한 유일한 방법이다. RL 기반 AMP와 이력 포함 AMP는 저속(0.3 m/s에서 명령보다 90% 이상 느림)과 고속(0.7 m/s에서 0% 및 20% 안정성)에서 어려움을 겪는다."}, {"type": "bullet", "text": "AMP의 실패는 GAN 방식의 모드 붕괴에서 비롯된다: 액터가 시뮬레이션에 과적합하여 실세계에서 학습 초기 거동으로 회귀하는 반면, DiffuseLoco는 실현 불가능한 행동으로 회귀하지 않고 전문가 시연 내에서 일반화하여 평균 10.40% 적은 몸체 진동을 달성한다."}, {"type": "bullet", "text": "비확산 BC 대비, 단일 단계 TF는 떨리고 0.7 m/s 전진 및 좌선회 과제에서 실패한다. RHC 포함 TF는 학습 행동 궤적에 과적합(높은 평가 손실)하여 0.7 m/s에서 40% 안정성으로 떨어지는 반면, DiffuseLoco는 RHC 포함 TF보다 평균 38.97% 낮은 추적 오차를 달성한다.", "figure_refs": [7]}, {"type": "bullet", "text": "절제 실험은 RHC가 필수적이고(RHC 없는 DL은 떨리고 0.7 m/s에서 실패), 도메인 무작위화가 44.26%의 강건성/안정성을 추가하며, DDIM 변형이 안정성을 악화시키고 추적 오차를 50.69%/42.04% 높이고, U-Net 백본이 불안정하며 최악의 추적을 보임을 보여주어, 트랜스포머 선택을 확인한다.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "본 연구는 가장 확장 가능한 접근인 오프라인 데이터셋으로부터의 학습을 활용하여 다리형 보행 학습의 확장성에 집중하며, 데이터 소스의 다재다능성과 스킬의 다중 모드성에 주의를 기울인다."}, {"type": "bullet", "text": "표현력 있는 확산 백본은 잠재적으로 다른 관측 및 행동 공간을 가진 다양한 기존 RL 알고리즘의 시연을 흡수하고, 동일 명령 하에서 다른 모드(예: 트로팅 대 페이싱)를 실행한다."}, {"type": "bullet", "text": "다섯 가지 다양한 스킬은 일반주의 보행 제어기를 향한 DiffuseLoco의 확장성에 대한 증거 역할을 하며, 그 잠재력은 시연된 스킬을 훨씬 넘어선다고 주장된다."}, {"type": "bullet", "text": "다른 다중 스킬 정책 대비, DiffuseLoco는 비확산 BC보다 더 부드러운 행동과 향상된 안정성·속도 추적을 보이고, 생성자-판별자 모드 붕괴로 큰 격차를 겪는 AMP보다 더 나은 sim-to-real 전이를 보인다."}, {"type": "bullet", "text": "대규모 오프라인 데이터셋 패러다임은 대부분 시뮬레이션에 의존하는 온라인 학습과 달리, 확장 가능한 실세계 데이터 수집과 학습에 실용적 영감을 제공한다."}, {"type": "bullet", "text": "저자들은 DiffuseLoco가 다른 로봇 형태를 담은 데이터셋에 적응하여 더 폭넓은 배치와 더 나은 일반화를 가능하게 할 수 있다고 가정한다."}, {"type": "bullet", "text": "조작에서 인기 있는 것처럼, 비전과 언어 지시를 목표 조건부 데이터셋에 통합하여 다재다능성과 적용성을 더욱 향상시킬 것을 제안한다."}, {"type": "bullet", "text": "강건성은 단일 스킬 RL보다 못하지만, 더 다양하고 잠재적으로 실세계인 데이터로 데이터셋을 확장하고 제어 특화 가속 샘플링을 향후 과제로 추가함으로써 점진적으로 향상될 것으로 기대된다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "DiffuseLoco는 다중 모드 오프라인 데이터셋으로부터 다양한 민첩 다리형 보행 스킬을 학습하여 실세계 로봇으로 실시간으로 강건하게 전이하는 확장 가능한 학습 프레임워크로 제시된다."}, {"type": "bullet", "text": "오프라인 데이터의 다중 모드성을 포착하기 위해 확산 모델을 활용하여, 이족 보행과 사족 보행 스킬을 하나의 정책 안에 결합한 최첨단 제어기를 학습하고 스킬 간에 자유롭게 전환한다."}, {"type": "bullet", "text": "처음으로, 본 연구는 정적 데이터셋으로부터 학습된 그러한 다양한 보행 정책을 실세계 응용으로 제로샷 전이하는 것이 실현 가능함을 보여준다."}, {"type": "bullet", "text": "후퇴 지평 제어와 지연 입력을 포함하여 실시간 제어에 맞춘 설계 선택은 대형 확산 모델이 로봇에 장착된 엣지 컴퓨팅 장치에서 실행되게 한다."}, {"type": "bullet", "text": "광범위한 실세계 벤치마킹은 기존 RL 및 비확산 행동 복제 베이스라인보다 더 나은 안정성과 속도 추적 성능을 보이며, 포괄적인 절제 연구를 통해 검증된다."}, {"type": "bullet", "text": "이 접근법은 데이터셋의 지속적 확장과 다양한 데이터 소스로부터의 다양한 스킬 통합을 허용하는 확장 가능하고 다재다능한 프레임워크를 제공한다."}, {"type": "bullet", "text": "이는 크고 표현력 있는 모델과 다양한 오프라인 데이터셋을 통해 학습 기반 다리형 보행 제어기를 확장하는 새로운 가능성을 연다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "DiffuseLoco의 강건성은 최첨단 단일 스킬 RL 정책보다 낮다.", "source_quote": "Admittedly, DiffuseLoco's robustness is subpar compared to the state-of-the-art single-skill RL policy.", "source_section": "experiment"}, {"claim": "학습 및 배치 중 스킬 정보가 종종 확장 불가능하거나 이용 불가능하기 때문에, 프레임워크의 정량 벤치마크는 무조건부 다중 스킬 RL과 비확산 BC 베이스라인으로 제한된다.", "source_quote": "Skill information are often unscalable or unavailable during training and deployment. For a boarder range of applicability, we limit the scope of comparisons within not-skill-conditioned multi-skill RL and non-diffusion BC baselines.", "source_section": "experiment"}, {"claim": "여러 노이즈 제거 단계를 가진 대형 확산 모델은 일반적인 제어 빈도를 초과하는 추론 지연을 발생시켜, 실시간으로 실행하려면 지연 입력 예측과 가속 기법이 필요하다.", "source_quote": "since the diffusion model has a large number of parameters and the diffusion process involves multiple denoising steps, we must accelerate the inference to be faster than the control frequency to achieve this RHC manner.", "source_section": "method"}, {"claim": "한 시간단계 이상의 입력을 지연시켜 방법을 확장하는 것은 최근 상태 피드백의 부재 때문에 학습을 더 어렵게 만든다.", "source_quote": "more delayed steps will result in more challenging learning complexity because of the lack of recent state feedback.", "source_section": "method"}], "future_works": [{"claim": "강건성을 점진적으로 향상시키기 위해 더 다양하고 잠재적으로 실세계인 데이터, 또는 결함 복구 거동으로 오프라인 데이터셋을 확장한다.", "source_quote": "By expanding our dataset with more diverse, potentially real-world data, we anticipate DiffuseLoco to achieve better robustness progressively.", "source_section": "discussion"}, {"claim": "안정성과 성능을 손상시키지 않고 확산 모델을 가속하기 위한 제어 특화 샘플링 기법을 개발한다.", "source_quote": "An interesting future work direction could be on control-specific sampling techniques to accelerate diffusion models without compromising stability and performance.", "source_section": "discussion"}, {"claim": "더 폭넓은 배치와 더 나은 일반화를 허용하기 위해 다른 로봇 형태를 담은 데이터셋에 DiffuseLoco를 적응시킨다.", "source_quote": "we also hypothesize that DiffuseLoco could adapt to datasets containing different robot morphologies, thus allowing for broader deployment and better generalization.", "source_section": "discussion"}, {"claim": "프레임워크의 다재다능성과 적용성을 향상시키기 위해 비전과 언어 지시를 목표 조건부 데이터셋에 통합한다.", "source_quote": "integrating vision and language instructions into the goal-conditioning dataset could further enhance DiffuseLoco's versatility and applicability in future works.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["온라인 강화학습은 온라인 롤아웃을 필요로 하기 때문에 큰 모델과 큰 데이터셋 모두로 확장하기 어렵고, 대부분의 기존 보행 연구는 여러 스킬로 일반화하지 못하는 특화된 단일 스킬 모델을 사용한다.", "안정적 이족 보행과 사족 호핑 같은 다양한 민첩 스킬을 온라인 RL로 단일 정책에 결합하는 것은 여전히 열린 문제이며, 기존 다중 스킬 RL은 추가적인 고수준 계획, 온라인 증류, 또는 복잡한 보상/적대적 모방을 필요로 한다.", "보행에서의 기존 오프라인 학습 연구는 대체로 지나치게 단순화된 시뮬레이션 과제나 단일 보행 스킬에 국한되어, 다양한 민첩 스킬 집합이 순수하게 오프라인 데이터로부터 학습되고 고빈도 저수준 제어로 실제 하드웨어에 제로샷 전이될 수 있는지가 열린 채로 남았다."], "addressed_by_this_work": ["DiffuseLoco는 정책 학습 중 온라인 롤아웃 없이 오프라인 데이터셋으로부터 직접 최첨단 다섯 스킬 정책(네 가지 사족 스킬과 민첩한 이족 보행)을 학습하고, 이를 실제 사족 하드웨어로 제로샷 전이한다.", "표현력 있는 트랜스포머 기반 DDPM이 다른 관측/행동 공간을 가진 서로 다른 RL 소스로부터의 혼합 오프라인 데이터의 다중 모드성을 포착하여, 단일 정책이 유효한 스킬을 수행하고 데이터에 전환으로 존재하지 않는 스킬 간에도 자유롭게 전환하며, 적대적(AMP) 정책에서 보이는 모드 붕괴를 피한다.", "후퇴 지평 제어에 지연 입력 예측 방식과 샘플링/가속 기법을 더하여 대형 확산 모델이 로봇에 장착된 엣지 장치에서 30 Hz로 실행되게 하며, 넘어지지 않고 모든 실세계 속도 추적 시험을 완료한 유일한 베이스라인을 달성한다."], "remaining_unresolved": ["강건성은 여전히 전용 단일 스킬 RL 정책에 뒤처지며, 이를 향상시키는 것은 현재 더 다양하거나 실세계인 오프라인 데이터의 수집에 의존한다.", "실시간 배치는 추론 가속과 지연 입력에 달려 있다. 더 깊은 입력 지연이나 더 큰 모델은 최근 상태 피드백 결여로 학습 난이도를 높인다.", "시연된 스킬과 형태는 수집된 데이터셋에 국한되며, 형태 간 전이와 비전/언어 목표 조건화는 향후 과제를 위한 가정으로 남겨진다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

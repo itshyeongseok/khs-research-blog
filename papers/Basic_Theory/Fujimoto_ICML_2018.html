@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Addressing Function Approximation Error in Actor-Critic Methods</title>
+    <meta name="keywords" content="twin delayed DDPG, TD3, overestimation bias, clipped double Q-learning, delayed policy updates, target policy smoothing, deterministic policy gradient, actor-critic, continuous control">
+    <meta name="paper-authors" content="Scott Fujimoto, Herke van Hoof, David Meger">
+    <meta name="paper-journal" content="Proceedings of the 35th International Conference on Machine Learning (ICML), PMLR 80:1587-1596, 2018 (arXiv:1802.09477) · DOI: 10.48550/arXiv.1802.09477">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Addressing Function Approximation Error in Actor-Critic Methods</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Scott Fujimoto, Herke van Hoof, David Meger</div>
+            <div class="journal">Proceedings of the 35th International Conference on Machine Learning (ICML), PMLR 80:1587-1596, 2018 (arXiv:1802.09477) · DOI: 10.48550/arXiv.1802.09477</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 연속 제어를 위한 액터-크리틱 방법의 <span class="term">함수 근사 오차(function approximation error)</span>를 진단하고 고치며, <span class="term">DDPG</span> 위에 구축된 <span class="term">Twin Delayed Deep Deterministic policy gradient (TD3)</span> 알고리즘을 소개한다. 저자들은 먼저 결정론적 정책 경사가 <span class="term">과대추정 편향(overestimation bias)</span> — 이산 Q-학습에서 알려진 최대화 편향과 동일 — 을 겪음을 증명하고, 표준 이산 행동 해법(Double DQN)이 느리게 변하는 액터가 현재와 목표 크리틱을 너무 유사하게 유지하기 때문에 효과가 없음을 보인다. 핵심 처방은 <span class="term">클리핑된 이중 Q-학습(Clipped Double Q-learning)</span>이다: 두 크리틱을 유지하고 두 목표 Q값의 최소값을 취하여, (정책을 통해 전파되지 않는) 과소추정 쪽을 선호한다. 두 분산 감소 기제를 추가한다: <span class="term">지연된 정책 갱신(delayed policy updates)</span>(액터와 목표를 크리틱보다 덜 자주 갱신하여 이중 시간척도 알고리즘을 만듦)과 <span class="term">목표 정책 평활(target policy smoothing)</span>(목표 행동에 클리핑된 잡음을 더해 유사한 행동이 유사한 가치를 갖게 하는 SARSA 방식 정규화기). 일곱 개 MuJoCo 연속 제어 과제에서 TD3는 최종 성능과 학습 속도 모두에서 DDPG, PPO, TRPO, ACKTR, SAC와 필적하거나 능가한다.</div>
+            <div class="keywords"><span class="keyword-chip">twin delayed DDPG</span><span class="keyword-chip">TD3</span><span class="keyword-chip">overestimation bias</span><span class="keyword-chip">clipped double Q-learning</span><span class="keyword-chip">delayed policy updates</span><span class="keyword-chip">target policy smoothing</span><span class="keyword-chip">deterministic policy gradient</span><span class="keyword-chip">actor-critic</span><span class="keyword-chip">continuous control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 잘 알려진 이산 행동 과대추정 편향 문제를 연속 제어 액터-크리틱 방법으로 확장하여, 함수 근사 오차가 과대추정과 고분산 누적 모두를 일으킨다고 주장한다. DDPG 위에 적용된 TD3의 세 기여 — 클리핑된 이중 Q-학습, 지연된 정책 갱신, SARSA 방식 평활 정규화기 — 를 예고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구 절은 함수 근사 오차, 과대추정 편향, RL의 분산에 대한 기존 처방 — 이중 Q-학습, 분산 감소 및 위험 회피 방법, 다단계 수익 접근 — 을 검토한다. TD3를 결정론적 정책 경사/DDPG 계열 위에 구축하면서, 더 긴 지평으로 우회하기보다 오차 누적을 직접 다루는 것으로 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법론은 오차 진단으로부터 TD3의 세 핵심 기제를 전개한다. 먼저 결정론적 정책 경사 가치 추정이 과대추정됨을 증명한 뒤, 이 편향을 한계 짓기 위해 클리핑된 이중 Q-학습(두 크리틱 목표의 최소값)을 도입한다. TD 오차가 어떻게 분산으로 누적되는지 분석하여, 지연된 정책 갱신(액터가 d번의 크리틱 갱신마다 갱신되는 이중 시간척도 액터-크리틱)과 목표 정책 평활(SARSA 방식 정규화기로 목표 행동에 클리핑된 잡음 추가)을 동기화한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 일곱 개 MuJoCo 연속 제어 과제에서 100만 시간단계, 10개 무작위 시드로 TD3를 평가하며 DDPG(및 재튜닝된 DDPG), PPO, TRPO, ACKTR, SAC와 비교한다. TD3는 최종 성능과 학습 속도 모두에서 모든 기준선과 필적하거나 능가하며, 절제 실험이 세 구성 요소 각각의 기여를 분리한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">분석 절은 각 기제가 작동하는 이유를 해석한다: 클리핑된 이중 Q-학습은 가치를 한계 짓고 심지어 약간 과소추정하며(과대추정보다 낫다), 목표 신경망은 발산적 오차 누적을 막는 안정적 목적을 제공하고, 정책 갱신 지연은 불안정화하는 액터-크리틱 피드백 루프를 끊는다. 최소값 연산자는 추가로 에이전트를 저분산의 더 안전한 가치 추정으로 편향시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 과대추정 편향을 액터-크리틱 방법의 핵심 문제로 정립하고, 이산 행동 해법이 거기서 효과가 없음을 보이며, 클리핑된 이중 Q-학습·지연된 정책 갱신·SARSA 방식 목표 평활을 결합한 TD3를 소개한다. TD3는 DDPG의 학습 속도와 성능을 크게 개선하고 다수의 최신 알고리즘을 능가하며, 구현이 간단한 수정은 어떤 액터-크리틱 방법에도 이식 가능하다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "과대추정 편향은 잡음 섞인 가치 추정값을 최대화하면 일관된 과대추정이 유발되는 Q-학습의 성질이다. 함수 근사에서 이 잡음은 피할 수 없으며 시간차 부트스트래핑으로 과장된다."}, {"type": "bullet", "text": "이 논문은 이산 행동에서 잘 연구된 과대추정 편향과 오차 누적이, 정책이 경사 하강으로 갱신되는 연속 제어 액터-크리틱 설정에도 존재함을 보인다."}, {"type": "bullet", "text": "Double DQN은 느리게 변하는 정책이 현재와 목표 가치 추정을 최대화 편향을 피하기에 너무 유사하게 유지하므로 액터-크리틱에서 효과가 없는 것으로 밝혀진다."}, {"type": "bullet", "text": "저자들은 과대추정 경향이 있는 추정값을 근사 상한으로 사용하여, 학습 중 전파되지 않는 과소추정 쪽을 선호하는 <span class=\"term\">클리핑된 이중 Q-학습(clipped Double Q-learning)</span> 변형을 제안한다."}, {"type": "bullet", "text": "세 분산 감소 구성 요소가 도입된다: 갱신당 오차 감소를 위한 목표 신경망, 가치-정책 결합을 다루기 위한 지연된 정책 갱신, 그리고 SARSA 방식 부트스트랩 정규화기."}, {"type": "bullet", "text": "이 수정들은 DDPG에 적용되어 <span class=\"term\">TD3</span>를 형성하며, 일곱 개 OpenAI Gym MuJoCo 연속 제어 영역에서 평가되어 최신 기술을 큰 차이로 능가한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "함수 근사 오차와 그 편향/분산 효과는 기존 연구에서 연구되어 왔으며, 이 논문은 특히 과대추정 편향과 고분산 누적에 집중한다."}, {"type": "bullet", "text": "이중 Q-학습은 불편 가치 추정을 위해 두 독립 추정기를 사용한다. 다른 접근은 분산을 직접 줄이거나, 초기 고분산 추정에 대한 과적합을 최소화하거나, 보정 항을 사용한다."}, {"type": "bullet", "text": "가치 추정의 분산은 위험 회피와 탐험을 위해 고려되어 왔으나 일반적으로 과대추정 편향과 연결되지 않았는데, 이 논문은 그 연결을 명시한다."}, {"type": "bullet", "text": "TD 오차의 누적은 단계당 오차 최소화나 오프폴리시와 몬테카를로 수익의 혼합으로 다뤄져 왔다. 이 연구는 대신 갱신당 오차 감소를 위한 목표 신경망을 부각한다."}, {"type": "bullet", "text": "다단계 수익 방법은 누적 편향과 정책/환경 분산을 절충하지만, 오차 누적을 직접 해결하기보다 우회한다."}, {"type": "bullet", "text": "TD3는 결정론적 정책 경사(DPG, Silver 등 2014)와 그 심층 확장 DDPG(Lillicrap 등 2015) 위에 구축된다. 직교적인 DDPG 개선에는 분산 방법, 우선순위 재생, 다단계 수익, 분포적 방법이 포함된다."}, {"type": "bullet", "text": "동시 연구(Nachum 등, 2018)는 평활된 가치 함수가 확률적 정책의 분산을 줄임을 보여, TD3의 목표 정책 평활과 병행한다."}]}, "method": {"content": [{"type": "bullet", "text": "액터(정책 $\\pi_\\phi$)는 크리틱의 행동 경사와 정책 야코비안을 연쇄하는 결정론적 정책 경사(식 1)로 갱신되며, 크리틱 $Q_\\theta$는 동결된 목표 신경망을 사용해 벨만 방정식(식 2)에 대한 TD로 학습된다."}, {"type": "formula", "label": "식 (1) — 결정론적 정책 경사(DPG)", "latex": "\\nabla_\\phi J(\\phi) = \\mathbb{E}_{s\\sim p_\\pi}\\!\\left[ \\nabla_a Q^\\pi(s,a)\\big|_{a=\\pi_\\phi(s)} \\, \\nabla_\\phi \\pi_\\phi(s) \\right]", "description": "액터는 크리틱의 Q값을 증가시키는 방향으로 움직인다: 연쇄 법칙이 행동에 대한 크리틱 경사와 파라미터에 대한 정책 경사를 결합한다. DDPG/TD3 액터 갱신이다."}, {"type": "bullet", "text": "크리틱은 목표 액터와 크리틱을 사용해 부트스트랩된 목표 $y = r + \\gamma Q_{\\theta'}(s', \\pi_{\\phi'}(s'))$(식 3)로 회귀하며, 목표 가중치는 $\\theta' \\leftarrow \\tau\\theta + (1-\\tau)\\theta'$로 느리게 추적되고, 재생 버퍼에서 오프폴리시로 표집된다."}, {"type": "bullet", "text": "4.1절은 결정론적 정책 경사로 갱신된 정책의 근사 가치가 참값을 과대추정함(식 7)을 증명한다. 액터 갱신이 불완전한 크리틱을 최대화하기 때문이며, 이 과대추정은 벨만 백업을 통해 전파된다."}, {"type": "formula", "label": "식 (7) — 액터-크리틱의 과대추정", "latex": "\\mathbb{E}\\!\\left[ Q_\\theta(s, \\pi_{approx}(s)) \\right] \\ge \\mathbb{E}\\!\\left[ Q^\\pi(s, \\pi_{approx}(s)) \\right]", "description": "충분히 작은 보폭에서, 근사 크리틱을 최대화하여 얻은 정책의 학습된 가치는 그 참값 이상이다 — 방법의 나머지가 공격하는 일관된 양의(과대추정) 편향이다."}, {"type": "bullet", "text": "클리핑된 이중 Q-학습은 두 크리틱을 유지하고 그 목표 가치의 최소값(식 10)을 취하여, 덜 편향된 추정값을 더 편향된 것으로 상한 지어 목표가 표준 Q-학습 목표 너머의 과대추정을 더하지 못하게 한다.", "figure_refs": [1]}, {"type": "formula", "label": "식 (10) — 클리핑된 이중 Q-학습 목표", "latex": "y = r + \\gamma \\min_{i=1,2} Q_{\\theta_i'}(s', \\pi_{\\phi_1}(s'))", "description": "두 크리틱은 두 목표 Q값의 최소값으로 구성된 단일 목표를 공유한다. 최소값을 취하면 과소추정이 선호되는데, (과대추정과 달리) 낮게 평가된 행동은 정책이 회피하므로 전파되지 않는다. 또한 저분산 추정 상태로 편향시킨다."}, {"type": "bullet", "text": "5.1절은 잔차 TD 오차 $\\delta(s,a)$가 있을 때 가치 추정값이 실제로는 기대 수익에서 미래 TD 오차의 기대 할인 합을 뺀 값을 근사함(식 12)을 보인다. 따라서 추정 분산은 미래 보상과 오차 분산과 함께 커지며, 갱신당 오차가 통제되지 않으면 큰 $\\gamma$에서 크다."}, {"type": "formula", "label": "식 (12) — 수익에서 누적 TD 오차를 뺀 가치 추정", "latex": "Q_\\theta(s_t, a_t) = \\mathbb{E}_{s_i\\sim p_\\pi,\\, a_i\\sim\\pi}\\!\\left[ \\sum_{i=t}^{T} \\gamma^{i-t}\\left( r_i - \\delta_i \\right) \\right]", "description": "잔차 오차 $\\delta_i$로 벨만 재귀를 전개하면 추정값이 할인 수익에서 할인 누적 TD 오차를 뺀 것과 같음을 보인다. 그 분산은 미래 보상과 오차의 분산에 비례하므로 분산 감소를 동기화한다."}, {"type": "bullet", "text": "지연된 정책 갱신: 고분산 가치 추정에 대한 정책 갱신이 발산을 유발하므로, 액터와 목표 신경망을 $d$번의 크리틱 갱신마다만 갱신(이중 시간척도 알고리즘)하여 각 정책 단계 전에 먼저 가치 오차를 최소화한다 — 더 적은 정책 갱신으로 성능을 개선한다.", "figure_refs": [3]}, {"type": "bullet", "text": "목표 정책 평활은 목표 행동에 작은 클리핑된 가우시안 잡음(식 14/15)을 더해 가치 목표를 정규화하는 SARSA 방식 갱신으로, 유사한 행동이 유사한 가치를 갖게 강제하고 좁은 가치 봉우리 과적합으로 인한 분산을 줄인다."}, {"type": "formula", "label": "식 (14)-(15) — 목표 정책 평활 + 최종 TD3 목표", "latex": "y = r + \\gamma \\min_{i=1,2} Q_{\\theta_i'}\\!\\left( s', \\pi_{\\phi'}(s') + \\epsilon \\right), \\qquad \\epsilon \\sim \\mathrm{clip}\\!\\left( \\mathcal{N}(0, \\sigma),\\, -c,\\, c \\right)", "description": "TD3의 완전한 목표는 클리핑된 이중 Q(쌍둥이 목표 크리틱에 대한 최소값)와 목표 정책 평활을 결합한다: 클리핑된 잡음 $\\epsilon$을 목표 행동에 더해 가치를 작은 이웃에 걸쳐 평균한다. 논문은 $\\sigma=0.2$, $c=0.5$, $d=2$, $\\tau=0.005$를 사용한다. TD3 크리틱 갱신을 정의하는 핵심 식이다."}, {"type": "bullet", "text": "알고리즘 1(TD3)은 쌍둥이 크리틱 $Q_{\\theta_1}, Q_{\\theta_2}$와 단일 액터 $\\pi_\\phi$를 유지한다. 각 단계에서 두 크리틱을 평활된 클리핑-최소 목표로 갱신하고, $d$ 단계마다 $Q_{\\theta_1}$에 대한 DPG로 액터를 갱신하며 모든 목표 신경망을 소프트 갱신한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "평가는 원본 미수정 OpenAI Gym MuJoCo 과제(HalfCheetah, Hopper, Walker2d, Ant, Reacher, InvertedPendulum, InvertedDoublePendulum)를 100만 시간단계, 5000단계마다 평가하여 잡음 없는 10 에피소드의 평균 보상을 10개 시드에 걸쳐 보고한다.", "figure_refs": [4, 5]}, {"type": "bullet", "text": "신경망은 ReLU와 액터 끝단 tanh를 가진 2층 순방향(400, 300 유닛)이다. 크리틱은 첫 층에서 상태와 행동을 받으며, 학습률 $10^{-3}$의 Adam, 미니배치 100, 무상관 가우시안 탐험 잡음 $\\mathcal{N}(0,0.1)$로 훈련된다(Ornstein-Uhlenbeck은 이득이 없었다)."}, {"type": "bullet", "text": "목표 정책 평활은 $(-0.5,0.5)$로 클리핑된 $\\epsilon\\sim\\mathcal{N}(0,0.2)$를 더한다. 지연된 갱신은 $d=2$(2번의 크리틱 갱신마다 액터와 목표)를 사용하고, 두 목표 신경망 모두 $\\tau=0.005$를 사용한다."}, {"type": "bullet", "text": "TD3는 모든 과제에서 최종 성능과 학습 속도 모두에서 다른 모든 알고리즘과 필적하거나 능가한다. 예: HalfCheetah 최대 수익 약 9637 대 DDPG 약 3306, SAC 약 2347(표 1).", "figure_refs": [5]}, {"type": "bullet", "text": "절제 실험(표 2)은 클리핑된 이중 Q-학습, 지연된 정책 갱신, 목표 정책 평활을 각각 제거한다: 단일 구성 요소는 미미한 이득을 주지만 조합은 훨씬 잘 작동하며, 완전한 TD3가 대부분 과제에서 다른 모든 조합을 능가한다."}, {"type": "bullet", "text": "지연된 정책 갱신은 액터가 절반의 반복만 훈련됨에도 불구하고 일반적으로 성능을 개선하면서 훈련 시간을 줄인다."}, {"type": "bullet", "text": "이중 Q-학습(DQ-AC)과 Double DQN(DDQN-AC)의 액터-크리틱 변형은 클리핑된 이중 Q-학습보다 과대추정을 덜 줄이고 TD3-CDQ 대비 미미한 개선만 주어, 과대추정을 억누르는 것이 효과적 지렛대임을 확인한다."}]}, "discussion": {"content": [{"type": "bullet", "text": "경험적 가치 추적은 DDPG가 Hopper와 Walker2d에서 참값을 강하게 과대추정하는 반면, 클리핑된 이중 Q-학습이 이 과대추정을 크게 줄임을 보인다.", "figure_refs": [1]}, {"type": "bullet", "text": "두 추정값의 최소값은 (분산이 커질수록 기대 최소값이 감소하므로) 추정 오차 분산이 더 낮은 상태에 더 높은 가치를 부여하여, 정책을 안정적이고 안전한 가치 추정 상태로 편향시킨다."}, {"type": "bullet", "text": "클립으로 인한 과소추정은 수용 가능하다. 과대추정된 행동과 달리, 과소추정된 행동은 정책이 단순히 회피하며 그 오차가 정책 갱신을 통해 명시적으로 전파되지 않기 때문이다."}, {"type": "bullet", "text": "목표 신경망 없이($\\tau=1$) 현재 가치 추정으로 정책을 훈련하면 매우 발산적인 가치 거동이 발생한다. 느리게 움직이는 목표가 오차 증가를 제한하는 데 결정적이다.", "figure_refs": [3]}, {"type": "bullet", "text": "액터-크리틱 방법은 정책 갱신이 고분산 가치 추정을 사용할 때 실패하므로, 정책을 가치 신경망보다 낮은 빈도로 갱신(이중 시간척도)하면 더 높은 품질의 정책 갱신을 얻는다."}, {"type": "bullet", "text": "목표 정책 평활은 Expected SARSA를 연상시킨다: 잡음 섞인 정책의 가치를 오프폴리시로 학습하여, 섭동에 강한 행동에 더 높은 가치를 주는 더 안전한 정책을 산출한다 — 실패 사례가 있는 확률적 영역에서 유용하다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "가치 기반 방법의 핵심 문제인 과대추정 편향이 액터-크리틱 방법에서도 문제가 됨을 보인다."}, {"type": "bullet", "text": "과대추정에 대한 일반적인 이산 행동 해법은 액터-크리틱에서 효과가 없으며, 이는 가능한 과대추정을 제한하는 새로운 클리핑된 이중 Q-학습 변형을 동기화한다."}, {"type": "bullet", "text": "목표 신경망이 부정확한 함수 근사와 확률적 최적화로 인한 오차를 제한하는 데 중요함을 보인다."}, {"type": "bullet", "text": "SARSA 방식 정규화(목표 정책 평활)는 유사한 상태-행동 쌍에서 부트스트랩하도록 TD 목표를 수정하여 분산을 줄인다."}, {"type": "bullet", "text": "이들이 함께 TD3를 정의하며, 어려운 연속 제어 과제에서 DDPG의 학습 속도와 성능을 크게 개선하고 다수의 최신 알고리즘을 능가한다."}, {"type": "bullet", "text": "Isaac Lab에서 RL 이족 보행을 구현하는 입문자에게 TD3는 강력한 결정론적 오프폴리시 선택지이다. 세 가지 기법(쌍둥이 크리틱+최소, 지연된 액터 갱신, 목표 행동 잡음)은 DDPG에 대한 단순한 추가물이며, 그렇지 않으면 연속 제어를 괴롭히는 불안정성을 해결한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [], "motivation_resolution": {"motivating_problems": ["함수 근사 오차로 인한 가치 과대추정은 이산 행동 Q-학습에서는 잘 연구되었으나 연속 제어의 액터-크리틱 방법에서는 대체로 다뤄지지 않았다.", "시간차 학습은 각 추정값이 후속 상태의 추정값으로부터 구성되므로 갱신마다 오차를 누적하며, 이는 큰 과대추정 편향과 차선 정책으로 자랄 수 있다.", "표준 이산 행동 해법인 Double DQN은, 느리게 변하는 정책이 현재와 목표 가치 추정을 너무 유사하게 유지해 최대화 편향을 피하지 못하므로 액터-크리틱 설정에서 효과가 없다.", "부정확한 크리틱이 차선 행동을 높이 평가하고 정책이 이를 강화하는 피드백 루프가 발생하여 발산으로 이어진다.", "결정론적 정책은 가치 추정의 좁은 봉우리에 과적합하여 목표 분산을 키울 수 있다."], "addressed_by_this_work": ["이 논문은 결정론적 정책 경사 액터-크리틱에 과대추정 편향이 존재함을 증명하고, MuJoCo에서 참값에 대해 경험적으로 정량화한다.", "클리핑된 이중 Q-학습(두 크리틱 목표의 최소값)은 덜 편향된 추정값을 상한 짓고 가치 목표가 추가 과대추정을 유입하지 못하게 한다.", "지연된 정책 갱신은 각 정책 단계 전에 갱신당 오차를 줄여 액터-크리틱 발산 피드백 루프를 끊고, 더 적은 정책 갱신으로 성능을 개선한다.", "목표 정책 평활은 목표 행동에 클리핑된 잡음을 더하는 SARSA 방식 정규화기로, 유사한 행동에 대해 가치 추정을 평활하고 목표 분산을 줄인다.", "이들이 함께 TD3를 정의하며, 시험한 과제에서 DDPG, PPO, TRPO, ACKTR, SAC를 능가한다."], "remaining_unresolved": ["클리핑된 이중 Q-학습은 과소추정 편향을 유발할 수 있다(과소추정된 행동은 전파되지 않고 회피되므로 과대추정보다 낫다고 수용됨).", "각 구성 요소의 이득은 과제마다 다르다 — 단일 구성 요소는 미미한 이득을 주고 조합만이 잘 작동하므로, 상호작용이 완전히 특징지어지지 않았다.", "더 큰 정책 갱신 지연 d는 누적 오차를 더 줄일 수 있으나 공정한 비교를 위해 제약된다. 최적 지연은 미해결로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

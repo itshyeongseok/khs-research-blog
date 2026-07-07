@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>A Bird-Inspired Perching Landing Gear System</title>
+    <meta name="keywords" content="bioinspired design, cable-driven mechanisms, grasping and fixturing, perching landing gear, underactuated foot, four-bar linkage, tendon-driven grasping, UAV perching">
+    <meta name="paper-authors" content="Paul M. Nadan, Tatiana M. Anthony, Duncan M. Michael, Jeffrey B. Pflueger, Manik S. Sethi, Kelli N. Shimazu, Mindy Tieu, Christopher L. Lee">
+    <meta name="paper-journal" content="ASME Journal of Mechanisms and Robotics, Vol. 11, No. 6, 061002, December 2019 · DOI: 10.1115/1.4044416 (journal extension of IMECE2018-86615 and Proc. SPIE 9797 97970X)">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">A Bird-Inspired Perching Landing Gear System</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">Paul M. Nadan, Tatiana M. Anthony, Duncan M. Michael, Jeffrey B. Pflueger, Manik S. Sethi, Kelli N. Shimazu, Mindy Tieu, Christopher L. Lee</div>
+            <div class="journal">ASME Journal of Mechanisms and Robotics, Vol. 11, No. 6, 061002, December 2019 · DOI: 10.1115/1.4044416 (journal extension of IMECE2018-86615 and Proc. SPIE 9797 97970X)</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 소형 UAV가 물체 및 표면에 착륙·횃대 안착·이륙할 수 있도록 하는 조류 모사형 <span class="term">perching landing gear</span>의 설계, 모델링, 시뮬레이션, 시험을 제시한다. 조류 다리 해부 구조를 모방하여, UAV의 자중이 4절 링크를 접히게 하면서 단일 케이블 건(tendon)을 인장시켜, 서로 마주 보는 유연한 다절(multi-segmented) 3D 프린팅 발(NinjaFlex 레일 + ABS 지골) 두 개를 대상 주위로 말아 감싸게 한다. 경험적-수치 혼합 모델은 4절 형상과 건 변위(실험적으로 적합된 3차 다항식을 통해)를 절(segment)별 각도와 관계 짓고, 다각형 및 원형 단면과의 접촉을 검출하며, 접촉력, 파지 포위(enclosure), 그리고 횃대 안착 유지에 필요한 최소 UAV 자중을 계산한다. 시뮬레이션은 다양한 형상의 물체를 파지하는 Flame Wheel F550 헥사콥터에 장착된 시제품과 나란히 비교하여 검증되며, 매개변수 스윕(sweep)을 통해 물체 크기, 위치, 자세, 접근각에 따른 파지 효과를 정량화한다. 정지 횃대 안착 및 외란 제거 실험은 성공하였으며, 조종 비행에서는 헥사콥터를 횃대에 정렬시키지 못했으나 횃대로부터의 이륙은 성공하였다. 본 논문은 또한 100 g급 쿼드콥터를 위한 더 작고 가벼운 단일 다리 설계로 확장성(scalability)을 조사하기 시작한다.</div>
+            <div class="keywords"><span class="keyword-chip">bioinspired design</span><span class="keyword-chip">cable-driven mechanisms</span><span class="keyword-chip">grasping and fixturing</span><span class="keyword-chip">perching landing gear</span><span class="keyword-chip">underactuated foot</span><span class="keyword-chip">four-bar linkage</span><span class="keyword-chip">tendon-driven grasping</span><span class="keyword-chip">UAV perching</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 공간이 제약된 도시·농촌 환경에서의 임무를 위한 UAV 횃대 안착의 동기를 부여하고, 안착에 필요한 두 가지 능력—착지를 위한 조류형 비행 기동과 착륙 구조물을 파지하는 발 기구—을 식별한다. 조류 다리에서 차용한 작동 원리로서 수동적·자중 작동 건 파지를 제시하고, 본 논문의 주된 신규성을 저자들의 선행 모델 개발 및 시제품 시험을 다양한 대상에 대한 검증된 파지 시뮬레이션으로 확장한 것으로 규정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 두 갈래에 걸쳐 있다: 횃대 안착 비행 제어(착륙 기동, 관절형 날개, 줄에 착륙하기 위한 최적 제어)와 파지/클램핑 기구(스냅 갈고리, 최적화된 모터 구동 그리퍼, 마이크로 스파인 접착, Sarrus 링크, 건 작동 조류 발 모델). 본 논문은 선행 조류 발 파지 해석과 Doyle 등 및 Xie 등의 접힘 다리, 케이블 인장 발 기구에 직접 기반한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법은 기구 설계와 4부 혼합 모델을 다룬다. 각 다리는 NinjaFlex 레일과 ABS 지골로 3D 프린팅된, 서로 마주 보고 오프셋된 7절 순응형 발 두 개를 갖춘 4절 링크이며, 단일 케이블 건으로 구동된다. 다리와 발 한 세트의 질량은 89.2 g이다. 모델은 벡터 루프 방정식으로 4절 접힘을 시뮬레이션하고, 실험적으로 적합된 3차 다항식으로 건 변위를 장력 및 절 각도와 연결하며, 다각형 및 원형 단면과의 접촉을 검출하고, 접촉력, 자중-장력 관계, 그리고 운동학적 포위(kinematic-enclosure) 및 운동학적 강도(kinetic-strength) 파지 지표를 계산한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">검증은 물체 형상 전반에 걸쳐 시뮬레이션된 최종 발 구성을 시제품 사진과 나란히 배치한 뒤, 물체 크기, 위치, 자세, 접근각을 스윕하여 포위, 최소 UAV 자중, 최소 파지력을 정량화한다. Flame Wheel F550 헥사콥터 시제품은 다양한 구조물에서의 정지 횃대 안착과 외란 제거를 시연하며, 조종 비행에서는 횃대 정렬에 실패했으나 정지 횃대로부터의 이륙은 성공하였다. 100 g급 쿼드콥터를 위한 축소 단일 다리 개념이 소개된다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 조류 모사형 자중 작동 랜딩 기어와 경험적-수치 혼합 모델이 계산 집약적 비선형 FEA를 우회하면서 물체 형상 전반에 걸쳐 파지 포위와 힘을 예측할 수 있음을 보여준다. 이 모델은 UAV 설계자에게 비행체 자중을 안착 가능한 구조물에 맞추고 임무를 조정하는 보정된 도구를 제공하는 한편, 비행 제어 정렬, 축소 모델 검증, 모멘트/마찰 모델링은 미해결 과제로 남는다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 서로 마주 보는 다절 건 구동 발을 갖춘 조류 모사형 4절 접힘 랜딩 기어가, 검증된 경험적-수치 혼합 모델의 뒷받침을 받아, 헥사콥터가 다양한 물체에 착륙·안착(상당한 외란 하에서도)·이륙할 수 있게 함을 결론짓는다. 이 모델은 FEA를 우회하면서 UAV 자중을 안착 가능한 구조물과 관계 짓는 범용 설계 도구이며, 다음 단계는 축소 설계와 운용 UAV 통합을 목표로 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "소형 UAV는 광범위하고 급격히 증가하는 민간·군사 응용 분야에 사용되며, 이착륙에 적합하거나 충분히 넓은 공간이 없는 도시 또는 농촌 환경에서 운용되는 경우가 많다."}, {"type": "bullet", "text": "이용 가능한 구조물 및 표면에 착륙·횃대 안착·이륙할 수 있는 능력은 UAV가 이러한 제약된 영역에서 임무를 수행할 수 있게 한다."}, {"type": "bullet", "text": "새처럼 부드럽게 착지하기 위해 UAV는 복잡한 경로 계획과 궤적 제어를 수반하는 정교한 비행 기동을 수행해야 한다."}, {"type": "bullet", "text": "새는 또한 착륙하는 구조물을 발로 파지하며, UAV도 클램핑 또는 파지 기구로 동일하게 할 수 있다."}, {"type": "bullet", "text": "수동적·자중 작동 파지는 많은 조류 다리의 작동 원리이다. 즉, 착륙 시 건이 인장되어 발이 물체 주위를 말아 감싸고, 이륙 시 건이 이완되어 놓아준다.", "figure_refs": [1]}, {"type": "bullet", "text": "본 논문은 서로 마주 보는 케이블 건 작동 다절 발을 사용하여 나뭇가지나 유사 구조물을 파지하는 랜딩 기어의 설계, 모델링, 해석, 시험을 제시한다.", "figure_refs": [1]}, {"type": "bullet", "text": "주된 신규성은 초기 모델 개발(IMECE 2018) 및 시제품 시험(SPIE 2016)을 다양한 착륙 대상에 대한 파지 시뮬레이션의 검증, 해석, 평가로 확장한 것이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "Robertson과 Reich는 소형 조류형 고정익기를 대상 플랫폼에 착륙·안착시키기 위해 제어된 비행 시험을 수행하였다."}, {"type": "bullet", "text": "Nagendran 등은 2관절 다리로 UAV를 부드럽게 착륙시키는 제어기를 평가하였고, Paranjape 등은 관절형 날개 초소형 비행체를 안착시키는 유도/제어를 시연하였다."}, {"type": "bullet", "text": "Cory와 Tedrake는 소형 글라이더가 매달린 줄에 착륙하기 위해 고받음각 기동을 수행하도록 하는 최적 승강타 편향 제어를 설계·시험하였다."}, {"type": "bullet", "text": "Culler 등은 착륙 충격으로 작동되는 순응형 쌍안정 스냅 갈고리를 제작하였고, Ali Erbil 등은 원통형 브래킷을 위한 4족 모터 구동 그리퍼를 최적화하였다."}, {"type": "bullet", "text": "Chi 등은 2D 모델로부터 4족 서보 구동 그리퍼를 개발하였고, Jiang 등은 벽과 천장에 안착하기 위한 대향 파지 마이크로 스파인 기구를 모델링하였다."}, {"type": "bullet", "text": "Burroughs 등은 비행체 자중으로 작동되는 회전익기 안착용 Sarrus 링크 클램핑 기구를 모델링, 제작, 시험하였다."}, {"type": "bullet", "text": "Backus 등은 로봇 손과 건 작동 조류 발 파지를 모델링하여 기하학적 매개변수를 파지력 및 안착력과 관계 지었다."}, {"type": "bullet", "text": "Doyle 등은 건 작동 발을 갖춘 접힘 다리 안착 기구(건 당김을 관절 편향과 관계 짓는 모델)를 제시하였고, Xie와 Ma는 접힘 다리 케이블 인장 발을 제시하였으나 그 힘은 관절 마찰로 크게 감소하였고 소형 UAV에 비해 너무 크고 무거웠다."}]}, "method": {"content": [{"type": "bullet", "text": "두 다리 각각은 회전형 고관절(hip joint)로 기체에 결합된 4절 링크이며, 하단에는 강성 뒤꿈치를 갖춘, 서로 마주 보고 오프셋된 유연한 발 두 개가 있다.", "figure_refs": [1, 2]}, {"type": "bullet", "text": "각 발은 유연한 NinjaFlex 레일과 베이스 절 위의 강성 ABS 사다리꼴 절 6개(지골)로 3D 프린팅된 단일 순응형 구조이다: 길이 13 cm, 절 높이 0.9-1.7 cm, 질량 9.7 g.", "figure_refs": [3]}, {"type": "bullet", "text": "단일 케이블 건은 한쪽 갈고리에 묶여 모든 발 절을 관통하고 4절 관절의 풀리를 감은 뒤 반대편 갈고리에 고정되어, 링크 접힘이 두 발을 말아 대상을 파지하도록 한다.", "figure_refs": [4]}, {"type": "bullet", "text": "두 가지 특징이 대상이 포위될 때까지 갈고리 폐합을 지연시킨다: 베이스에서 가장 높게 점증되는 절 높이, 그리고 굽힘 강성을 줄이기 위해 베이스 쪽으로 테이퍼진 레일이며, 부드러운 패드는 파지를 향상시킨다.", "figure_refs": [3]}, {"type": "bullet", "text": "4절 시제품은 L1 = L3 = 5.71 cm 및 L2 = L4 = 6.35 cm를 사용하며, 다리와 발 한 세트의 질량은 89.2 g(링크 53.9 g, 발 1개 9.7 g, 서보 11 g)이고, 서보모터가 접근각을 설정하고 접힌 파지를 고정한다.", "figure_refs": [9]}, {"type": "bullet", "text": "4절 접힘은 벡터 루프 방정식을 사용하여 MATLAB에서 시뮬레이션되며, 지면 링크를 고정하고 하나의 입력 각속도를 일정하게 유지한 상태에서 접힘 과정에 걸쳐 나머지 링크 속도를 수치적으로 푼다.", "figure_refs": [8, 9]}, {"type": "formula", "label": "Eq. (4) - 링크 기하로부터의 관절 위치", "latex": "\\mathbf{J}_n = \\sum_{i=1}^{n} \\big( L_i\\cos(\\theta_i)\\,\\hat{i} + L_i\\sin(\\theta_i)\\,\\hat{j} \\big)", "description": "각 관절의 위치는 링크 벡터의 벡터 합이며, 여기서 $\\theta_i$와 $L_i$는 링크 $i$의 각도와 길이이다."}, {"type": "formula", "label": "Eq. (5) - 텐던 변위", "latex": "x = \\lvert \\mathbf{J}_1 - \\mathbf{J}_3 \\rvert - l_0", "description": "건 변위 $x$는 관절 J1과 J3 사이 거리의 초기 간격 $l_0$ 대비 변화량이며, 신장 불가능한 건은 링크가 접힘에 따라 발 내부에서 짧아진다."}, {"type": "bullet", "text": "건 장력 T(x)와 6개의 상대 절 각도 phi_i(x)는 실험적으로 측정되고(힘 게이지 및 Logger Pro를 통한 영상 분석) 건 변위 x (mm)에 대한 3차 다항식으로 적합된다.", "figure_refs": [10, 11, 12, 13, 14]}, {"type": "formula", "label": "Eq. (6) - 경험적 3차 장력 피팅", "latex": "T(x) = 2.2790\\times10^{-4}x^{3} - 1.7690\\times10^{-2}x^{2} + 5.7040\\times10^{-1}x - 3.7080", "description": "건 장력 $T$ (N) 대 변위 $x$ (mm)에 대한 최적 적합 3차 다항식이며, 각 상대 절 각도 $\\phi_i(x)$에도 유사한 3차식이 적합된다."}, {"type": "bullet", "text": "각 절은 누적 각도만큼 꼭짓점을 회전/병진하여 위치가 정해지며, 다각형 변은 절 내부 표면에 대해 검사되고, 원의 경우 중심을 각 절에 투영하여 접촉과 힘 방향을 검출한다.", "figure_refs": [15, 16, 17]}, {"type": "formula", "label": "Eq. (8) - 세그먼트에 작용하는 텐던 모멘트", "latex": "M_T(x) = \\lvert \\mathbf{r}_T \\rvert\\,T(x)\\,\\cos\\!\\big(\\tfrac{1}{2}\\phi_{max} - \\tfrac{1}{2}\\phi(x)\\big)", "description": "절에 건이 가하는 모멘트이며, $\\mathbf{r}_T$는 피벗-건 진입점 벡터이고, 물체 모멘트는 최초 접촉 이후의 증가량 $M_F = M_T(x) - M_T(x_c)$이다."}, {"type": "formula", "label": "Eq. (11) - 인가된 접촉력 크기", "latex": "F_i = \\frac{M_{Fnet}}{\\lvert \\mathbf{r}_{Fii} \\times \\hat{\\mathbf{F}}_i \\rvert}", "description": "물체에 작용하는 순 모멘트와, 절 피벗과 접촉점 사이의 단위 힘 방향 $\\hat{\\mathbf{F}}_i$를 따른 모멘트 암으로부터 구한 작용 접촉력의 크기."}, {"type": "formula", "label": "Eq. (12) - 하중-장력 관계", "latex": "W = T\\,\\tan(\\beta)\\,\\sec(\\alpha+\\gamma), \\quad \\alpha = \\tfrac{\\theta_1+\\theta_4}{2}-180^\\circ,\\ \\beta = \\tfrac{\\theta_1-\\theta_4}{2}+180^\\circ", "description": "근사적 능동 UAV 자중 $W$ 대 건 장력 $T$ 관계(등길이 링크)이며, $\\alpha$는 중심선-지면 각, $\\beta$는 중심선-첫 링크 각, $\\gamma$는 접근각이다."}, {"type": "formula", "label": "Eq. (13) - 최대 하중 / 장력", "latex": "W_{max} = -T_{max}\\,\\tan\\!\\big(\\tfrac{\\theta_1-\\theta_4}{2}\\big)\\,\\sec\\!\\big(\\tfrac{\\theta_1+\\theta_4}{2}+\\gamma\\big)", "description": "완전 접힘 자중을 최대 건 장력과 관계 지으며, 시제품의 경우 최대 건 변위 44 mm가 장력 6.6 N과 접근각 0에서 완전 접힘 자중 2.6 N을 준다."}, {"type": "formula", "label": "Eq. (15) - 기구학적 포위 지표", "latex": "\\max\\big([\\psi_2 \\ldots \\psi_N,\\ \\psi_1+360^\\circ] - [\\psi_1, \\psi_2 \\ldots \\psi_N]\\big) < 180^\\circ", "description": "정렬된 연속 접촉력 작용각 $\\psi$(Eq. 14로부터) 사이의 어떤 간격도 180 deg 이상이 아닐 때 파지가 물체를 완전히 구속(포위)한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "시뮬레이션된 최종 발 구성은 직사각형, 편심 직사각형, 정사각형, 삼각형, 원, 빈 파지에 대해 시제품 사진과 나란히 비교되어 모델의 정확성과 타당성을 입증한다.", "figure_refs": [22]}, {"type": "bullet", "text": "원 반지름 스윕은 1.2 cm와 7.5 cm 사이에서 운동학적 포위를 보여준다. 1.2 cm 미만에서는 접촉이 불충분하고 7.5 cm 초과에서는 발이 원 아래로 닿지 못하나, 그 이상에서도 중력이 파지를 성공적으로 유지한다.", "figure_refs": [23]}, {"type": "bullet", "text": "정사각형 단면은 변 길이 2.8-8.0 cm에서 포위된다(모서리가 절 사이 간격으로 미끄러져 들어가는 경우 제외). 맞물린 절의 수가 변할 때 자중 또는 파지력에 날카로운 피크가 나타난다.", "figure_refs": [23]}, {"type": "bullet", "text": "반지름 5 cm 원통에 대한 접근각 스윕은 최소 UAV 자중이 이를 보상하도록 증가할 수 있을 때만 성공을 보여준다. 8 deg를 넘으면 자중과 무관하게 파지가 실패하고, 시제품을 이탈시키는 힘(2.6 N)은 22 deg에서 0으로 떨어진다.", "figure_refs": [24]}, {"type": "bullet", "text": "Flame Wheel F550 헥사콥터 시험 플랫폼은 478 g 프레임, 550 mm 대각 휠베이스, 700-900 g 페이로드를 갖는 1200-2400 g 이륙 질량을 가진다."}, {"type": "bullet", "text": "배터리가 탑재된 기체로 수행한 정지 횃대 안착 시험은 PVC 파이프, 금속 손잡이 난간, 돌담 턱, 2x4 목재 빔, 비대칭 나뭇가지에서 성공하였으며, 고정된 파지는 들어 올렸을 때 목재 빔을 운반할 만큼 강했다.", "figure_refs": [25, 26]}, {"type": "bullet", "text": "외란 제거 시험은 의자 팔걸이에 기어를 고정한 뒤 손으로 격렬히 흔들었으며, 파지가 유지되었다.", "figure_refs": [27]}, {"type": "bullet", "text": "무선 조종 비행에서 조종사는 헥사콥터를 횃대에 정렬하거나 감속시키지 못했으나, 정지 횃대로부터의 이륙(고정 해제 후 이륙)은 비행 문제 없이 성공하였다.", "figure_refs": [28, 29]}, {"type": "bullet", "text": "100 g, 238 mm 스팬 Dromida Ominus 쿼드콥터(~60 g 페이로드)를 위한 축소 개념은 다리들을 하나의 다중 링크 다리(~2.5 cm 링크, 20.3 g 링크, 1.1 g 발)로 결합하며, 건을 수동으로 당겼을 때 파지하는 제작된 발 쌍이 제시된다.", "figure_refs": [30, 31]}]}, "discussion": {"content": [{"type": "bullet", "text": "경험적-수치 혼합 접근법은 완전한 물리 모델링을 시제품 보정 3차 적합으로 대체하여, 파지 예측을 계산적으로 다룰 수 있게 하고 비선형 FEA를 피한다."}, {"type": "bullet", "text": "이 모델은 4절 접힘 운동학, 건 장력/절 각도 관계, 접촉 검출, 모멘트 평형을 포위 및 강도 지표를 갖춘 하나의 파지 평가 파이프라인으로 결합한다."}, {"type": "bullet", "text": "설계자는 이 모델을 사용하여 주어진 비행체가 착륙·안착·이륙할 수 있는 물체와 구조물을 식별하고, 특정 환경에 맞춰 임무를 조정할 수 있다."}, {"type": "bullet", "text": "최소 UAV 자중(포위를 위한)과 최소 파지력(임계값에 대한 강도)을 구분하면 바람 및 기저 운동과 같은 운용 하중을 포함한 상호 보완적 설계 기준을 제공한다."}, {"type": "bullet", "text": "절 맞물림 전이와 모서리 미끄러짐은 비단조적(피크형) 성능을 만들어, 대상 물체 크기에 대한 발 형상 선택에 정보를 준다."}, {"type": "bullet", "text": "중력을 포함하면 엄밀한 운동학적 포위 영역 밖에서도 파지가 성공하므로, 자중은 강도 지표에 필수적이다."}, {"type": "bullet", "text": "이 모델은 안착 중 UAV가 가하는 모멘트를 제외하므로, 보다 완전한 파지 품질 평가를 위해서는 접선/마찰 힘의 추가가 필요하다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 소형 UAV가 나뭇가지나 유사 구조물에 안착할 수 있게 하는 랜딩 기어의 설계, 모델링, 시뮬레이션, 시험을 기술한다."}, {"type": "bullet", "text": "서로 마주 보는 다절 발은, 일부 새의 다리를 모방하여 UAV가 착륙할 때 접히는 4절 링크에 의해 인장되는 케이블 건으로 작동된다."}, {"type": "bullet", "text": "경험적-수치 혼합 모델은 파지 거동을 시뮬레이션하고, 운동학적·운동역학적 지표를 통해 파지가 어떻게 그리고 왜 주어진 단면을 포위하며 성공하는지 설명한다."}, {"type": "bullet", "text": "이 접근법은 비선형 재료 FEA와 같은 계산 집약적 물리 기반 기법을 우회한다."}, {"type": "bullet", "text": "무선 조종 헥사콥터에 장착된 시제품 랜딩 기어는 시뮬레이션을 검증하였고, 다양한 물체에 착륙·상당한 외란 하 안착·이륙할 수 있음을 보였다."}, {"type": "bullet", "text": "UAV에 안착 능력을 부여하면 그 효용성과 기능성이 크게 확장되며, 임무를 특정 환경에 맞춰 조정할 수 있다."}, {"type": "bullet", "text": "다음 단계는 소형 규모 시스템의 파지 시뮬레이션, 해석, 실험적 검증과 운용 UAV를 향한 지속적 개발이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "파지 모델은 법선 접촉력만을 평가하고 UAV가 물체에 가하는 모멘트를 무시하는데, 이를 위해서는 접선(마찰) 힘의 포함이 필요하다.", "source_quote": "It does not account for any moment generated by the UAV on the object as it perches. In that case, it would be necessary to include forces tangent to the surface of the object, e.g., friction.", "source_section": "method"}, {"claim": "닫힌 형태의 자중-장력 관계는 모든 4절 링크가 등길이라고 가정하는 근사일 뿐이다.", "source_quote": "The relationship of the tension, T, to the active weight, W, can be approximated by taking the lengths of all of the links to be equal as", "source_section": "method"}, {"claim": "무선 조종 하에서 조종사는 헥사콥터를 적절히 정렬된 위치로 비행시키거나 착지하여 안착할 만큼 충분히 감속시키지 못했다.", "source_quote": "however, we were not able to fly the hexacopter into a properly aligned position or slow down enough to come to rest on the target object.", "source_section": "experiment"}, {"claim": "파지 성공은 접근각에 따라 급격히 저하되며, 원통 사례의 경우 UAV 자중과 무관하게 8 deg를 넘으면 완전히 실패한다.", "source_quote": "At angles greater than 8 deg, however, the grasp criteria cannot be met regardless of UAV weight because the horizontal component of the gravity force increases faster than the horizontal contact forces as more weight is applied.", "source_section": "experiment"}], "future_works": [{"claim": "소형 규모 안착 랜딩 기어 시스템에 대한 파지 시뮬레이션, 해석, 실험적 검증을 수행한다.", "source_quote": "The next steps in continuing this work are to carry out the grasp simulation, analysis, and experimental verification for the smaller-scale perching landing gear system", "source_section": "conclusion"}, {"claim": "안착 랜딩 기어를 갖춘 운용 UAV를 만들기 위한 개발과 통합을 지속한다.", "source_quote": "and to continue development and integration to create operational UAVs.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["소형 UAV는 통상적 이착륙에 적합하거나 충분히 넓은 공간이 없는 도시/농촌 환경에서 점점 더 많이 운용된다.", "새처럼 구조물에 부드럽게 착지하려면 복잡한 경로 계획과 궤적 제어를 수반하는 일련의 정교한 비행 기동이 필요하다.", "선행 케이블 인장 다지(multi-digit) 발(Xie 등)은 관절 마찰로 파지력이 크게 감소하였고, 다리-발 시스템이 소형 UAV에 비해 너무 크고 무거웠다.", "설계자에게는 주어진 자중의 UAV가 주어진 형상과 크기의 구조물에 안착할 수 있는지, 그리고 위치 유지에 필요한 최소 자중이 얼마인지를 판정할 모델이 없다."], "addressed_by_this_work": ["경험적-수치 혼합 모델이 다양한 단면 형상, 치수, 자세의 물체를 파지하는 운동학을 시뮬레이션한다.", "3차 다항식 경험 적합이 건 변위를 장력 및 절별 각도와 관계 짓고, 접촉 검출 및 모멘트 평형과 통합된다.", "운동학적 포위 및 운동역학적 강도 지표가 파지 성공을 정량화하고 각 대상에 대한 최소 UAV 자중과 최소 파지력을 계산한다.", "헥사콥터 시제품이 모델을 검증하고 PVC 파이프, 난간, 턱, 목재 빔, 나뭇가지 전반에서 정지 안착, 외란 제거, 이륙을 시연한다."], "remaining_unresolved": ["횃대에 정렬하여 착지하기 위한 자율/조종 비행 제어는 미해결로 남으며, 비행 시험에서는 횃대로부터의 이륙만 성공하였다.", "소형 규모(축소) 설계는 아직 시뮬레이션, 해석, 실험적 검증이 이루어지지 않았다.", "안착 중 모멘트 및 마찰 효과가 모델에서 제외되며, 파지는 접근각과 모서리 미끄러짐에 민감하다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

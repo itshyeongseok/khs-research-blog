@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>RoboFly: An insect-sized robot with simplified fabrication that is capable of flight, ground, and water surface locomotion</title>
+    <meta name="keywords" content="insect-scale flapping-wing robot, multimodal locomotion, wing-driven ground locomotion, air-water interfacial locomotion, piezoelectric bimorph actuation, single-laminate fabrication, open-loop landing, cost of transport, micro aerial vehicle">
+    <meta name="paper-authors" content="Yogesh Chukewad, Johannes James, Avinash Singh, Sawyer Fuller">
+    <meta name="paper-journal" content="IEEE Transactions on Robotics (T-RO), 2020 (manuscript published October 2020). arXiv:2002.02320v2.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">RoboFly: An insect-sized robot with simplified fabrication that is capable of flight, ground, and water surface locomotion</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Yogesh Chukewad, Johannes James, Avinash Singh, Sawyer Fuller</div>
+            <div class="journal">IEEE Transactions on Robotics (T-RO), 2020 (manuscript published October 2020). arXiv:2002.02320v2.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">RoboFly는 워싱턴 대학교에서 개발한 74 mg 곤충 크기(꿀벌 규모) 플래핑윙 로봇으로, 단일 탄소섬유 적층판(7개 층, 8개 별개 부품)으로 제작되도록 재설계되고 질량중심이 낮춰져, 긴 다리 없이 똑바로 착지한 뒤 동일한 날개를 사용해 지면과 수면에서 이동할 수 있다. 지면 운동은 피에조 구동 신호에 2차 고조파를 더해 하강 행정과 상승 행정의 속도를 다르게 함으로써 전후진과 조향을 위한 순 공기 항력을 생성한다; 비행은 모션 캡처 피드백을 사용하는 캐스케이드 PID 고도 및 측면/자세 제어를 쓴다. 세 개의 수동 소수성 다리로 로봇은 표면 장력을 통해 공기-물 경계면에서 떠서 노 젓듯 이동한다. 저자들은 호버링, 개루프 및 폐루프 착지, 닫힌 문 아래 지면 보행, 수면 이동(~0.5 cm/s)을 시연하고 수송 비용을 특성화한다(비행이 지면 보행보다 약 25배 저렴). 프로젝트의 플래핑윙 + 이족 보행 + 강화학습 목표에 대해 RoboFly는 핵심 다중 모드 예시이지만, 날개 구동(다리가 아닌) 지면 이동과 전적으로 고전적 제어를 사용하며, 특히 회전 다리를 가진 이족 오니솝터를 관련 연구로 인용한다.</div>
+            <div class="keywords"><span class="keyword-chip">insect-scale flapping-wing robot</span><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">wing-driven ground locomotion</span><span class="keyword-chip">air-water interfacial locomotion</span><span class="keyword-chip">piezoelectric bimorph actuation</span><span class="keyword-chip">single-laminate fabrication</span><span class="keyword-chip">open-loop landing</span><span class="keyword-chip">cost of transport</span><span class="keyword-chip">micro aerial vehicle</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 기존 곤충 규모 비행 로봇의 세 가지 결점 — 복잡한 다부품 제작, 착지의 어려움, 제한된 기동 자율성 — 을 겨냥하며, 센싱 작업을 위한 저렴하고 가벼운 꿀벌 규모 로봇의 매력에서 동기를 얻는다. 단일 적층판 제작 공정, 똑바로 개루프 착지를 가능하게 하는 낮춰진 질량중심, 그리고 별도의 보행 메커니즘 없이 공기·지면·물에 걸친 날개 구동 다중 모드 이동을 기여로 하는 74 mg 워싱턴 대학교 RoboFly를 소개한다. 수면 능력은 공기-물 경계면에서 표면 장력을 활용하는 소금쟁이, 강도래, 수련잎벌레에서 영감을 얻었다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 연구는 기존 제어 비행 곤충 로봇(81 mg RoboBee)과 비행 전용이거나 반복 설계가 어려웠던 제작 계보(팝업북 MEMS, 전환식 정전 흡착)를, 소금쟁이 및 공중-수중 로봇 같은 소규모 다중 모드 선행 사례와 함께 검토한다. 다리 설계를 위해 생물학적 물 위 걷기 추진 메커니즘을 조사하고 더 큰 다중 모드 유사체를 인용한다. 다리-플래핑 통합과 직접 관련하여, Peterson과 Fearing의 회전 다리를 가진 이족 오니솝터를 인용하며, RoboFly가 공중/지상/물 이동을 결합한 최초의 곤충 규모 로봇이라고 주장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">RoboFly는 단일 탄소섬유 적층판(7개 층, 8개 부품) 위 두 개의 동일한 피에조 바이모프 하위 유닛으로 제작되며, 질량중심이 날개 기부 근처에 놓여 순 비행 토크가 0이 된다. 지면과 물 추진은 구동 신호에 2차 고조파를 더해 하강·상승 행정의 속도를 다르게 함으로써 날개를 재활용하여, 순 공기 항력을 생성한다(탄소봉 대조 시험을 통해 관성보다 우세함을 보임). 비행은 캐스케이드 PID 고도 및 측면/자세 제어기를 통한 모션 캡처 피드백으로 안정화되며, 소금쟁이 스케일링 관계에서 치수가 정해진 세 개의 수동 소수성 다리가 표면 장력을 통해 로봇을 물 위에서 지지한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">지면 실험은 속도가 플래핑 주파수와 구동 진폭에 따라 변하는 직선 운동을 보였으며, 진폭 차 조향(90도 선회와 후진 포함)과 닫힌 문 아래 주행을 보였다. 모션 캡처 피드백 하에서 로봇은 4 cm 설정점 근처에서 센티미터 수준 RMS 오차로 호버링하고, 낮은 질량중심 덕분에 폐루프에서, 심지어 불안정한 개루프 비행에서도 똑바로 착지했다. 수면 이동은 선회를 동반해 ~0.5 cm/s에 도달했고, 공기-물 착지는 표면 장력을 깨지 않고 달성되었으며, 수송 비용 측정은 비행이 지면 보행보다 약 25배 저렴함을 보였다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 단일 적층판 설계를 다부품 조립과 22층 팝업북 제작 사이의 가치 있는 중간으로 규정하고, 낮춰진 무게중심이 일관된 직립 착지와 비행이 닿을 수 없는 곳에 도달하는 후속 조향 지면 보행을 가능하게 함을 강조한다. 그들은 물 이동이 수련잎벌레 행동과 유사함을 논의하고, 로봇이 플래핑만으로는 물에서 이륙할 수 없다는(표면 장력을 깨려면 ~9배 체중이 필요) 미해결 과제를 솔직히 언급한다. 추가 방향에는 점프 같은 대안 지면 모드, 비푸리에 구동 파형, 공력 대 진동 문제 해결, 그리고 간헐 비행 에너지 수확을 위한 착지 활용이 포함된다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">RoboFly는 제작을 단순화하고 직립 착지를 가능하게 하며 날개를 조향 지면 보행과 표면 장력 지지 물 이동에 재활용하는 단일 적층판 곤충 규모 설계를 기여한다. 저자들은 호버링, 폐루프 및 개루프 착지, 문 아래 지면 주행, 공기-물 경계면 운동을 시연하며 최초의 곤충 규모 다중 모드 공중/지상/물 이동을 주장한다. 그들은 지면 모드가 에너지적으로 비싸 정밀 위치 결정에 가장 적합하다고 언급하며, 이 플랫폼의 날개 구동(다리가 아닌) 지면 운동과 고전적 제어는 구동식 다리 보행과 학습된 제어를 별개의 방향으로 남긴다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "꿀벌 규모(~100 mg) 로봇은 가스 누출 탐지, 농업 보조, 인간 주변 안전 작동 같은 작업에서 작은 크기, 낮은 질량, 낮은 재료 비용의 이점으로 동기가 부여된다."}, {"type": "bullet", "text": "핵심적인 역사적 도전은 1 mm 미만의 관절형 구조와 구동기를 제작하는 것인데, 더 큰 쿼드로터 드론에 쓰이는 기존 전기 모터는 곤충 규모에서 효율이나 출력 밀도가 유리하게 축소되지 않기 때문이다(쿨롱 마찰, 전기 저항 같은 표면적 의존 손실이 지배적)."}, {"type": "bullet", "text": "본 논문은 기존 곤충 로봇 설계의 세 가지 결점을 겨냥한다: 복잡한 제작, 착지의 어려움, 제한된 기동 자율성."}, {"type": "bullet", "text": "복잡한 제작: 기존 81 mg 로봇은 고장이 잘 나는 많은 개별 부품의 수작업 조립이 필요했고, 팝업북 대안은 부품을 줄였으나 22개의 상호 의존 층이 필요했다."}, {"type": "bullet", "text": "착지의 어려움: 기존 직립 설계는 질량중심을 높여, 성공적 착지에 차량 크기를 거의 두 배로 늘리는 다리 연장이 필요했다; 정전 흡착 퍼칭이 대안이었으나 고전압 복잡성을 더했다."}, {"type": "bullet", "text": "제한된 기동 자율성: 여기서 기동 자율성은 여러 이동 모드(공중, 지상, 수중)를 통해 이동하는 능력으로 정의되며, 기존 곤충 규모 로봇에는 없었다."}, {"type": "bullet", "text": "본 논문은 세 가지 기여를 갖는 워싱턴 대학교 RoboFly(74 mg)를 소개한다: 단일 적층판 제작 공정, 개루프 지면 착지를 가능하게 하는 낮춰진 질량중심, 별도의 보행 메커니즘 없는 날개 구동 다중 모드 이동(공기, 지면, 물)."}, {"type": "bullet", "text": "이 연구는 저자들의 이전 학회 논문에서 발전하여, 안정화된 이륙을 넘어 제어된 호버링 비행, 폐루프 착지, 그리고 표면 장력 막을 깨지 않고 착지하는 수동 다리를 동반한 물-공기 경계면 이동을 시연한다."}, {"type": "bullet", "text": "생물학적 영감은 공기-물 경계면에서 표면 장력과 날개/다리 추진을 사용하는 소금쟁이, 강도래, 수련잎벌레에서 오며, 경계면 비행이 공중 비행보다 에너지적으로 더 비싸다는 점이 언급된다."}]}, "related_works": {"content": [{"type": "bullet", "text": "기존 제어 비행 곤충 로봇(Ma 등의 81 mg RoboBee)은 모션 캡처 피드백을 사용한 피에조 구동 플래핑윙 비행을 확립했으나 제작이 어렵고 비행 전용이었다."}, {"type": "bullet", "text": "팝업북 MEMS 제작(Sreetharan 등)은 부품을 단일 구동 자유도로 줄였으나 22개의 상호 의존 층을 도입하여 설계 반복 복잡성을 높였다."}, {"type": "bullet", "text": "전환식 정전 흡착은 수직 또는 돌출 표면에서의 퍼칭/이륙에 대해 시연되었으나 고전압 전원과 지속적 유지 전력을 요구한다."}, {"type": "bullet", "text": "소규모 다중 모드 선행 사례가 검토된다: 1 g 소금쟁이 로봇, 물 점프 로봇, 1.6 g 수중 사족 로봇, 그리고 스파커를 사용해 물에서 공기로 전환하지만 구동기 단락을 피하려면 탈이온수가 필요한 175 mg 플래핑윙 공중-수중 로봇."}, {"type": "bullet", "text": "생물학적 물 위 걷기 문헌(Hu, Bush, Mukundarajan)이 추진 메커니즘 — 표면 치기, 노 젓기/걷기, 메니스커스 오르기, 모세관파 운동량 전달 — 을 위해 조사되어 다리 설계에 정보를 준다."}, {"type": "bullet", "text": "더 큰 다중 모드 로봇이 유사체로 인용된다: 393 g, 72 cm 생체영감 활공/에일러론 보행 로봇, 그리고 비행에 날개를, 지상 이동에 휠레그(wheg)를 사용하는 100 g, 30.5 cm 마이크로 비행체."}, {"type": "bullet", "text": "다리-플래핑 통합과 직접 관련하여, 저자들은 비행을 위한 플래핑윙과 지상 이동을 위한 회전 다리를 결합한 Peterson과 Fearing의 이족 오니솝터(11.4 g, 28 cm)를 인용한다."}, {"type": "bullet", "text": "네 개의 비행 프로펠러를 사용해 단순한 일방향 보행 메커니즘을 조향하는 30 g '날아다니는 원숭이'가 추진 공유 다중 모드 접근법으로 인용된다."}, {"type": "bullet", "text": "저자들은 RoboFly가 그들이 아는 한 곤충 규모에서 다중 모드(공중/지상/물) 이동 능력의 최초 사례라고 주장한다."}]}, "method": {"content": [{"type": "bullet", "text": "RoboFly는 각각 피에조 바이모프 캔틸레버 구동기, 탄소섬유 기체, 13 mm 날개를 가진 두 개의 동일한 하위 유닛으로 구성된다; 구동기를 전후로 연장하면 질량중심이 날개 기부 근처에 놓여 순 비행 토크가 0이 되어, 74 mg 로봇(마커 제외)을 얻는다."}, {"type": "bullet", "text": "제작은 기체, 전동부, 구동기 부착 하드웨어를 성곽형 접힘과 기계적 인터로크를 사용해 단일 적층 시트로 결합한다; 비교 표는 5개 층/14개 부품(Ma)과 22개 층/1개 부품(Sreetharan) 대비 7개 층과 8개 별개 부품을 보고한다."}, {"type": "bullet", "text": "피에조 바이모프는 '동시 구동' 구성으로 구동되며, 교번하는 중간층 신호가 작은 변형을 만들고 이를 미세제작 전동부가 ~90도 날개 운동으로 증폭한다; 수동 날개 힌지가 받음각을 수동적으로 변화시킨다."}, {"type": "bullet", "text": "지면과 물 이동은 플래핑 주파수의 두 배인 2차 고조파를 더해 하강 행정과 상승 행정의 속도를 다르게 함으로써 생성되며, 로봇을 전진 또는 후진시키는 순 공기 항력을 만든다."}, {"type": "formula", "label": "구동 신호", "latex": "V(t) = V_0 + A_0 \\sin(\\omega t) + A_1 \\sin(2\\omega t),\\quad A_1 = \\mu A_0,\\ \\mu \\in [-0.3, 0.3]", "description": "DC 바이어스 V_0, 기본 항, 상대 진폭 mu의 2차 고조파를 갖는 날개별 구동 전압; 2차 고조파는 한 반행정을 더 빠르게 만들어 지면/물에서 방향성 추력을 생성한다. 모든 비행 외 동작은 우발적 이륙을 피하기 위해 비공진 주파수를 사용한다."}, {"type": "bullet", "text": "지면 운동이 관성이 아니라 주로 공기 항력으로 구동됨이 입증되었다: 날개를 동일한 질량과 관성을 가진 탄소봉으로 교체하면 운동이 무시할 만했고, 날개 레이놀즈 수(~3000)는 관성 지배 항력을 확인한다."}, {"type": "formula", "label": "공기 항력", "latex": "f_d = \\tfrac{1}{2} C_D\\, \\rho\\, A\\, v^2", "description": "날개에 작용하는 항력은 날개 속도 v의 제곱에 비례하므로(항력계수 C_D, 공기 밀도 rho, 전면적 A), 더 빠른 날개 반행정이 더 큰 항력을 만들어 순 방향성 지면/물 추진을 낸다."}, {"type": "bullet", "text": "비행은 모션 캡처 피드백(240 Hz 네 대의 OptiTrack 카메라)을 사용한다: PID 고도 제어기에 더해, 원하는 추력 벡터 기울기를 명령하는 외부 측면 위치 PD 루프가 롤/피치 토크를 계산하는 내부 자세 루프에 입력된다; 요는 제어하지 않는다."}, {"type": "formula", "label": "식 1", "latex": "a_z = k_{ph}\\,e_z + k_{dh}\\,\\dot{e}_z + k_{ih}\\!\\int_0^t e_z\\, dt", "description": "고도 제어 법칙: 명령된 수직 가속도는 높이 오차 e_z = z_d - z의 PID 함수로, 비례·미분·적분 이득을 갖는다; 높이 측정은 미분 전에 저역통과 버터워스 필터링된다."}, {"type": "bullet", "text": "물 이동을 위해, 세 개의 수동 강체 소수성 탄소섬유 다리(직경 0.5 mm, 2.5 cm 중심에 1.25 cm 다리 둘이 더해진 총 길이 50 mm, 간격 15 mm, Rust-Oleum NeverWet 코팅, 접촉각 135도, 본드 수 0.31)가 표면 장력 곡률력을 통해 로봇을 지지하며, 342종 소금쟁이 경험식 max(F_c) = 48 F_W^0.58 (dynes)에서 치수가 정해진다."}]}, "experiment": {"content": [{"type": "bullet", "text": "지면 이동: 날개를 60 Hz, 210 V 진폭으로 펄럭일 때 로봇은 직선으로 움직였고, 속도는 플래핑 주파수와 구동 진폭 모두에 따라 증가했다(이륙은 약 140 Hz에서 발생)."}, {"type": "bullet", "text": "지면 조향은 두 날개를 다른 진폭(예: 왼쪽 날개 250 V, 오른쪽 날개 200 V)으로 구동하여 달성되었으며, 선회율은 진폭 차로 설정된다; 90도 우회전이 시연되었고 후진도 달성되었다."}, {"type": "bullet", "text": "지면 보행은 로봇이 닫힌 문 아래 — 비행으로는 통과 불가능한 장애물 — 를 주행하게 하여 확장된 기동 자율성을 시연했다."}, {"type": "bullet", "text": "호버링 비행: 모션 캡처 피드백 하에서 로봇은 명령된 4 cm 높이에서 약 2초간 비행하여 ~4.5 cm를 유지했으며, 마지막 1초 RMS 위치 오차는 x, y, z에서 1.8, 1.75, 0.5 cm였다."}, {"type": "bullet", "text": "착지: 폐루프 제어 착지는 대략 수평을 유지하면서 명령 고도를 점진적으로 낮춰 수행되었다; 결정적으로 낮은 질량중심은 피드백 없는 불안정한 개루프 비행에서도 일관된 직립 착지를 가능하게 했다."}, {"type": "bullet", "text": "수면 이동: 220 V의 2차 고조파 신호와 (공진보다 훨씬 낮은) 35 Hz 날개로 로봇은 표면을 따라 ~0.5 cm/s로 움직였고, 한쪽 날개를 더 세게 펄럭여 선회(~20 deg/s)할 수 있었다; 대칭 플래핑에서 나온 잔물결은 순 방향 효과가 없었다."}, {"type": "bullet", "text": "공기-물 착지: 상자에서 뛰어내린 공중 로봇이 표면 장력을 깨지 않고 수면에 착지했다(앞다리 먼저, 그다음 가운데, 그다음 세 다리 모두, 진동은 145 ms로 감쇠), 일관되게 달성되었다."}, {"type": "bullet", "text": "출력/효율: 수송 비용은 거리에 대한 적분 전압-전류로 측정되었다; 비행 CoT는 ~0.02 mJ/mm로 가장 효율적인 지면 보행보다 약 25배 낮았고, CoT는 플래핑 주파수 증가에 따라 감소했으며, 호버링은 약 50 mW를 소비했다."}]}, "discussion": {"content": [{"type": "bullet", "text": "저자들은 2-적층판 설계가 다수의 개별 부품 조립과 22층 팝업북 제작 사이의 가치 있는 중간이라고 주장하며, 정밀 정렬과 적은 부품을 유지하면서 층 상호 의존성을 줄이고 설계 반복을 용이하게 하며, 자동화 제조에 적합하게 유지한다고 본다."}, {"type": "bullet", "text": "낮춰진 무게중심은 (불안정한 개루프 비행에서도) 일관된 직립 착지와 후속 조향 지면 보행을 가능하게 하여 로봇의 작업 레퍼토리를 확장하는 것으로 강조된다."}, {"type": "bullet", "text": "지면 보행은 로봇이 비행으로 접근 불가능한 곳(예: 문 아래)에 도달하게 하며, 이는 이전에 숙련된 지상 로봇에만 가능했고 공중 로봇에는 불가능했던 통과 능력이다."}, {"type": "bullet", "text": "물 이동은 수련잎벌레 및 소금쟁이 행동과 유사하며, 수동 소수성 다리 위의 표면 장력으로 지지된다."}, {"type": "bullet", "text": "명시된 미해결 과제(향후 연구)는 로봇이 플래핑만으로는 물에서 이륙할 수 없다는 것으로, 표면 장력을 깨려면 무게의 ~9배가 필요하다; 제안된 해결책에는 다리 전기습윤, 날개로 파동 생성, 또는 장애물 충돌로부터의 충격량이 포함된다."}, {"type": "bullet", "text": "추가 향후 방향에는 점프/호핑 같은 대안 지면 모드(호핑은 유리한 소규모 스케일링의 이점을 받으나 부적합한 무게/복잡성을 더함)와, 톱니파 같은 비푸리에 구동 파형 탐구가 포함된다."}, {"type": "bullet", "text": "저자들은 진동 메커니즘이 지면 이동에 기여하는지에 대한 불확실성이 남아 있음을 언급하고, 진동이 유의미하다면 발(예: 방향성 가시)을 재설계할 것을 제안한다."}, {"type": "bullet", "text": "착지 능력은 에너지 수확(레이저 전력, 자기 공명, 실내광, RF/WiFi, 공탄성 플러터)을 위한 간헐 비행을 가능하게 하는 것으로 규정되는데, 착지한 로봇이 지속 비행 중인 로봇보다 전력 공급이 쉽기 때문이다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 제작을 단순화하고(단일 적층판 기체/전동부), 직립 착지와 지면 이동을 가능하게 하며, 수면 이동을 위한 수동 다리를 더하는 새로운 곤충 규모 로봇 설계를 기여한다."}, {"type": "bullet", "text": "세 가지 이동 모드 모두에 동일한 플래핑 날개를 재활용하는 것 — 전용 구동기 대신 수동 다리와 수정된 구동 파형만 추가 — 은 곤충 규모의 질량 및 전력 예산 내에서 다중 모드 능력을 가능하게 하는 핵심 경제성으로 제시된다."}, {"type": "bullet", "text": "RoboFly는 호버링, 폐루프 및 개루프 직립 착지, 조향 지면 보행(문 아래 포함), 수련잎벌레 같은 공기-물 경계면 이동을 시연했다."}, {"type": "bullet", "text": "지면 이동 수송 비용이 자유 비행보다 상당히 높은 것으로 밝혀져, 지상 모드는 센서 배치 같은 정밀 위치 결정에 가장 적합하다."}, {"type": "bullet", "text": "저자들은 이것이 곤충 규모에서 다중 모드 공중/지상/물 이동의 최초 시연으로, 이전에 더 큰 로봇에서만 보였던 능력과 유사하다고 주장한다."}, {"type": "bullet", "text": "프로젝트의 플래핑윙 + 이족 보행 + 강화학습 목표에 대해, RoboFly는 다중 모드 플래핑윙 이동이 작은 규모에서 실현 가능함을 입증하지만, 날개 구동(다리가 아닌) 지면 운동과 순전히 고전적인 PID/캐스케이드 제어에 의존하여, 구동식 다리 보행과 학습된 제어를 별개의, 다루지 않은 방향으로 남긴다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "로봇은 표면 장력을 깨려면 자기 무게의 약 아홉 배를 들어올려야 하므로 날개를 펄럭이는 것만으로는 수면에서 이륙할 수 없다.", "source_quote": "We found that the vehicle was unable to lift off from the surface if the water simply by flapping its wings, as predicted by our earlier analysis indicating that the robot needs to lift approximately 9 times its own weight to break the water surface tension.", "source_section": "discussion"}, {"claim": "지면 이동의 수송 비용이 자유 비행보다 상당히 높아, 지면 모드는 정밀 위치 결정 운동에만 가장 적합하다.", "source_quote": "The cost of transport was found to be substantially higher than that of free-flight, so this mode of locomotion is better suited to precise motions, such as to precisely position a sensor.", "source_section": "conclusion"}], "future_works": [{"claim": "예컨대 다리 전기습윤, 날개로 파동 생성, 또는 장애물 충돌로부터의 충격량을 통해 수면에서 공중 비행으로의 전환을 가능하게 하여 물 이동을 개선한다.", "source_quote": "Water locomotion can be further improved by performing a transition from water surface to airborne flight.", "source_section": "discussion"}, {"claim": "점프/호핑 같은 대안 지면 이동 모드를 탐구한다.", "source_quote": "As to ground locomotion, alternative modes such as jumping are possible.", "source_section": "discussion"}, {"claim": "지면 이동에 더 나은 성능을 낼 수 있는, 2성분 푸리에 기저 이외의 구동 파형(예: 톱니파)을 탐구한다.", "source_quote": "This work uses a 2-component Fourier basis to cause differential stroke speed, but we have not explored other waveforms e.g. ‘sawtooth’, which could perform better.", "source_section": "discussion"}, {"claim": "지면 이동에서 진동 메커니즘의 역할을 조사하고, 운동 방향을 유리하게 하도록 발(예: 방향성 가시)을 잠재적으로 재설계한다.", "source_quote": "If vibratory mechanism is significant, then the feet could be redesigned to exploit this; e.g. directional spines could serve to selectively favor a direction of motion.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["기존 곤충 규모 비행 로봇은 고장이 잘 나는 많은 개별 부품의 수작업 조립이 필요하거나 22개의 상호 의존 층이 필요한 팝업북 방법을 사용하여 제작이 매우 어려웠다.", "기존 곤충 규모 로봇은 착지에 어려움이 있었다: 직립 키 큰 몸체 설계는 질량중심을 높여, 넘어짐을 피하기 위해 차량 크기를 거의 두 배로 늘리는 다리 연장이 필요했다.", "기존 곤충 규모 로봇은 기동 자율성이 제한적이어서 비행만 수행할 수 있고 여러 이동 모드(공중, 지상, 수중)는 수행할 수 없었다."], "addressed_by_this_work": ["새로운 설계는 기체와 전동부를 단일 적층 시트(7개 층, 8개 별개 부품)에서 접어, 기존 설계 대비 부품 수를 극적으로 줄이고 제작을 단순화한다.", "낮춰진 질량중심은 RoboFly가 긴 다리 없이 똑바로 착지하게 하며, 폐루프 제어 비행과 심지어 불안정한 개루프 비행 모두에 대해 시연되었다.", "로봇은 다중 모드 이동 — 비행, 조향을 동반한 날개 구동 지면 보행(닫힌 문 아래 주행 포함), 수동 소수성 다리를 동반한 공기-물 경계면 이동 — 을 수행하며, 곤충 규모 최초의 다중 모드 이동으로 주장된다."], "remaining_unresolved": ["로봇은 날개 플래핑만으로는 표면 장력을 깨는 데 필요한 ~9배 체중 힘을 생성할 수 없어 수면에서 공중 비행으로 다시 전환할 수 없다; 대안적 수단은 향후 연구로 남겨진다.", "지면 이동은 비행보다 여전히 훨씬 에너지 효율이 낮아(높은 수송 비용), 일반 이동보다는 정밀 단거리 위치 결정에 한정된다.", "지면 이동에 대한 공기 항력 대 진동 메커니즘의 상대적 기여는 불확실하게 남아 추가 연구가 필요하다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

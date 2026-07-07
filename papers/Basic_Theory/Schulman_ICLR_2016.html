@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>High-Dimensional Continuous Control Using Generalized Advantage Estimation</title>
+    <meta name="keywords" content="policy gradient, generalized advantage estimation, variance reduction, bias-variance tradeoff, advantage function, trust region optimization, TD(lambda), reward shaping, continuous control, 3D locomotion">
+    <meta name="paper-authors" content="John Schulman, Philipp Moritz, Sergey Levine, Michael I. Jordan, Pieter Abbeel">
+    <meta name="paper-journal" content="Published as a conference paper at the 4th International Conference on Learning Representations (ICLR 2016) (arXiv:1506.02438). Supplementary videos: https://sites.google.com/site/gaepapersupp.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">High-Dimensional Continuous Control Using Generalized Advantage Estimation</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">John Schulman, Philipp Moritz, Sergey Levine, Michael I. Jordan, Pieter Abbeel</div>
+            <div class="journal">Published as a conference paper at the 4th International Conference on Learning Representations (ICLR 2016) (arXiv:1506.02438). Supplementary videos: https://sites.google.com/site/gaepapersupp.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 고차원 연속 제어 환경에서 강화학습 정책 경사(policy gradient) 방법의 두 핵심 난점 - 높은 샘플 복잡도와 불안정하고 비정상적인(non-stationary) 업데이트 - 를 다룬다. 정책 경사 추정치의 분산을 감내 가능한 정도의 편향(bias)을 대가로 줄이기 위해, 저자들은 일반화 어드밴티지 추정량(Generalized Advantage Estimator, GAE)을 도입한다. 이는 gamma와 lambda로 매개화되는 k-스텝 TD-잔차(residual) 어드밴티지 추정량들의 지수 가중 평균으로, TD(lambda)와 유사하지만 가치 함수가 아니라 어드밴티지 함수를 추정한다. 저자들은 어드밴티지 추정량이 언제 'gamma-just'인지에 대한 (온라인과 배치 설정 모두에 적용 가능한) 더 일반적인 분석을 제시하고, GAE가 응답 함수(response function)의 시간적 확산을 축소하는 보상 정형화(reward shaping) 변환으로 해석될 수 있음을 보인다. 안정성을 위해 GAE를 정책(TRPO)과 신경망 가치 함수 모두에 대한 신뢰 영역(trust-region) 최적화와 결합한다. 실험적으로, 카트-폴 과제와 도전적인 3D 보행 과제(2족·4족 달리기, 지면에서 일어서는 2족 로봇)에서 원시 운동학을 관절 토크로 직접 매핑하는 신경망 정책을 사용했을 때, gamma in [0.99, 0.995], lambda in [0.9, 0.99]의 중간 값들이 최고 성능을 주어 RL 기반 고차원 연속 제어의 최신 성능을 확장한다.</div>
+            <div class="keywords"><span class="keyword-chip">policy gradient</span><span class="keyword-chip">generalized advantage estimation</span><span class="keyword-chip">variance reduction</span><span class="keyword-chip">bias-variance tradeoff</span><span class="keyword-chip">advantage function</span><span class="keyword-chip">trust region optimization</span><span class="keyword-chip">TD(lambda)</span><span class="keyword-chip">reward shaping</span><span class="keyword-chip">continuous control</span><span class="keyword-chip">3D locomotion</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 신용 할당 문제 - 행동과 그 보상 효과 사이의 긴 지연 - 를 설정하고, 가치 함수가 지연된 보상이 도착하기 전에 행동의 좋음을 추정하는 데 도움이 됨을 설명한다. 비편향이지만 고분산인 정책 경사 추정량과 저분산이지만 편향된 액터-크리틱 추정량을 대비하며, 편향이 분산보다 더 해롭다고 주장한다. 이어 저자들은 자신들의 기여를 예고한다: gamma와 lambda로 매개화되어 감내 가능한 편향을 유지하면서 분산을 줄이는 정책 경사 추정량 계열(GAE)로, 원시 운동학을 관절 토크로 매핑하는 신경망 정책을 사용한 도전적인 3D 보행 과제에서 검증된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 GAE를 기존 정책 경사 및 액터-크리틱 문헌에 대해 위치시킨다. 지수 가중 어드밴티지 공식은 이전의 온라인 액터-크리틱 연구(Kimura & Kobayashi; Wawrzynski)에 등장했지만, 저자들은 배치 신뢰 영역 알고리즘과 함께 사용할 수 있게 하는 더 일반적인 분석을 기여한다. 그들은 자신들의 구성을 TD(lambda)(Sutton & Barto), 보상 정형화(Ng 등), 정책 경사 기저선의 분산 감소 분석(Greensmith 등), 그리고 할인을 통한 분산 감소 분석(Marbach & Tsitsiklis; Kakade; Thomas)에 연결한다. 행동 미분 방법(DPG/SVG)에 대한 동시기 연구는 저차원 문제에서 동작하는 대안 부류로 언급된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법론은 정책 경사 표현식 계열 g = E[sum Psi_t grad log pi]로부터 GAE를 유도하는데, Psi를 어드밴티지 함수로 선택하면 거의 최소 분산을 준다. TD 잔차 delta^V_t = r_t + gamma V(s_{t+1}) - V(s_t)를 한 스텝 어드밴티지 추정으로 정의하고, 저자들은 k-스텝 추정량을 형성한 뒤 그 지수 가중 평균을 취해 GAE(gamma, lambda) = sum (gamma lambda)^l delta^V_{t+l}, 즉 벨만 잔차의 할인 합을 얻는다. 두 특수 경우 lambda=0(저분산, V가 정확하지 않으면 편향)과 lambda=1(비편향, 고분산)은 조절 가능한 편향-분산 절충을 한정하며, gamma와 lambda는 서로 다른 역할을 한다. 보상 정형화 해석은 gamma-lambda-할인된 정형화 보상이 delta^V와 같음을 보이고, 응답 함수가 시간적 신용 할당을 정량화한다. 가치 함수는 켤레 경사로 푸는 신뢰 영역(KL 제약) 회귀로 적합하며, 정책 업데이트는 TRPO를 사용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 gamma와 lambda를 변화시키는 경험적 효과와, 정책·가치 신뢰 영역 최적화를 갖춘 GAE가 도전적인 제어 문제에서 대규모 신경망 정책을 학습할 수 있는지를 조사한다. 과제에는 고전적인 카트-폴과 세 가지 3D 보행 문제(2족 보행, 4족 보행, 지면에서 일어서는 2족 로봇)가 포함되며, 모두 정책과 가치 함수에 대해 동일한 3개 은닉층(100/50/25 tanh 유닛) 네트워크와 MuJoCo 시뮬레이터를 사용한다. 모든 과제에 걸쳐 최고 성능은 중간 파라미터 값들에서 나온다 - 카트-폴은 gamma in [0.96,0.99]과 lambda in [0.92,0.99], 3D 2족은 gamma in [0.99,0.995]과 lambda in [0.96,0.99] - 그리고 가치 함수 기저선이 시간 의존적 'No VF' 기저선을 일관되게 능가한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 어려운 제어에 대해 정책 경사 방법을 실용화하는 핵심이 분산을 줄이기 위한 좋은 어드밴티지 함수 추정을 얻는 것이라고 주장하며, GAE는 두 편향-분산 파라미터 gamma와 lambda로 이를 달성한다. 정책과 신경망 가치 함수 모두의 신뢰 영역 최적화와 결합하여, 저자들은 일반 RL로는 이전에 도달 불가능했던 제어 과제를 풀 수 있게 한다. 그들은 중간 lambda in [0.9,0.99]가 보통 가장 잘 작동함을 언급하고, 미해결 질문을 제시한다: gamma와 lambda의 적응적 선택, 가치 함수 오차와 정책 경사 오차 사이 연결의 이해, 그리고 정책과 가치 함수 간 함수 근사 아키텍처 공유. 또한 자신들의 상태 가치 접근법을 동시기 행동 미분 방법과 대비한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문의 맺음말은 논의 절에 접혀 있지만, 저자들은 좋은 어드밴티지 추정을 통해 분산을 줄임으로써 정책 경사 방법을 고차원 연속 제어에서 효과적으로 만들 수 있다고 결론짓는다. 일반적인 gamma-just 분석과 보상 정형화 해석으로 정당화되고 정책과 가치 함수 모두의 신뢰 영역 최적화와 결합된 그들의 일반화 어드밴티지 추정량은, 원시 운동학을 토크로 매핑하는 신경망으로 복잡한 3D 보행 보법과 2족 일어서기 행동을 학습한다. 최고 결과는 중간 gamma와 lambda를 요구하며, 본 연구는 적응적 파라미터 선택과 공유 아키텍처를 향후 방향으로 남기면서 고차원 연속 제어를 위한 RL의 최신 성능을 확장한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "전형적인 RL 문제는 기대 총 보상을 최대화하는 것이다; 핵심 난점은 행동과 그 보상 효과 사이의 긴 시간 지연으로, 신용 할당(또는 원거리 보상) 문제로 알려져 있다."}, {"type": "bullet", "text": "가치 함수는 지연된 보상이 도착하기 전에 행동의 좋음을 추정함으로써 신용 할당에 우아한 해법을 제공한다; 본 논문은 매개화된 정책을 최적화하고 이를 어떻게 개선할지 추정하는 데 가치 함수를 사용한다."}, {"type": "bullet", "text": "매개화된 확률적 정책은 기대 수익의 비편향 경사 추정을 허용하지만, 한 행동의 효과가 과거 및 미래 행동과 혼재되기 때문에 그 추정량의 분산이 시간 지평에 따라 불리하게 확장된다."}, {"type": "bullet", "text": "액터-크리틱 방법은 분산을 낮추기 위해 경험적 수익 대신 가치 함수를 사용하지만 편향을 대가로 치른다; 저자들은 편향이 더 해롭다고 강조하는데, 무한한 샘플이 있어도 수렴을 막거나 비최적 해를 낳을 수 있기 때문이다."}, {"type": "bullet", "text": "제안된 추정량 계열(일반화 어드밴티지 추정량, GAE)은 gamma in [0,1]과 lambda in [0,1]로 매개화되며, 감내 가능한 수준의 편향을 유지하면서 분산을 크게 줄인다."}, {"type": "bullet", "text": "GAE는 온라인과 배치 설정 모두에 대해 일반적으로 분석되며, 근사 가치 함수가 보상을 정형화하는 보상 정형화의 사례로 해석된다."}, {"type": "bullet", "text": "실험은 일반 목적 신경망 정책 및 가치 함수(>10^4 파라미터)를 사용한 도전적인 3D 보행(2족/4족 달리기, 2족 일어서기)을 다루며, 최대 33개 상태 차원과 10개 액추에이터를 갖는 로봇의 토크 수준 제어를 수행한다; 3D 2족 학습은 실제 시간 1~2주에 해당한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "비편향 정책 경사 추정량은 Williams(1992), Sutton 등(1999), Baxter & Bartlett(2000)으로 거슬러 올라가며; 편향을 동반한 액터-크리틱 분산 감소는 Konda & Tsitsiklis(2003)와 Hafner & Riedmiller(2011)로 거슬러 올라간다."}, {"type": "bullet", "text": "관련 지수 가중 어드밴티지 추정량은 온라인 액터-크리틱 방법을 위해 제안되었으며(Kimura & Kobayashi 1998; Wawrzynski 2009); 본 연구는 배치와 온라인 설정 모두에 적용 가능한 더 일반적인 분석을 제시한다."}, {"type": "bullet", "text": "GAE 구성은 TD(lambda)(Sutton & Barto 1998)와 밀접하게 유사하지만, 가치 함수가 아니라 어드밴티지 함수를 추정한다."}, {"type": "bullet", "text": "GAE는 보상 정형화(Ng 등 1999)를 통해 해석되며, 근사 가치 함수가 응답의 시간적 확산을 줄이도록 보상을 재정형화한다."}, {"type": "bullet", "text": "Greensmith 등(2004)은 정책 경사 분산과 기저선의 효과에 대한 엄밀한 분석을 제공하며, 저자들은 이를 어드밴티지 함수 선택의 배경으로 인용한다."}, {"type": "bullet", "text": "할인 gamma를 비할인 문제에서 분산 감소 파라미터로 다루는 것은 Marbach & Tsitsiklis(2003), Kakade(2001b), Thomas(2014)의 이론적 분석을 따른다."}, {"type": "bullet", "text": "동시기 행동 미분 정책 경사 방법(Lillicrap 등 2015 DPG; Heess 등 2015 SVG)은 대안 부류로 언급되지만, 본 연구에서 다루는 것보다 상당히 저차원인 상태/행동 공간에 적용된다."}]}, "method": {"content": [{"type": "bullet", "text": "여러 정책 경사 표현식은 가중치 Psi_t와 점수 함수의 곱을 합하는 공통 형태를 공유한다; 저자들은 총 보상, 잔여 수익(reward-to-go), 기저선 보정 보상, Q-함수, 어드밴티지 함수, TD 잔차를 포함한 Psi_t의 선택지를 열거한다."}, {"type": "formula", "label": "일반 정책 경사 (식 1)", "latex": "g = \\mathbb{E}\\!\\left[\\sum_{t=0}^{\\infty} \\Psi_t\\, \\nabla_\\theta \\log \\pi_\\theta(a_t \\mid s_t)\\right]", "description": "정책 경사는 Psi_t가 여러 양 중 하나인 공통 형태를 가진다; Psi_t를 어드밴티지 함수로 선택하면 거의 가능한 최저 분산을 얻는다."}, {"type": "formula", "label": "어드밴티지 함수 (식 3)", "latex": "A^{\\pi}(s_t, a_t) := Q^{\\pi}(s_t, a_t) - V^{\\pi}(s_t)", "description": "어드밴티지 함수는 한 행동이 정책의 기본 행동보다 나은지 못한지를 측정한다; 이를 Psi_t로 사용하면 경사가 평균보다 나은 행동의 확률을 높이도록 한다."}, {"type": "bullet", "text": "할인 gamma가 분산 감소 파라미터로 도입되어(편향을 대가로 지연 효과 보상을 하향 가중) 할인된 가치, Q, 어드밴티지 함수와 할인된 정책 경사 g^gamma를 준다."}, {"type": "formula", "label": "한 스텝 어드밴티지로서의 TD 잔차", "latex": "\\delta^{V}_t = r_t + \\gamma V(s_{t+1}) - V(s_t)", "description": "할인 gamma를 갖는 가치 함수 V의 TD 잔차는 행동 a_t의 어드밴티지에 대한 추정이다; V = V^{pi,gamma}이면 어드밴티지의 비편향(gamma-just) 추정량이다."}, {"type": "bullet", "text": "k개의 할인된 TD 잔차를 합하면 k-스텝 어드밴티지 추정량 A_hat^(k)_t를 주는데, gamma^k V(s_{t+k}) 항이 더 강하게 할인되기 때문에 k가 커질수록 편향이 일반적으로 줄어든다; k->infinity 극한은 경험적 수익에서 가치 기저선을 뺀 것이다."}, {"type": "formula", "label": "일반화 어드밴티지 추정량 (식 16)", "latex": "\\hat{A}^{\\mathrm{GAE}(\\gamma,\\lambda)}_t := \\sum_{l=0}^{\\infty} (\\gamma\\lambda)^{l}\\, \\delta^{V}_{t+l}", "description": "GAE는 k-스텝 추정량들의 지수 가중 평균으로, 벨만(TD) 잔차 항들의 단순한 할인 합으로 환원된다; 본 논문의 중심 추정량이다."}, {"type": "formula", "label": "GAE 특수 경우 (식 17-18)", "latex": "\\mathrm{GAE}(\\gamma,0):\\ \\hat{A}_t = \\delta^{V}_t \\qquad \\mathrm{GAE}(\\gamma,1):\\ \\hat{A}_t = \\sum_{l=0}^{\\infty} \\gamma^{l} r_{t+l} - V(s_t)", "description": "lambda=0은 저분산 한 스텝 TD 잔차를 준다(V가 정확할 때만 gamma-just); lambda=1은 비편향 고분산의 경험적 수익에서 기저선을 뺀 추정량을 준다. 중간 값 0<lambda<1은 편향과 분산을 절충한다."}, {"type": "bullet", "text": "gamma와 lambda는 서로 다른 역할을 한다: gamma는 가치 함수의 스케일을 설정하고 <1일 때 항상 편향을 도입하는 반면, lambda는 가치 함수가 부정확할 때만 편향을 도입하므로 경험적으로 최적의 lambda는 최적의 gamma보다 훨씬 작다."}, {"type": "formula", "label": "보상 정형화 변환 (식 20)", "latex": "\\tilde{r}(s,a,s') = r(s,a,s') + \\gamma \\Phi(s') - \\Phi(s)", "description": "스칼라 잠재(potential) Phi를 사용한 보상 정형화는 할인된 어드밴티지 A^{pi,gamma}를 변화시키지 않는다; Phi = V로 두면 정형화된 보상의 gamma-lambda-할인 합이 정확히 GAE 추정량과 같아져 그 보상 정형화 해석을 준다."}, {"type": "formula", "label": "응답 함수 (식 26)", "latex": "\\chi(l; s_t, a_t) = \\mathbb{E}[r_{t+l} \\mid s_t, a_t] - \\mathbb{E}[r_{t+l} \\mid s_t]", "description": "응답 함수는 어드밴티지를 시간 스텝에 걸쳐 분해하고 시간적 신용 할당을 정량화한다; 장거리 행동-보상 의존성은 큰 l에서의 0이 아닌 응답에 대응하며, gamma와 V에 의한 정형화가 이를 끊는 데 도움이 된다."}, {"type": "bullet", "text": "가치 함수는 신뢰 영역 방법으로 적합한다: 최신 배치에 과적합하지 않도록, 할인 수익에 대한 제곱 오차를 최소화하는 KL 제약 비선형 회귀를, 가우스-뉴턴(피셔 정보) 헤시안 근사를 사용하여 켤레 경사로 근사적으로 푼다."}, {"type": "bullet", "text": "정책 업데이트는 신뢰 영역 정책 최적화(TRPO)를 사용하여 연속 정책 간 평균 KL 발산을 제약하고, 피셔 정보 가중 업데이트를 통해 자연 정책 경사 스텝 방향을 산출한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "두 가지 질문을 연구한다: lambda와 gamma를 [0,1]에서 변화시킬 때 에피소드 총 보상에 대한 경험적 효과, 그리고 정책/가치 신뢰 영역 최적화를 갖춘 GAE가 도전적인 대규모 네트워크 제어 문제를 풀 수 있는지."}, {"type": "bullet", "text": "정책 업데이트는 TRPO와 Schulman 등(2015)과 동일한 수치 절차를 사용한다; 본 연구는 기저 알고리즘을 고정하고 경사 추정량의 gamma와 lambda를 변화시킨다."}, {"type": "bullet", "text": "과제는 카트-폴에 더해 세 가지 3D MuJoCo 보행 과제이다: 2족 보행, 4족 보행, 등을 대고 누운 자세에서 동적으로 일어서는 2족 로봇.", "figure_refs": [1]}, {"type": "bullet", "text": "3D 과제들은 정책과 가치 함수 모두에 대해 3개 은닉층(100, 50, 25 tanh 유닛)을 갖는 순방향 네트워크를 공유한다; 휴머노이드는 33개 상태 차원/10개 액추에이터, 4족은 29개 상태 차원/8개 액추에이터를 가지며 0.01초 시간 스텝을 사용한다."}, {"type": "bullet", "text": "카트-폴(21개 시드 평균)에서 최고 결과는 중간 값 gamma in [0.96,0.99]과 lambda in [0.92,0.99]에서 나온다; lambda in [0.92,0.98]이 가장 빠른 정책 개선을 준다.", "figure_refs": [2]}, {"type": "bullet", "text": "3D 2족 보행(9회 시행 평균)에서 최고 성능은 다시 중간 값 gamma in [0.99,0.995], lambda in [0.96,0.99]에서 나오며, 약 1000회 반복(실제 시간 환산 약 5.8일 경험) 후 빠르고 부드럽고 안정적인 보행을 산출한다.", "figure_refs": [3]}, {"type": "bullet", "text": "4족 보행과 3D 일어서기의 경우, lambda=0.96의 가치 함수가 최고 결과를 주며, 상태 가치 함수 기저선을 사용하는 것이 시간 의존적 'No VF' 기저선을 일관되게 능가한다.", "figure_refs": [4]}, {"type": "bullet", "text": "결과는 최소화할 비용(음의 보상)으로 보고된다; 추가 편향 도입을 피하기 위해 가치 함수는 매 반복마다 정책 이후에 업데이트된다(어드밴티지 추정에 V_{phi_i} 사용)."}]}, "discussion": {"content": [{"type": "bullet", "text": "저자들은 분산 감소의 핵심 - 따라서 어려운 제어를 실제로 푸는 확률적 경사 하강으로 RL을 환원하는 핵심 - 이 어드밴티지 함수의 좋은 추정을 얻는 것이라고 주장한다."}, {"type": "bullet", "text": "GAE는 편향-분산 절충을 조정하는 두 파라미터 gamma와 lambda를 갖는 비형식적으로 정당화된 추정량을 제공하며, 신뢰 영역 정책 최적화 및 신뢰 영역 가치 함수 최적화기(둘 다 신경망)와 결합된다."}, {"type": "bullet", "text": "이 기법들이 함께 일반 RL 방법으로는 이전에 도달 불가능했던 어려운 제어 과제를 풀며, 적절한 중간 lambda in [0.9,0.99]가 보통 최고 성능을 준다."}, {"type": "bullet", "text": "미해결 질문 하나는 추정량 파라미터 gamma와 lambda를 적응적 또는 자동적으로 조정하는 방법이다."}, {"type": "bullet", "text": "또 다른 미해결 질문은 가치 함수 추정 오차와 정책 경사 추정 오차 사이의 관계로, 이를 알면 더 나은 가치 적합 지표(예: 벨만 또는 사영 벨만 오차)를 안내할 수 있다."}, {"type": "bullet", "text": "정책과 가치 함수에 대한 공유 함수 근사 아키텍처(GAE로 최적화)는 더욱 빠른 학습을 산출할 수 있으나, 수렴 보장과 함께 이를 정식화하는 것은 미해결로 남는다."}, {"type": "bullet", "text": "동시기 행동 미분 방법(DPG/SVG)과 비교하여, 상태 가치 함수 접근법은 더 저차원 입력을 가지며 고편향(lambda=0)과 저편향(lambda=1) 추정량 사이를 부드럽게 보간하는 반면, 매개화된 Q-함수는 고편향 추정량만 허용한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "정책 경사 방법은 비편향 경사 추정으로 RL을 확률적 경사 하강으로 환원하지만, 어려운 제어에서의 성공은 경사 분산에 뿌리를 둔 높은 샘플 복잡도에 의해 제한되어 왔다."}, {"type": "bullet", "text": "일반화 어드밴티지 추정량은 gamma와 lambda를 통한 조절 가능한 편향-분산 절충으로 이 분산을 줄이며, gamma-just 분석과 보상 정형화 해석으로 정당화된다."}, {"type": "bullet", "text": "GAE를 정책(TRPO)과 신경망 가치 함수 모두의 신뢰 영역 최적화와 결합하면 대규모 네트워크의 안정적이고 효율적인 학습을 산출한다."}, {"type": "bullet", "text": "이 접근법은 복잡한 3D 보행 보법(2족 및 4족 달리기)과 2족 일어서기 행동을, 원시 운동학을 관절 토크로 직접 매핑하는 신경망 정책으로 학습한다."}, {"type": "bullet", "text": "경험적 최적 구간은 중간 gamma(약 0.99~0.995)와 lambda(약 0.9~0.99)이며, RL 기반 고차원 연속 제어의 최신 성능을 확장한다."}, {"type": "bullet", "text": "미해결 방향에는 gamma와 lambda의 자동/적응적 선택, 정책 경사 정확도와 정합되는 가치 오차 지표, 그리고 수렴 보장을 갖는 공유 정책/가치 아키텍처가 포함된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "GAE를 정당화하는 이론적 분석을 저자들 스스로 엄밀하기보다는 직관적이지만 비형식적이라고 표현한다.", "source_quote": "We have provided an intuitive but informal analysis of the problem of advantage function estimation, and justified the generalized advantage estimator, which has two parameters gamma, lambda which adjust the bias-variance tradeoff.", "source_section": "discussion"}, {"claim": "추정량 파라미터 gamma와 lambda는 현재 자동으로 적응되지 못하고 수동으로 선택해야 한다.", "source_quote": "A possible topic for future work is how to adjust the estimator parameters gamma, lambda in an adaptive or automatic way.", "source_section": "discussion"}, {"claim": "가치 함수 추정 오차와 정책 경사 추정 오차 사이의 관계가 알려져 있지 않아, 가치 함수 적합 지표가 관심 대상의 양과 정합되지 않는다.", "source_quote": "One question that merits future investigation is the relationship between value function estimation error and policy gradient estimation error. If this relationship were known, we could choose an error metric for value function fitting that is well-matched to the quantity of interest.", "source_section": "discussion"}, {"claim": "3D 보행 과제는 여전히 상당한 시뮬레이션 경험을 요구하며, 3D 2족 로봇의 경우 실제 시간으로 약 1~2주에 해당한다.", "source_quote": "the amount of simulated experience required for the learning tasks on 3D bipeds corresponds to 1-2 weeks of real time.", "source_section": "introduction"}], "future_works": [{"claim": "향후 연구로 GAE 파라미터 gamma와 lambda를 적응적 또는 자동적으로 조정하는 방법을 개발할 수 있다.", "source_quote": "A possible topic for future work is how to adjust the estimator parameters gamma, lambda in an adaptive or automatic way.", "source_section": "discussion"}, {"claim": "향후 연구로 정책 경사 추정 정확도와 잘 정합되는 가치 함수 오차 지표(예: 벨만 오차 또는 사영 벨만 오차)를 식별할 수 있다.", "source_quote": "we could choose an error metric for value function fitting that is well-matched to the quantity of interest, which is typically the accuracy of the policy gradient estimation. Some candidates for such an error metric might include the Bellman error or projected Bellman error.", "source_section": "discussion"}, {"claim": "정책과 가치 함수에 대한 공유 함수 근사 아키텍처를 GAE로 최적화하면 특징을 공유하고 더 빠른 학습이 가능할 수 있으나, 수렴 보장과 함께 이를 정식화하는 것은 미해결로 남는다.", "source_quote": "Another enticing possibility is to use a shared function approximation architecture for the policy and the value function, while optimizing the policy using generalized advantage estimation.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["정책 경사 방법은 경사 추정량의 분산이 시간 지평에 따라 불리하게 확장되기 때문에 높은 샘플 복잡도를 겪는다(신용 할당/원거리 보상 문제).", "가치 함수를 사용해(액터-크리틱) 분산을 줄이면 편향이 도입되는데, 편향은 분산보다 더 해롭다. 무한한 샘플이 있어도 수렴을 막거나 나쁜 해를 산출할 수 있기 때문이다.", "대규모 신경망 정책과 가치 함수를 온-폴리시로 학습하는 동안 들어오는 데이터의 비정상성을 고려할 때, 안정적이고 꾸준한 정책 개선을 달성하기 어렵다."], "addressed_by_this_work": ["k-스텝 TD-잔차 어드밴티지 추정량들의 지수 가중 (gamma, lambda) 평균인 GAE는 편향을 감내 가능하게 유지하면서 정책 경사 분산을 크게 줄이며, lambda가 편향-분산 절충을 제어한다.", "일반적인 'gamma-just' 분석과 보상 정형화 해석은 추정량이 언제 비편향인지, 그리고 V가 응답 함수의 시간적 확산을 어떻게 축소하는지를 정확히 설명하여 gamma와 lambda의 역할을 명확히 한다.", "신뢰 영역 최적화가 정책(TRPO)과 신경망 가치 함수(켤레 경사로 푸는 KL 제약 회귀) 모두에 적용되어, 대규모 네트워크에서 강건하고 안정적인 개선을 제공한다."], "remaining_unresolved": ["GAE의 gamma와 lambda는 수동으로 튜닝되며, 자동/적응적 선택은 향후 과제로 남는다.", "가치 함수 적합 오차와 정책 경사 오차 사이의 연결이 알려져 있지 않아, 적합 목적이 목표와 정합됨이 증명되지 않는다.", "샘플 복잡도는 줄었지만 여전히 크며(3D 2족 로봇에 대해 실제 시간 환산 1~2주 경험), 수렴 보장을 갖는 공유 정책/가치 아키텍처는 미해결로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

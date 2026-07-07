@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Not Only Rewards But Also Constraints: Applications on Legged Robot Locomotion</title>
+    <meta name="keywords" content="constrained reinforcement learning, legged locomotion, reward engineering, interior-point policy optimization, sim-to-real transfer, teacher-student learning, Constrained Markov Decision Process, bipedal locomotion, domain randomization, policy optimization">
+    <meta name="paper-authors" content="Yunho Kim, Hyunsik Oh, Jeonghyun Lee, Jinhyeok Choi, Gwanghyeon Ji, Moonkyu Jung, Donghoon Youm, Jemin Hwangbo">
+    <meta name="paper-journal" content="IEEE Transactions on Robotics (2024). Preprint arXiv:2308.12517v4 (2023).">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Not Only Rewards But Also Constraints: Applications on Legged Robot Locomotion</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Yunho Kim, Hyunsik Oh, Jeonghyun Lee, Jinhyeok Choi, Gwanghyeon Ji, Moonkyu Jung, Donghoon Youm, Jemin Hwangbo</div>
+            <div class="journal">IEEE Transactions on Robotics (2024). Preprint arXiv:2308.12517v4 (2023).</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">저자들은 복잡한 로봇을 위한 고성능 모델-프리 RL 컨트롤러가 오직 고된 보상 엔지니어링(흔히 10개 이상의 보상 항을 수개월에 걸쳐 튜닝)을 통해서만 달성된다고 주장하며, 보상과 제약을 모두 사용하는 강화학습 프레임워크를 제안한다. 두 가지 제약 유형이 도입된다 — 확률적 제약(매 스텝에서 바람직하지 않은 사건의 확률을 제한하는 지시자 비용 함수)과 평균 제약(물리량의 평균을 임계값 아래로 제한) — 그리고 효율적인 정책-최적화 알고리즘이 Interior-point Policy Optimization(IPO)을 적응적 제약 임계화와 멀티-헤드 비용 가치 함수로 확장하여 10개 이상의 제약이 무시할 만한 추가 비용으로 확장되게 한다. 프레임워크는 여섯 개의 사족 로봇과 한 개의 이족 로봇(Atlas)에 대해 하드웨어로 제로샷 전이되는 맹목 교사-학생 이동 컨트롤러를 학습하는 데 적용되며, 단일 튜닝 계수를 가진 세 개의 보상 항(명령 추종, 관절 토크, 행동 평활성)만을 사용한다. 광범위한 시뮬레이션과 실세계 실험은 최첨단 보상-전용 컨트롤러에 필적하는 강건성을 보이면서도 형태에 걸쳐 훨씬 일반화 가능하고 엔지니어링하기 더 직관적임을 보이는데, 제약 한계가 물리적 의미를 가지고 URDF 파일에서 읽을 수 있기 때문이다. 본 프로젝트의 날갯짓 + 이족 + RL-보행 목표에 대해, 이는 보상-엔지니어링 부담을 줄이고 RL 이족 이동에서 하드웨어 및 보행 제약을 강제하는 핵심 참조다.</div>
+            <div class="keywords"><span class="keyword-chip">constrained reinforcement learning</span><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">reward engineering</span><span class="keyword-chip">interior-point policy optimization</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">teacher-student learning</span><span class="keyword-chip">Constrained Markov Decision Process</span><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">policy optimization</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">모델-프리 RL로 학습된 학습 기반 컨트롤러는 복잡한 로봇에서 인상적인 성능을 달성하지만, 흔히 10개 이상인 보상 항을 설계하고 튜닝하는 것이 파이프라인에서 가장 시간이 많이 들고 경험에 의존하는 단계다. 본 논문은 가능 또는 바람직한 영역으로 탐색을 제한하기 위해 수치 최적화에서 일상적으로 사용되는 제약이 왜 정책을 학습하는 데 명시적으로 사용되지 않았는지 묻고, 명시적 제약이 제약 한계가 물리적 의미를 가지기 때문에 파이프라인을 플랫폼에 걸쳐 더 일반화 가능하고 엔지니어링하기 더 쉽게 만든다고 주장한다. 보상을 두 가지 적합한 제약 유형과 효율적인 정책-최적화 알고리즘과 결합하는 프레임워크를 제안하여, 단 세 개의 보상 항으로 여섯 개의 사족과 한 개의 이족에 대한 고성능 컨트롤러를 얻는다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 절은 모델 기반 제어(단순하고 거의 결정론적인 시스템에 효과적)와 학습 기반 제어를 대비하며, 다족 이동을 위한 sim-to-real을 갖춘 모델-프리 RL에 본 연구를 위치시킨다. 그럼에도 10개 이상의 고되게 튜닝된 보상 항에 의존했던 선행 RL 이동 성공을 검토하고, 제약-RL 이론(제약 마르코프 결정 과정)과 그 라그랑주 및 신뢰 영역 계열을 조망한다. 제안된 최적화기는 IPO에 기반하며 Gangapurwala et al.의 CMDP 이동에 대비되어, 단 세 개의 보상 항과 참조 궤적 없이를 필요로 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이동 문제는 제약 마르코프 결정 과정으로 제기되고, Interior-point Policy Optimization을 로그 장벽, 적응적 제약 임계화(무작위 초기화 정책을 가능 영역에 유지), 그리고 11개 제약으로 무시할 만한 추가 비용으로 확장되는 멀티-헤드 비용 가치 함수로 확장하여 풀린다. 컨트롤러는 도메인 무작위화와 지형 커리큘럼을 갖춘 교사-학생 학습으로, 단 세 개의 보상 항(명령 추종, 관절 토크, 행동 평활성)만 사용하여 학습된다. 11개의 제약 — 여섯 확률적, 다섯 평균 — 이 하드웨어 한계와 보행 스타일을 부호화하며, 이는 제약-RL 문헌에 보고된 가장 큰 제약 수다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 프레임워크가 보상-전용 강건성에 필적하는지, 플랫폼에 걸쳐 일반화되는지, 동작 엔지니어링을 쉽게 하는지를 시험하며, 여섯 개의 사족 로봇과 한 개의 이족 로봇(Atlas)에 대한 컨트롤러를 학습한다. 제약-만족 결과, 제약-RL 기준선 P3O와의 비교, 하이퍼파라미터 절제 실험이 적응적 임계화와 멀티-헤드 비용 가치 함수가 안정적이고 확장 가능한 제약 만족에 필요함을 확인하며, 실세계 배치가 도전적 지형에서 강건한 성능을 보인다. 장난감 트로팅 예제와 부록 분석이 보상-계수 튜닝 대비 제약의 엔지니어링 이점을 추가로 예시한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">프레임워크는 복잡한 관절 시스템의 컨트롤러 설계에 대한 새로운 관점을 제공하며, 제약을 엔지니어 의도를 반영하고 보상-전용 설계에서 불가피한 고된 보상 엔지니어링을 대체하는 해석 가능하고 일반화 가능한 도구로 다룬다. 제약 한계가 물리적 의미를 가지므로 직관적으로 설정되거나 URDF 파일에서 읽힐 수 있고, 로그-장벽 속성은 이미 만족된 제약이 기울기를 행사하지 않아 켜고 끌 필요가 없음을 의미한다. 저자들은 새로운 제약 커널, 더 넓은 응용, 고급 탐색을 유망한 향후 방향으로 식별한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 보상을 적합하고 엔지니어가 구성 가능한 제약 유형과 효율적인 IPO 기반 정책-최적화 알고리즘과 결합하면 도전적 지형에서 훨씬 적은 보상 엔지니어링으로 성능 좋은 다족-이동 컨트롤러를 학습한다고 결론짓는다. 서로 다른 형태와 물리적 속성을 가진 로봇들에 대한 광범위한 시뮬레이션 및 실세계 실험이 일반화 가능성을 시연하며, 본 연구는 제약 RL을 사용하여 다수의 다족 로봇에 대해 매우 강건한 실세계 성능을 보인 최초로 주장된다. 저자들은 학습 파이프라인에서 제약을 활용하는 것을 신경망 로봇 컨트롤러 학습의 새로운 방향으로 본다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "모델-프리 RL로 학습된 신경망을 사용하는 학습 기반 컨트롤러는 복잡한 로봇 시스템에서 인상적인 성능을 보였으며, 고-자유도·접촉이 많은 시스템에서는 전문가 시연보다 상호작용 데이터가 훨씬 풍부하기 때문에 모방 학습보다 RL이 선호된다."}, {"type": "bullet", "text": "전형적 RL 파이프라인 단계(아키텍처 설계, 시나리오 생성, 보상 설계) 중, 보상 항을 설계하고 튜닝하는 것이 가장 시간이 많이 드는데, 흔히 10개 이상인 보상 항 사이의 상대 가중치를 시행착오로 찾아야 하기 때문이다."}, {"type": "bullet", "text": "본 논문은 근본적 질문을 제기한다: 수치 최적화가 탐색 공간을 가능 또는 바람직한 영역으로 좁히기 위해 일상적으로 제약을 사용하는데, 왜 복잡한 로봇 시스템의 정책을 학습하는 데 제약이 명시적으로 사용되지 않았는가?"}, {"type": "bullet", "text": "제약을 명시적으로 사용하면 두 가지 이점이 있다: 파이프라인이 유사 로봇 플랫폼에 걸쳐 더 일반화 가능해지고(트로팅 보행 패턴 같은 제약은 크기, 질량, 형태와 무관하게 적용됨), 더 적은 보상 항이 남고 제약 한계가 물리적 의미를 가지므로 엔지니어링이 더 직관적이 된다."}, {"type": "bullet", "text": "제약 파라미터는 직관적으로 또는 로봇 기술 파일(예: URDF의 관절 각 한계)에서 자동으로 설정될 수 있는데, 이는 상대적 중요도만 표현하고 로봇마다 재튜닝해야 하는 보상 계수와 다르다."}, {"type": "bullet", "text": "제안된 프레임워크는 보상과 제약을 두 가지 적합한 제약 유형과, 무시할 만한 추가 계산으로 다수 제약을 만족시키는 효율적인 정책-최적화 알고리즘과 결합한다."}, {"type": "bullet", "text": "안전으로 제약을 동기 부여하는 관련 연구와 달리, 본 연구는 제약의 새롭고 실용적인 엔지니어링 이점을 조사하며, 제약 RL을 사용하여 다수의 다족 로봇(여섯 사족과 한 이족)에 대해 매우 강건한 시뮬레이션 및 실세계 성능을 보인 최초로 주장된다."}, {"type": "bullet", "text": "더 일반화 가능하고 직관적인 제약을 활용함으로써, 단 세 개의 보상 계수와 단일 보상-계수 수정으로 고성능 컨트롤러가 얻어진다."}]}, "related_works": {"content": [{"type": "bullet", "text": "모델 기반 제어는 운동학/동역학을 분석하고 목적과 제약을 정의하며 수치 최적화나 PID로 풀어 컨트롤러를 설계하는데, 비교적 단순하고 거의 결정론적인 시스템에는 작동하지만 복잡성과 환경 불확실성이 커질수록 어려움을 겪는다."}, {"type": "bullet", "text": "학습 기반 제어는 모방 학습(복잡한 관절 시스템에 대한 희소한 시연 데이터로 제한됨)과 강화학습으로 나뉘며, 본 연구는 잘 엔지니어링된 조밀 보상을 사용하여 캐릭터, 고-자유도 손, 드론, 모바일 매니퓰레이터에 적용된 모델-프리 RL에 초점을 둔다."}, {"type": "bullet", "text": "다족 이동의 경우, 궤적-최적화 모델 기반 방법은 계획과 추종을 분리하지만 불확실성, 센서 노이즈, 코너 케이스로 인해 야외에서 어려움에 직면한다; sim-to-real(도메인 무작위화, 도메인 적응, 하이브리드 시뮬레이션)을 갖춘 모델-프리 RL이 강건한 대안으로 부상했다."}, {"type": "bullet", "text": "선행 RL 이동 연구(Lee et al., Kumar et al., Choi et al., Miki et al., Agarwal et al.)는 강건한 맹목 및 지각 이동, 변형 가능 지형과 고속 이동, 보행 전환, 인간 크기 이족 이동, 파쿠르를 시연했지만, 컨트롤러가 어떻게 엔지니어링되는지에는 거의 주의를 기울이지 않아 수개월에 걸쳐 10개 이상의 고되게 튜닝된 보상 항에 의존했다."}, {"type": "bullet", "text": "일부 연구는 전문가/동물/궤적-최적화 동작의 모방(적대적 동작 사전)이나 형태 무작위화를 통해 보상-엔지니어링 부담을 줄이지만, 전자는 가용 시연 데이터에 제한되고 후자는 단순 실내 환경에서만 시험된 보수적 컨트롤러를 산출한다."}, {"type": "bullet", "text": "제약 RL은 제약 마르코프 결정 과정으로 정식화된다; 방법은 최적화-기준 대 탐색-과정으로 나뉘고, 최적화-기준 내에서 라그랑주(하이퍼파라미터에 민감, 흔히 불안정)와 신뢰 영역 방법(IPO, P3O 같은 1차; 비싼 2차 도함수를 요하는 CPO 같은 고차)으로 나뉜다."}, {"type": "bullet", "text": "제안된 최적화기는 다수 제약으로의 확장성 개선과 함께 IPO에 기반한다; (여전히 비용-계수 엔지니어링, 많은 보상 항, 참조-궤적 생성기를 요했던) Gangapurwala et al.의 CMDP 이동에 비해, 이 프레임워크는 단 세 개의 보상 항과 시연 데이터 없이를 필요로 하며 안전과 과제 성능에서 우수함이 보여진다."}]}, "method": {"content": [{"type": "bullet", "text": "제어 문제는 상태, 행동, 전이, 보상, K개 비용 함수, 초기-상태 분포, 할인 인자로 정의되는 제약 마르코프 결정 과정(CMDP)으로 정식화된다."}, {"type": "bullet", "text": "목적은 모든 제약의 기대 할인 비용을 그 임계값 아래로 유지하면서 기대 할인 보상 수익을 최대화하는 정책을 찾는 것이다.", "figure_refs": []}, {"type": "formula", "label": "제약 RL 목적함수 (식 2)", "latex": "\\pi^{*}=\\arg\\max_{\\pi\\in\\Pi_\\theta} J(\\pi)\\quad\\text{s.t.}\\quad J_{C_k}(\\pi)\\le d_k\\;\\;\\forall k\\in\\{1,\\dots,K\\}", "description": "정책은 K개 제약 각각의 기대 할인 비용 J_{C_k}(pi)가 임계값 d_k 아래로 유지된다는 조건 하에서 기대 할인 수익 J(pi)를 최대화한다. 모든 제약을 만족하는 정책들이 가능 영역(feasible region)을 형성한다."}, {"type": "bullet", "text": "두 가지 제약 유형이 정의된다: 확률적 제약은 지시자 비용 함수를 사용하여 매 시간 스텝에서 바람직하지 않은 사건의 확률을 제한하고(로봇이 피해야 하는 영역에 대해 임계값 0 근처), 평균 제약은 물리 변수(예: 접촉 속도)의 평균을 임계값 아래로 제한한다."}, {"type": "bullet", "text": "제약은 할인 누적 비용으로 다뤄지고, 로그 장벽 함수를 사용하여 제약 문제를 비제약 문제로 변환하는 Interior-point Policy Optimization으로 풀린다.", "figure_refs": []}, {"type": "formula", "label": "IPO 로그-장벽 목적함수 (식 9)", "latex": "\\max_{\\pi\\in\\Pi_\\theta}\\; J(\\pi)+\\sum_{k=1}^{K}\\frac{\\log\\!\\left(d_k-J_{C_k}(\\pi)\\right)}{t}", "description": "IPO는 보상 목적함수 J(pi)에 각 제약에 대한 로그 장벽 항을 더한다; 하이퍼파라미터 t는 장벽의 가파름을 설정한다. 장벽은 정책이 제약 경계에 접근할수록 무겁게 벌하면서 가능 영역 깊은 곳에서는 거의 0인 기울기를 가지므로, 이미 만족된 제약을 끌 필요가 없다."}, {"type": "bullet", "text": "로그 장벽은 정책이 가능 영역 안에서 시작할 것을 요구하므로(무작위 초기화에는 비현실적), 적응적 제약-임계화 방식이 현재 정책의 성능에 기반하여 가능 영역을 넓힌다.", "figure_refs": []}, {"type": "formula", "label": "적응적 제약 임계화 (식 11)", "latex": "d_k^{i}=\\max\\!\\left(d_k,\\; J_{C_k}(\\pi_i)+\\alpha\\cdot d_k\\right)", "description": "반복 i에서 제약 k에 대한 유효 임계값은 현재 정책의 비용 J_{C_k}(pi_i)에 비해 alpha로 제어되는 인자만큼 확대되어, 문제를 항상 가능하게 유지하면서(평균 0 비용-어드밴티지 정규화로 보조) 가파른 장벽 기울기가 정책을 원하는 임계값 d_k로 점진적으로 인도한다."}, {"type": "bullet", "text": "멀티-헤드 비용 가치 함수는 제약 수에 따라 출력 차원이 커지는 단일 공유-백본 네트워크를 사용하여 비용-가치 학습과 비용-어드밴티지 계산을 메모리 효율적으로 병렬화한다; 최적화기는 안정적 선-탐색 기반 개선을 위한 TRPO다(PPO도 가능)."}, {"type": "bullet", "text": "학습은 교사-학생 학습을 따른다: 교사 정책이 고유수용성 관측 더하기 특권 시뮬레이션 정보를 사용하여 RL로 학습된 뒤, 학생(GRU 인코더 + MLP 액터)이 지도 학습으로 교사의 행동을 모방하고 관측 이력으로부터 부호화된 특권 잠재변수를 예측하여 제로샷 배치하도록 학습된다."}, {"type": "formula", "label": "학생 모방 손실", "latex": "L_{\\mathrm{student}}(\\theta)=\\lVert \\bar{a}_t(\\theta)-a_t\\rVert_2^2+\\lVert \\bar{l}_t(\\theta)-l_t\\rVert_2^2", "description": "학생 네트워크는 고유수용성 관측 이력으로부터 교사의 행동 a_t와 교사의 부호화된 특권 잠재 표현 l_t를 모두 일치시키도록 종단 간 학습되어, 특권 정보 없이 배치를 가능하게 한다."}, {"type": "bullet", "text": "단 세 개의 보상 항 — 명령 추종, 관절 토크, 행동 평활성 — 이 사용되며, 토크 계수는 에너지 사용과 로봇 질량 사이의 선형 관계로 스케일링되어 보상 설계가 로봇에 걸쳐 일반화된다(Raibo가 참조 로봇)."}, {"type": "bullet", "text": "11개의 제약이 정의되며(여섯 확률적: 관절 위치, 관절 속도, 관절 토크, 몸체 접촉, COM 프레임, 보행 패턴; 다섯 평균: 직교 속도, 접촉 속도, 발 여유, 발 높이 한계, 대칭성), 이는 제약-RL 문헌에 보고된 가장 큰 제약 수이며, sim-to-real을 위한 지형 커리큘럼과 도메인 무작위화(관측 노이즈, 모터 마찰, PD 게인, 발 형상, 지면 마찰, 제어 지연)가 더해진다."}]}, "experiment": {"content": [{"type": "bullet", "text": "실험은 세 가지 질문에 답한다: 프레임워크가 보상-전용 강건성에 필적하는지, 로봇 플랫폼에 걸쳐 일반화되는지, 원하는 동작 생성을 더 직관적이고 직접적으로 만드는지."}, {"type": "bullet", "text": "이동 컨트롤러가 여섯 개의 사족 로봇(Raibo, Hound, Go1, Mini-cheetah, AnymalB, AnymalC)과 한 개의 이족 로봇(Atlas)에 대해 학습되었으며, 행동 공간은 4000 Hz PD 컨트롤러가 토크로 변환하는 12차원 관절 PD 목표다."}, {"type": "bullet", "text": "제약-만족 결과는 로봇에 걸쳐 16억 타임스텝 후 정의된 모든 한계가 충족되거나 거의 충족됨을 보이며, 동일한 제약 집합이 형태에 걸쳐 전이되어 일반화 가능성을 확인한다."}, {"type": "bullet", "text": "프레임워크는 단 세 개의 보상 항과 단일 계수 수정만 요구하면서 최첨단 보상-전용 컨트롤러에 필적하는 강건한 제어를 달성하여, 보상 엔지니어링 감소 주장을 뒷받침한다."}, {"type": "bullet", "text": "제약-RL 기준선 P3O와의 비교 및 장벽-가파름 하이퍼파라미터 t와 적응적-임계화 파라미터 alpha에 대한 절제 실험은 제안된 적응적 임계화와 멀티-헤드 비용 가치 함수가 안정적이고 확장 가능한 제약 만족에 필요함을 시연한다."}, {"type": "bullet", "text": "실세계 배치는 적응적 지형 커리큘럼으로 생성된 도전적 지형(언덕, 이산 언덕, 계단, 경사 계단, 층계)을 포함하여 다수의 다족 로봇에 대해 매우 강건한 성능을 확인했다."}, {"type": "bullet", "text": "장난감 트로팅 예제는 두-보상 학습이 바람직하지 않은 몸체 접촉, 발 미끄러짐, 잘못된 보행을 산출했고, 세 개의 제약(몸체 접촉, 접촉 속도, 보행 패턴)을 추가하여 모두 해결됨을 보여, 보상-계수 튜닝 대비 제약의 엔지니어링 이점을 예시한다."}, {"type": "bullet", "text": "부록 분석은 이차 명령-추종 커널을 지수 커널로 대체하면 보상-전용 추종 성능을 회복하고, 로봇 일반화 가능성이 특정 보상 설계가 아니라 제약을 통합하는 데서 비롯됨을 보인다."}]}, "discussion": {"content": [{"type": "bullet", "text": "프레임워크는 복잡한 관절 시스템의 컨트롤러 설계에 대한 새로운 관점을 제공하며, 엔지니어 의도를 반영하기 위해 보상과 함께 또는 대신 사용될 도구로 제약을 다룬다."}, {"type": "bullet", "text": "제약이 일반화 가능하고 해석 가능하기 때문에, 동일한 제약 집합이 서로 다른 로봇을 동일한 조건을 만족하도록 구동하여, 보상-전용 접근법에서 불가피한 상당하고 고된 보상 엔지니어링을 대체한다."}, {"type": "bullet", "text": "제약 한계는 물리적 의미(각도, 속도, 높이)를 가지므로 직관적으로 설정되거나 URDF 파일에서 읽힐 수 있고, 로그-장벽 속성은 이미 만족된 제약이 기울기를 행사하지 않아 켜거나 끌 필요가 없음을 의미한다."}, {"type": "bullet", "text": "저자들은 본 연구가 학습 파이프라인에서 제약을 활용하여 로봇 시스템을 위한 신경망 컨트롤러를 학습하는 새로운 방향을 제시한다고 강하게 믿는다."}, {"type": "bullet", "text": "유망한 향후 방향에는 특정 사용 사례를 위한 새로운 제약 커널 함수, 다양한 과제와 플랫폼으로의 적용, 복잡한 동작의 더 데이터-효율적인 학습을 위한 가우시안 표집을 넘어선 고급 탐색이 포함된다."}, {"type": "bullet", "text": "부록 엔지니어링-시나리오 비교(표 VIII)는 과도한 몸체 접촉, 발 미끄러짐, 잘못된 보행을 가진 두-보상 설정에서 시작하여 해석 가능한 제약(몸체-접촉, 접촉-속도, 보행-패턴)을 반복적으로 추가하면 각 문제가 해결되는 반면, 보상-계수 재튜닝을 통한 동일한 수정은 훨씬 덜 직접적임을 보인다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 보상과 제약을 모두 결합하는, 두 가지 적합한 제약 유형과 IPO를 확장하는 효율적인 정책-최적화 알고리즘을 갖춘 복잡한 로봇 시스템을 위한 강화학습 프레임워크를 제안한다."}, {"type": "bullet", "text": "이전에는 상당한 보상 엔지니어링으로만 달성 가능했던 도전적 지형에서의 다족-로봇 이동에 적용되어, 프레임워크는 서로 다른 형태와 물리적 속성을 가진 로봇들에 대해 시뮬레이션과 실세계에서 광범위하게 검증되었다."}, {"type": "bullet", "text": "결과는 프레임워크가 플랫폼에 걸쳐 일반화되고 훨씬 적은 보상 엔지니어링으로 성능 좋은 컨트롤러를 학습함을 보이며, 목적-민감도 및 제약-만족 분석이 보상-전용 설계보다 더 직관적이고 효율적인 엔지니어링 과정을 확인한다."}, {"type": "bullet", "text": "본 연구는 제약 RL을 사용하여 다수의 다족 로봇에 대해 매우 강건한 실세계 성능을 보인 최초로 주장되며, 저자들은 새로운 제약 커널, 더 넓은 응용, 고급 탐색을 향후 방향으로 식별한다."}, {"type": "bullet", "text": "각 제약이 엔지니어의 의도를 가장 잘 반영하도록 구성될 수 있게 적합한 제약 유형이 제안되었으며, 선행 제약-RL 문헌에 기반한 효율적인 정책-최적화 알고리즘이 다수 제약을 만족하면서 보상을 최대화하는 정책을 탐색한다."}, {"type": "bullet", "text": "저자들은 본 연구가 로봇 시스템을 위한 신경망 컨트롤러 학습의 새로운 방향을 제시하며, 보상-전용 접근법에서 불가피한 상당하고 고된 보상 엔지니어링을 대체하는, 학습 파이프라인에서 제약을 활용하는 새로운 관점과 능력을 제공한다고 강하게 믿는다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [{"claim": "특정 사용 사례에 맞춘 서로 다른 커널 함수를 사용하는 새로운 제약 정식화를 개발하는 것은 유망한 향후 방향이다.", "source_quote": "Promising directions for future works include developing novel constraint formulations with different kernel functions based on specific use cases.", "source_section": "conclusion"}, {"claim": "학습 프레임워크를 다양한 과제와 로봇 플랫폼에 적용하는 것은 관심 있는 향후 방향이다.", "source_quote": "It will also be fascinating to see how the learning framework is applied to diverse tasks and robot platforms.", "source_section": "conclusion"}, {"claim": "기본 가우시안 무작위 표집이 아니라 고급 탐색 방법을 활용하면 복잡한 동작 학습을 더 데이터-효율적으로 만들 수 있다.", "source_quote": "Lastly, leveraging several advanced exploration methods for training complex motions, rather than the basic random sampling from the Gaussian distribution, is promising in terms of making the training more data-efficient.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["자연스러운 동작과 높은 과제 성능을 가진 뛰어난 모델-프리 RL 컨트롤러는 오직 광범위한 보상 엔지니어링을 통해서만 얻어진다: 10개 이상의 보상 항을 설계하고 그 계수를 고되게 튜닝해야 하는데, 이 과정은 수개월이 걸릴 수 있고 엔지니어의 경험과 직관에 크게 의존한다.", "보상-전용 프레임워크는 각 보상 항의 피드백 신호가 로봇마다 다르기 때문에 로봇 플랫폼에 걸쳐 잘 일반화되지 않아, 각 로봇의 질량, 크기, 형태에 고유한 제어 거동을 산출한다.", "선행 제약-RL 방법(CPO, IPO, 라그랑주/신뢰 영역 접근법)은 대부분 한두 개의 제약만 가진 단순 시뮬레이션 벤치마크에서 검증되거나, 여전히 비용/보상-계수 엔지니어링과 참조 궤적을 요했으므로, 어느 것도 강건한 실세계 다족 이동에 필요한 다수의 제약으로 확장되지 못했다."], "addressed_by_this_work": ["보상을 두 가지 해석 가능하고 일반화 가능한 제약 유형(확률적과 평균)과 결합하는 강화학습 프레임워크는 엔지니어가 하드웨어 한계와 동작 스타일을 제약으로 부호화하게 하여, 보상 집합을 단일 튜닝 계수를 가진 단 세 항으로 줄이고 제약 한계가 직관적으로(예: URDF 파일에서) 설정되게 한다.", "적응적 제약 임계화(무작위 초기화에서 문제를 가능하게 유지)와 멀티-헤드 비용 가치 함수(파라미터-효율적 병렬 비용-가치 학습)를 갖춘 수정된 Interior-point Policy Optimization이 무시할 만한 추가 계산으로 11개 이상의 제약으로 확장된다.", "도메인 무작위화와 지형 커리큘럼을 갖춘 교사-학생 학습이 여섯 개의 사족 로봇과 한 개의 이족 로봇(Atlas)에서 검증된 제로샷 sim-to-real 컨트롤러를 산출하여, 형태에 걸쳐 일반화하고 엔지니어링 과정을 쉽게 하면서 최첨단 보상-전용 강건성에 필적한다."], "remaining_unresolved": ["새로운 제약 커널 함수, 더 넓은 과제와 플랫폼으로의 적용, 가우시안 표집을 넘어선 더 데이터-효율적인 탐색이 향후 과제로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

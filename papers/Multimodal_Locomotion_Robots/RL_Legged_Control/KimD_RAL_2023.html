@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Torque-based Deep Reinforcement Learning for Task-and-Robot Agnostic Learning on Bipedal Robots Using Sim-to-Real Transfer</title>
+    <meta name="keywords" content="torque-based deep reinforcement learning, bipedal locomotion, sim-to-real transfer, action space design, intrinsic compliance, gravity-compensation pre-training, task-and-robot agnostic learning, human-sized humanoid (TOCABI), dynamics randomization, PPO">
+    <meta name="paper-authors" content="Donghyeon Kim, Glen Berseth, Mathew Schwartz, Jaeheung Park">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters (RA-L), 2023. Preprint arXiv:2304.09434v1.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Torque-based Deep Reinforcement Learning for Task-and-Robot Agnostic Learning on Bipedal Robots Using Sim-to-Real Transfer</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Donghyeon Kim, Glen Berseth, Mathew Schwartz, Jaeheung Park</div>
+            <div class="journal">IEEE Robotics and Automation Letters (RA-L), 2023. Preprint arXiv:2304.09434v1.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 연구는 이족 로봇의 심층-RL 제어를 위한 위치 기반과 토크 기반 행동 공간을 체계적으로 비교하고, 토크 기반 정식화가 최소한의 튜닝으로 과제-및-로봇 불가지(agnostic) 학습을 가능하게 함을 보인다. 토크 정책은 미관측 접촉에서 충격력을 줄이는 내재적 관절 컴플라이언스를 물려받아 sim-to-real 현실 간극을 완화하는 반면, 위치 기반 PD 제어는 로봇별·과제별 게인 튜닝을 요구하고 큰 충격력을 생성한다. 중력 보상 사전학습 단계는 컴플라이언스를 보존하고 토크 기반 학습을 크게 가속하는 약한 귀납 편향을 제공한다. 이 방법은 인간 크기 ~100 kg 휴머노이드(TOCABI)에서 토크 기반 심층-RL 정책의 최초 성공적 sim-to-real 전이로 시연되어 안정적 스쿼트·걷기·달리기를 달성하고, 재튜닝 없이 시뮬레이션에서 TOCABI로부터 Atlas로 전이된다.</div>
+            <div class="keywords"><span class="keyword-chip">torque-based deep reinforcement learning</span><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">action space design</span><span class="keyword-chip">intrinsic compliance</span><span class="keyword-chip">gravity-compensation pre-training</span><span class="keyword-chip">task-and-robot agnostic learning</span><span class="keyword-chip">human-sized humanoid (TOCABI)</span><span class="keyword-chip">dynamics randomization</span><span class="keyword-chip">PPO</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">대부분의 이족 심층-RL 컨트롤러는 고정 PD 법칙으로 추종되는 목표 관절 위치를 출력하는데, 이는 뻣뻣하게 거동하고 성능을 손-튜닝 게인에 결합시키며 sim-to-real 현실 간극을 넓히는 큰 충격력을 생성한다. 본 논문은 보상이나 네트워크뿐 아니라 행동 공간의 선택이 학습된 컨트롤러가 과제-및-로봇 불가지인지를 좌우한다고 주장하며, 내재적으로 컴플라이언트한 토크 기반 행동 공간을 제안한다. 기여에는 체계적 위치-대-토크 비교, 토크 기반 학습을 빠르게 하는 중력 보상 사전학습 방식, 그리고 인간 크기 ~100 kg 휴머노이드(TOCABI)에서 토크 기반 심층-RL 정책의 최초 sim-to-real 전이가 포함된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">위치 기반 심층-RL 이동이 문헌을 지배하며, 동역학 무작위화와 교사-학생 파이프라인이 표준 sim-to-real 도구이지만 그럼에도 행동 공간을 설계 변수가 아니라 고정된 것으로 다룬다. 토크 기반 RL은 주로 시뮬레이션과 매니퓰레이터 또는 저-충격 사족에서 탐구되었으며, 느린 수렴과 낮은 성능 보고가 이족에서의 채택을 막았다. 다뤄지는 공백은 어떤 선행 연구도 행동-공간 선택을 과제/로봇 불가지성의 동인으로 분리하고 인간 크기 이족에서 토크 기반 sim-to-real을 시연하지 않았다는 것이다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이동 과제는 30차원 상태와 13차원 행동(12개 관절 명령 더하기 위상-변조 항)을 가진 마르코프 결정 과정으로 제기되며, 동역학 무작위화 하에서 PPO로 학습된다. 핵심 설계 변수는 행동 공간이다: 위치 기반 변형은 정책 출력을 고정 PD 법칙으로 토크로 변환하는 반면, 토크 기반 변형은 출력을 명령 관절 토크로 직접 해석하여 내재적 컴플라이언스를 부여하고 관절별 게인 튜닝을 제거한다. 중력 보상 사전학습 단계가 정책을 전신-모델 중력 토크를 향해 회귀시켜, 컴플라이언스를 보존하고 세 과제(스쿼트, 걷기, 달리기)에 걸쳐 토크 기반 학습을 가속하는 약한 귀납 편향으로 작용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">여덟 개 실험이 게인/탐색 민감도, 과제 불가지성(스쿼트/걷기/달리기), 로봇 불가지성(TOCABI->Atlas), 예상치 못한 장애물에 대한 컴플라이언스, 불균일 지형, 대규모 무작위화 강건성, sim-to-real 접촉력에 걸쳐 위치- 및 토크 기반 정책을 비교한다. 토크 기반 정책은 단일 토크 스케일로 세 과제 모두를 학습하고 튜닝 없이 로봇 간 전이하는 반면, 위치 제어는 과제별·로봇별 게인을 요한다; 1 cm 장애물 하에서 위치 제어는 ~1800 N으로 치솟아 균형을 잃는 반면 토크 제어는 매끄럽게 유지된다. 대표 결과는 인간 크기 ~100 kg 휴머노이드에서 토크 기반 심층-RL 걷기 정책의 최초 성공적 sim-to-real 전이다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">핵심 통찰은 행동-공간 선택이 단순히 보상이나 네트워크 설계가 아니라 과제-및-로봇 불가지 이족 학습의 지배적 요인이며, 토크 제어의 내재적 컴플라이언스가 현실 간극의 상당 부분을 메우는 메커니즘이라는 것이다. 강건성 양상은 미묘하다: 토크 제어는 전반적으로 더 강건하고 sim-to-real 일관적이지만, 위치 제어는 모터-상수와 질량 무작위화에 대한 이점을 유지하므로 선택에는 트레이드오프가 따른다. 중력 보상 사전학습은 토크-RL이 비실용적으로 느리다는 선행 보고를 뒤집는 가능케 하는 기법이다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 토크 기반 심층-RL 행동 공간이 과제-및-로봇 불가지 학습과 이족 로봇의 현실 간극 감소 모두에 적합하며, 최소한의 튜닝으로 스쿼트, 걷기, 달리기를 학습하고 재튜닝 없이 TOCABI로부터 Atlas로 전이한다고 결론짓는다. 그 내재적 컴플라이언스는 예상치 못한 충격력을 낮추고 일관된 시뮬레이션-대-실제 접촉력을 산출하며, 중력-토크 사전학습은 토크 기반 학습을 다루기 쉽게 만든다. 이는 인간 크기 휴머노이드에서 토크-제어 심층-RL 방법의 최초 성공적 구현으로, 저자들은 이것이 RL 내에서 토크 기반 제어를 능동적으로 활용하는 새로운 길을 연다고 믿는다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "심층 강화학습은 강건한 다족 이동을 산출했지만, 대부분의 이족 연구는 정책이 고정 PD 컨트롤러로 추종되는 목표 관절 위치를 출력하여 성능을 손-튜닝 게인에 결합시키는 <span class=\"term\">position-based action space</span>를 사용한다."}, {"type": "bullet", "text": "위치 기반 제어는 뻣뻣하게 거동한다: 그 강한 외란 제거는 큰 충격력을 생성하여 모델링되지 않은 접촉을 거부하는데, 이는 무거운 이족의 <span class=\"term\">sim-to-real reality gap</span>의 핵심 기여 요인이다."}, {"type": "bullet", "text": "정책이 관절 토크를 직접 명령하는 <span class=\"term\">torque-based action space</span>는 내재적으로 컴플라이언트하여 예상치 못한 접촉을 흡수하고 충격력을 줄일 것으로 가정되지만, 선행 보고들은 그것이 더 느리고 성능이 더 나쁘다고 밝혔고 시뮬레이션에서만 시험했다."}, {"type": "bullet", "text": "본 논문은 보상이나 네트워크뿐 아니라 행동 공간 선택이 학습된 컨트롤러가 <span class=\"term\">task-and-robot agnostic</span>인지 — 즉 스쿼트/걷기/달리기에 걸쳐, 그리고 서로 다른 로봇 형태에 걸쳐 최소한의 재튜닝으로 재사용 가능한지 — 를 좌우한다고 주장한다."}, {"type": "bullet", "text": "기여: (1) 이족 심층-RL을 위한 체계적 위치-대-토크 비교; (2) 토크 제어가 최소한의 튜닝으로 과제- 및 로봇-불가지 학습을 산출함을 시연; (3) 토크 기반 학습을 빠르게 하는 중력 보상 사전학습 방식; (4) 인간 크기 ~100 kg 휴머노이드에서 토크 기반 심층-RL 정책의 최초 성공적 sim-to-real 전이."}, {"type": "bullet", "text": "대상 플랫폼은 <span class=\"term\">TOCABI</span>로, 실험실에서 제작한 인간 크기 휴머노이드(1.8 m, 100 kg)이며, 로봇 간 전이를 시험하기 위해 시뮬레이션에서 Atlas가 사용된다."}, {"type": "bullet", "text": "본 연구는 충격력이 안정성을 지배하는 무거운 이족이라는 훨씬 더 어려운 영역을 다룸으로써 사족 토크-RL(낮은 충격력)에 대비되어 위치한다."}, {"type": "bullet", "text": "다중모드 공중+지상 로봇과의 관련성: 컴플라이언트하고 저-튜닝인 토크 정책은 다리를 장착한 날갯짓 플랫폼에 매력적인데, 추가된 접촉 강건성과 형태-불가지 전이가 비표준 몸체에서 보행을 구동하는 비용을 줄이기 때문이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "위치 기반 심층-RL 이동이 문헌을 지배하며(예: Cassie, ANYmal, 휴머노이드의 학습 정책), 일반적으로 플랫폼별로 튜닝된 PD 게인으로 추종되는 관절 목표를 출력한다."}, {"type": "bullet", "text": "동역학 무작위화와 교사-학생 또는 도메인-무작위화 파이프라인이 sim-to-real 간극을 메우는 표준 도구이지만, 이들은 행동 공간을 설계 변수가 아니라 고정된 것으로 다룬다."}, {"type": "bullet", "text": "토크 기반 RL은 주로 시뮬레이션과 매니퓰레이터 또는 사족에서 탐구되었다; 결과는 수렴이 더 느리고 성능이 더 낮다고 보고되어 이족에서의 채택을 막았다."}, {"type": "bullet", "text": "모방 스타일 참조(DeepMimic류 동작 추종)는 자연스러운 보행을 형성하는 데 널리 사용된다; 본 논문은 기저 행동 공간을 바꾸면서 걷기와 달리기 과제에 그러한 참조를 재사용한다."}, {"type": "bullet", "text": "모델 기반 전신 제어는 여기서 사전학습 목표로 사용되는 중력 보상 토크를 공급하여, 고전 제어와 학습을 잇는다."}, {"type": "bullet", "text": "컴플라이언트 작동(시리즈-탄성, 토크-제어 구동)은 충격을 줄이는 것으로 알려져 있다; 본 연구는 전류-제어 구동에서 학습된 토크 행동 공간만을 통해 비슷한 컴플라이언스 이점을 얻는다."}, {"type": "bullet", "text": "다뤄지는 공백: 어떤 선행 연구도 행동-공간 선택을 과제/로봇 불가지성의 동인으로 분리하고 인간 크기 이족에서 토크 기반 sim-to-real을 시연하지 않았다."}]}, "method": {"content": [{"type": "bullet", "text": "이동 과제는 마르코프 결정 과정으로 제기되고 롤아웃에 걸친 할인 기대 수익을 최대화하도록 최적화된다."}, {"type": "formula", "label": "식 1", "latex": "J(\\pi_\\theta) = \\mathbb{E}_{\\tau \\sim \\pi_\\theta}\\left[\\sum_{t} \\gamma^{t} r_t\\right]", "description": "정책 pi_theta가 궤적 tau에 걸쳐 최대화하는 할인 기대 수익 목적함수로, 할인 gamma와 스텝별 보상 r_t를 가진다."}, {"type": "bullet", "text": "상태 S in R^30: 베이스 방향 오일러 각(alpha, beta, gamma); 12개 관절 위치 q; 저역 통과 필터링된 관절 속도 q_dot(4 Hz 차단); sin(2*pi*phi), cos(2*pi*phi)로 부호화된 보행 위상; 그리고 명령 속도 v_cmd."}, {"type": "bullet", "text": "행동 A in R^13: 12개 관절 명령 더하기 하나의 위상-변조 항 a_dphi; 정책은 관절-위치 한계(위치 경우) 또는 관절-토크 한계(토크 경우)의 스케일된 분수로 설정된 고정 표준편차를 가진 가우시안이다."}, {"type": "bullet", "text": "위치 기반 정식화에서 정책 출력은 관절 목표로 다뤄지고 고정 PD 법칙으로 토크로 변환된다."}, {"type": "formula", "label": "식 3", "latex": "\\tau_{cmd} = K_p\\,(q_{target,\\pi_\\theta} - q) + K_d\\,(-\\dot{q})", "description": "위치 기반 행동 공간: 강성 K_p와 댐핑 K_d를 가진, 정책의 목표 관절 위치의 PD 추종으로부터의 명령 토크."}, {"type": "bullet", "text": "토크 기반 정식화에서 정책 출력은 명령 관절 토크 자체로, 어떤 추종 PD 게인도 제거한다."}, {"type": "formula", "label": "식 4", "latex": "\\tau_{cmd} = \\pi_\\theta", "description": "토크 기반 행동 공간: 정책 출력이 명령 관절 토크로 직접 해석되어, 내재적 컴플라이언스를 부여하고 관절별 게인 튜닝을 제거한다."}, {"type": "bullet", "text": "보행 타이밍은 학습 가능하다: 위상이 매 스텝 공칭 증분 더하기 정책의 위상-변조 행동만큼 진행되어 단위 구간으로 래핑된다."}, {"type": "formula", "label": "식 5", "latex": "\\phi_{t+1} = \\mathrm{fmod}\\!\\left(\\phi_t + \\frac{\\Delta t}{T_{ref}} + a_{\\delta\\phi,t},\\; 1.0\\right)", "description": "위상 갱신: 공칭 진행 Delta t / T_ref 더하기 학습된 변조 a_dphi가 1.0으로 모듈로 래핑되어 정책이 보행 타이밍을 적응시킬 수 있다."}, {"type": "bullet", "text": "보상(식 6)은 모방 항(베이스 방향, 관절 각, 참조에 대한 발-접촉 일치), 과제 항(명령 속도 추종), 정규화 항(관절 속도, 관절 가속, 접촉력, 접촉력 차, 관절 토크, 토크 차)을 결합하며, 각각은 표 I의 가중치를 가진 지수 커널이다."}, {"type": "formula", "label": "식 6", "latex": "r_t = r_{imitation} + r_{task} + r_{regularization}", "description": "표 I의 지수 커널로 정의된 모방(방향/관절/접촉), 과제(속도 추종), 정규화(노력/평활성) 하위-보상의 합으로서의 총 보상."}, {"type": "bullet", "text": "중력 보상 사전학습: 과제 RL 이전, 정책은 접촉-일관적 전신 모델(Park & Khatib)로부터의 중력 보상 토크를 향해 회귀되는데, 이는 컴플라이언스를 보존하는 약한 귀납 편향이다; 8개 병렬 환경에서 ~200,000 샘플이 ~5시간의 데이터에 10분 미만의 피팅을 요하며, 사전학습된 정책은 상태/행동 공간이 변하지 않는 한 재사용 가능하다."}, {"type": "bullet", "text": "학습은 별도의 액터·크리틱 MLP(은닉층 2개 x 256, ReLU), 배치 크기 128, 16,384 샘플마다 정책 갱신, 총 80,000,000 샘플, 5e-5 -> 1e-6로 선형 점감하는 학습률, 최대 에피소드 16 s(8000 스텝), 비-발 링크가 지면에 접촉할 때 조기 종료(표 I의 보상 가중치)와 함께 PPO를 사용한다."}, {"type": "bullet", "text": "세 과제가 파이프라인을 공유한다: 스쿼트(수작업 참조), 걷기(모델 기반 컨트롤러의 1.8 s-주기 참조), 달리기(DeepMimic식 운동 포착 참조)."}, {"type": "bullet", "text": "동역학 무작위화(표 II): 링크 질량/관성/CoM을 기본의 [0.6, 1.4]배, 관절 댐핑/마찰을 [0.6, 1.4]배, 모터 상수를 [1.0, 1.1]배, 작동 지연을 [0.5, 1.5]배(2-6 ms)로 스케일링하여 전이를 위해 정책을 강화한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "Exp1(게인과 탐색 민감도): 높은 강성 Kp = K_default는 학습에 실패한다; PD 게인과 행동 표준편차 모두가 위치 기반 경우에 함께 결정적이어서, 그 튜닝 부담을 확인한다."}, {"type": "bullet", "text": "Exp2(과제 불가지성): 토크 기반 정책은 s_tau = 5, 10, 20 중 단일 토크 스케일로 스쿼트, 걷기, 달리기를 학습하는 반면, 위치 기반 제어는 과제별 게인을 요한다(달리기는 Kp = K_default/2를 요하고 /4 또는 /8에서 실패)."}, {"type": "bullet", "text": "Exp3(로봇 불가지성): 토크 정식화는 튜닝 없이 시뮬레이션에서 TOCABI로부터 Atlas로 전이하는 반면, 위치 기반 제어는 별도로 튜닝된 로봇별·관절별 게인을 요한다."}, {"type": "bullet", "text": "Exp4/5(예상치 못한 1 cm 장애물에 대한 컴플라이언스): 위치 기반 제어는 발목 토크가 치솟아 균형을 잃는 반면(실제 충격 ~1800 N), 토크 기반 정책은 매끄럽게 반응한다; 게인 대 위치-제어 성공이 표 III에 표로 정리된다(s_p = 8 -> 25 중 15 성공에서 128 -> 25 중 25까지)."}, {"type": "bullet", "text": "Exp6(불균일 지형): MuJoCo 높이장 지형에서의 미세조정은 토크 기반 정책에 위치 기반 정책보다 더 높은 에피소드 보상과 더 긴 생존을 준다."}, {"type": "bullet", "text": "Exp7(대규모 강건성): 4870개 무작위화 파라미터 집합에 걸쳐 위치 기반은 3477, 토크 기반은 3604를 생존한다; 실패에 대한 PCA는 둘 다 작동 지연에 가장 민감하고(위치 0.708, 토크 0.625), 위치가 다리-길이 무작위화에 더 취약하지만, 위치가 모터-상수와 질량 무작위화에는 더 회복적임을 보인다."}, {"type": "bullet", "text": "Exp8(sim-to-real 접촉력): 위치 기반 제어는 시뮬레이션에서 <1400 N 대비 실세계 접촉력 ~1800 N을 보이는(쿵쿵거림과 접촉-타이밍 드리프트로 인한 불일치) 반면, 토크 기반 정책은 시뮬레이션과 실제 모두에서 유사한 접촉력을 산출하여 더 작은 현실 간극을 입증한다."}, {"type": "bullet", "text": "하드웨어: TOCABI(1.8 m, 100 kg, 하체 12 + 상체 21개 관절, 100:1 기어, EtherCAT으로 2 kHz에서 전류-제어 서보 구동); 정책은 250 Hz에서 62.5 Hz 제어 주파수까지 안정성을 잃지 않고 동작한다."}, {"type": "bullet", "text": "대표 결과: 인간 크기 ~100 kg 휴머노이드에서 토크 기반 심층-RL 걷기 정책의 최초 성공적 sim-to-real로, 하드웨어에서 안정적 걷기가 확인되었다."}]}, "discussion": {"content": [{"type": "bullet", "text": "행동-공간 선택은 단순히 보상이나 네트워크 설계가 아니라 과제-및-로봇 불가지 이족 학습의 지배적 요인이다: 토크 제어는 위치 제어가 필요로 하는 과제별·로봇별 게인 튜닝을 제거한다."}, {"type": "bullet", "text": "토크 제어에 내재적인 컴플라이언스가 현실 간극의 상당 부분을 메우는 메커니즘인데, 뻣뻣한 위치 제어가 불안정화 스파이크를 생성하는 모델링되지 않은 접촉 하에서 충격력을 낮게 유지하기 때문이다."}, {"type": "bullet", "text": "강건성 양상은 미묘하다: 토크 제어는 전반적으로 더 강건하고 더 sim-to-real 일관적이지만, 위치 제어는 특정 무작위화(모터 상수, 질량)에 대한 이점을 유지하므로, 선택에는 보편적 우위가 아니라 트레이드오프가 따른다."}, {"type": "bullet", "text": "중력 보상 사전학습은 토크-RL이 너무 느리다는 선행 보고를 뒤집어 토크 접근법을 무거운 이족에서 실용적으로 만드는 가능케 하는 기법이다."}, {"type": "bullet", "text": "실패 사례의 PCA는 두 정책 모두 작동 지연에 가장 영향받고(위치 주성분 값 0.708, 토크 0.625), 위치 기반 정책이 다리-길이 무작위화에 더 취약함을 보이는데, 저자들은 이를 컴플라이언스 결여가 예상치 못한 접촉 타이밍에 민감하게 만든다는 증거로 읽는다."}, {"type": "bullet", "text": "실물 로봇에서 위치 기반 정책의 현실 간극은 높은 충격력으로 구동되는 쿵쿵거리는 발 동작을 지속적으로 산출하여 보행을 저하시킨 반면, 토크 기반 정책의 일치된 시뮬레이션-및-실제 접촉력은 더 깔끔한 걷기를 산출했다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "토크 기반 심층-RL 정책은 인간 크기 휴머노이드에서 최소한의 튜닝으로 스쿼트, 걷기, 달리기를 학습하고 과제에 걸쳐 그리고 로봇에 걸쳐(TOCABI -> Atlas) 불가지다."}, {"type": "bullet", "text": "토크 제어의 내재적 컴플라이언스는 미관측 환경에서 충격력을 줄이고 일관된 시뮬레이션-대-실제 접촉력을 산출하여, 위치 제어 대비 현실 간극을 좁힌다."}, {"type": "bullet", "text": "중력 보상 사전학습은 토크 기반 학습을 충분히 가속하여 다루기 쉽게 만들어, 토크-RL이 비실용적으로 느리다는 이전 주장을 반박한다."}, {"type": "bullet", "text": "이는 인간 크기 ~100 kg 휴머노이드에서 토크-제어 심층-RL 정책의 최초로 시연된 sim-to-real 전이로, 저자들은 이것이 RL 내에서 토크 기반 제어를 능동적으로 활용하는 새로운 길을 연다고 믿는다."}, {"type": "bullet", "text": "본 연구는 핵심 질문을 어떤 행동 공간이 과제-및-로봇 불가지 학습과 이족 로봇의 현실 간극 감소 모두에 적합한가로 프레이밍하고, 제안된 토크 기반 정책을 널리 쓰이는 위치 기반 정책과 나란히 직접 분석하여 답했다."}, {"type": "bullet", "text": "저자들은 토크 정책의 컴플라이언스가 학습된 정책이 학습과 다른 환경을 만날 때마다 예상치 못한 충격력을 줄이기 때문에 유익하다고 결론지으며, 컴플라이언스를 sim-to-real 전이를 위한 실용적 가교로 확립한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [], "motivation_resolution": {"motivating_problems": ["RL 기반 이족 제어는 관례적으로 로봇별·과제별 게인 튜닝을 요하는 위치(PD) 행동 공간을 사용하는데, 이는 로봇-및-과제-불가지 알고리즘을 복잡하게 하고 최적화 탐색 공간을 넓힌다.", "sim-to-real 현실 간극(접촉 동역학, 상태 추정)이 이르거나 늦은 발 접촉을 야기하며, 위치 제어의 뻣뻣한 외란 제거가 로봇을 불안정화하는 높은 충격력을 산출한다.", "선행 토크 기반 심층-RL은 열등하고 학습이 느리다고 보고되었고 시뮬레이션에서만 평가되었다; 유일한 다족 토크-RL 시연은 저-충격 사족에서였으므로, 인간 크기 이족에서의 토크 기반 RL은 다뤄지지 않은 채 남았다."], "addressed_by_this_work": ["토크 기반 행동 공간(tau_cmd = 정책 출력)은 최소한의 튜닝으로 스쿼트, 걷기, 달리기를 학습하고 관절별 게인 재튜닝 없이 과제에 걸쳐 그리고 로봇에 걸쳐(TOCABI -> Atlas) 불가지임이 보여진다.", "토크 제어의 내재적 컴플라이언스는 예상치 못한 장애물(예: 1 cm 단차) 하에서 접촉력을 낮게 유지하여 반응을 매끄럽게 하고 현실 간극의 상당 부분을 메우며, sim-to-real 접촉력 비교로 검증된다.", "중력 보상 사전학습(접촉-일관적 전신 모델로부터의 약한 귀납 편향)은 토크 기반 학습을 다루기 쉽고 빠르게 만들어, ~100 kg 인간 크기 이족에서 최초의 sim-to-real 토크 기반 심층-RL 걷기를 가능하게 한다."], "remaining_unresolved": ["저자들은 토의/결론에서 명시적 미해결 문제나 한계를 진술하지 않는다; 정량적 강건성 차이(예: 모터-상수와 질량 무작위화에 대한 위치 제어의 더 큰 회복력 대 다리-길이 무작위화에 대한 토크의 취약성)는 보고되지만 미해결 한계로 프레이밍되지 않는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

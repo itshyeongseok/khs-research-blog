@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning to Hop for a Single-Legged Robot with Parallel Mechanism</title>
+    <meta name="keywords" content="reinforcement learning, legged robot, parallel mechanism, sim-to-real transfer, single-legged hopping, torque-level conversion, under-actuation, variational autoencoder">
+    <meta name="paper-authors" content="Hongbo Zhang, Xiangyu Chu, Yanlin Chen, Yunxi Tang, Linzhu Yue, Yun-Hui Liu, Kwok Wai Samuel Au">
+    <meta name="paper-journal" content="Preprint, arXiv:2501.11945v1 [cs.RO], 21 Jan 2025 · open-source package at github.com/CUHK-BRME/OMEGA">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning to Hop for a Single-Legged Robot with Parallel Mechanism</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">Hongbo Zhang, Xiangyu Chu, Yanlin Chen, Yunxi Tang, Linzhu Yue, Yun-Hui Liu, Kwok Wai Samuel Au</div>
+            <div class="journal">Preprint, arXiv:2501.11945v1 [cs.RO], 21 Jan 2025 · open-source package at github.com/CUHK-BRME/OMEGA</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 다리가 3D <span class="term">3-RSR 병렬 메커니즘(parallel mechanism)</span>을 사용하는 단일 다리 로봇의 연속 호핑 제어에 <span class="term">강화학습</span>을 적용하는데, 이 설계는 결합된 폐루프 운동학 제약 때문에 물리 엔진이 정확히 시뮬레이션할 수 없다. 병렬 구조에서 직접 학습하는 것을 피하기 위해, 저자들은 동일한 세 개의 병진 자유도를 가진 등가 <span class="term">직렬 템플릿 모델(serial template model)</span>을 도입하고 <span class="term">비대칭 actor-critic(asymmetric actor-critic)</span>을 사용하여 Isaac Gym에서 그 위에 <span class="term">PPO</span> 정책을 학습한다. <span class="term">β-VAE</span> 인코더-디코더가 고유수용성 이력을 소비하여 잠재 표현과 베이스 선속도 및 접촉 상태의 명시적 추정값을 생성하여, 길어진 공중 위상의 저구동(under-actuation)을 보상한다. 야코비안 정역학(Jacobian statics)에 기반한 새로운 <span class="term">토크 수준 변환(torque-level conversion)</span>이 직렬 템플릿 토크를 실제 병렬 관절로 매핑하여 sim-to-real 격차를 메운다. 하드웨어에서 학습된 제어기는 평지와 10도 경사에서 연속적으로 호핑하며, SLIP 기반 베이스라인보다 157% 더 긴 생존 시간(8.04 s 대 3.12 s)과 훨씬 낮은 위치 추적 오차(0.0039 대 0.0248)로 능가하는 반면, 관절 목표 매핑과 직접 MuJoCo 병렬 시뮬레이션은 모두 전이에 실패한다. 다중모드 로봇의 RL 보행 제어 서브시스템에 대해, 이 연구는 시뮬레이션하기 어려운 병렬 다리 하드웨어에서 동적 다리형 거동을 학습하고 운동학 수준이 아닌 토크 수준 변환을 통해 현실로 전이하는 구체적인 레시피이다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">legged robot</span><span class="keyword-chip">parallel mechanism</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">single-legged hopping</span><span class="keyword-chip">torque-level conversion</span><span class="keyword-chip">under-actuation</span><span class="keyword-chip">variational autoencoder</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">단일 다리 로봇은 울퉁불퉁한 지형을 통과하기 위한 미니멀하고 민첩한 플랫폼이지만, 작은 지지 다각형과 정밀한 지지 위상 조정을 요구하는 길어진 공중 위상 때문에 연속 호핑 제어가 어렵다. Raibert 계보의 고전적 휴리스틱 제어기는 광범위한 튜닝을 요구하고 모델 불확실성에 민감한 반면, 강화학습은 시행착오로부터 강건한 거동을 학습하는 방법을 제공한다. 대부분의 기존 RL 호핑 연구는 시뮬레이션하기 쉬운 직렬 메커니즘 다리를 대상으로 한다. 병렬 메커니즘 다리는 더 뻣뻣하고 효율적임에도 결합된 폐루프 동역학을 정확히 시뮬레이션할 수 없어 충분히 탐구되지 않았다. 본 논문은 3D 병렬 설계가 sim-to-real을 특히 어렵게 만들고 단순 운동학 변환이 실패한다고 가정하며, 새로운 토크 수준 변환과 함께 등가 직렬 모델에서 학습된 RL 제어기를 동기 부여하고 3-RSR 호핑 로봇에서 검증한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 Raibert에서 내려온 휴리스틱 단일 다리 호핑 제어(효과적이지만 튜닝이 많고 불확실성에 민감)와, 일반적으로 정확한 강체 동역학으로 시뮬레이션에서 학습되고 제로샷 전이되는 사족 및 이족 로봇을 위한 안정적·강건한 제어기를 학습하는 최근의 다리형 보행 RL 급증에 기반한다. 기존 RL 호핑 노력은 병렬 와이어 구동 모노포드와 종단간 RL 관절형 monoped를 포함하지만, 둘 다 단일 다리 병렬 시스템에 고유한 시뮬레이션 및 저구동 어려움을 명시적으로 다루지 않는다. 병렬 설계 시뮬레이션의 어려움은 병렬 다리를 가진 휴머노이드에서도 나타나며, 이들은 sim-to-real을 위해 단순화 가정이나 운동학 변환에 의존한다. 본 논문은 대신 그러한 운동학 변환이 불충분하다고 주장되는 3D 3-RSR 다리를 대상으로 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">제어 문제는 POMDP로 정식화되어, 3-RSR 다리의 세 병진 DoF를 보존하지만 시뮬레이터 친화적 직렬 관절 구성을 사용하는 직렬 템플릿 모델 S에서 Isaac Gym의 PPO로 학습된 비대칭 actor-critic으로 해결된다. 액터는 β-VAE 방식 인코더-디코더를 베이스 MLP와 결합한다: 인코더는 고유수용성 관측 이력(H=5)을 소비하여 잠재 벡터와 베이스 선속도 및 접촉 상태의 명시적 MSE 회귀 추정값을 출력하고, 디코더는 재구성 손실에 KL 손실을 더한 것 하에서 다음 관측을 재구성한다. 크리틱은 전체 실측(ground-truth) 상태에 접근한다. 정책은 고속 PD 제어기가 추적하는 50 Hz 병렬 구성 관절 목표를 출력하며, 핵심 sim-to-real 혁신은 학습 중 직렬 템플릿 토크를 병렬 관절 토크로 매핑하면서 배치 시에는 변환이 필요 없는 야코비안 정역학 토크 수준 변환이다. 동역학에 대한 도메인 무작위화와 무작위화된 경사/계단 지형이 강건성을 향상시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">시뮬레이션 실험은 설계 선택을 검증하고 실세계 실험은 전이를 확인한다. 명령된 0.2 m/s, 0.4 s 주기 호핑에서, 5.7 s에 가해진 0.4 m/s 베이스 속도 섭동은 약 2 s 이내에 회복되며, β-VAE가 정확한 베이스 속도 추정값을 생성한다. 잠재 공간과 상태 추정에 대한 절제 실험은 제안된 조합이 분포 내·외에서 모두 속도를 가장 잘 추적함을 보인다. 명시적 베이스 속도 및 접촉 추정이 결정적이고 순수 잠재 재구성은 불충분하지만, 0.44 s를 넘는 주기에서는 더 풍부한 잠재가 과적합하여 우위를 잃는다. 하드웨어에서 제어기는 롤을 0 근처로 유지하며 평지(T=0.38 s)에서 연속적으로 호핑하고, 경사에서 SLIP 기반 베이스라인 대비 157% 더 긴 생존(8.04 s 대 3.12 s)과 훨씬 낮은 위치 추적 오차(0.0039 대 0.0248)를 달성한다. 비교는 토크 수준 매핑이 전이되는 반면 관절 목표 매핑과 직접 MuJoCo 병렬 시뮬레이션이 모두 실패함을 확인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 단일 다리 병렬 호핑의 어려움이 길어진 저구동 공중 위상과 3D 병렬 메커니즘을 시뮬레이션할 수 없음에 있다는 핵심 가설을 뒷받침하며, 직렬 템플릿 + β-VAE + 토크 변환 파이프라인이 이 둘을 모두 다룬다. 운동학적 관절 목표 매핑 대비 토크 수준 매핑의 성공은, 후자가 직렬과 병렬 구성 간의 복잡한 운동-동역학적 차이를 포착하지 못하는 점과 실제 로봇에서 요구되는 알 수 없는 PD 파라미터로 설명된다. MuJoCo에서 병렬 메커니즘을 직접 시뮬레이션하려는 시도는 비유일적 관절-대-발 운동학과 관절 간 결합 때문에 실패하여, 3D 병렬 다리에 등가 직렬 대리물이 선호되는 이유를 부각한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 3-RSR 병렬 메커니즘 다리를 가진 단일 다리 로봇을 위한 연속 호핑 제어기를 개발하며, 등가 직렬 템플릿 모델에서의 강화학습과 직렬-병렬 메커니즘 간의 토크 수준 변환을 함께 사용한다. 이 프레임워크는 장기 이력 고유수용성을 잠재 특징과 명시적 속도 추정값으로 인코딩하여 호퍼의 저구동을 완화하고, 그 플랫폼 독립적 토크 수준 sim-to-real 변환은 운동학 매핑과 직접 병렬 시뮬레이션이 실패하는 하드웨어로 성공적으로 전이된다. 저자들은 이 프레임워크가 다른 저구동 및 병렬 설계 로봇으로 일반화된다고 가정하며, 완전한 3D 호핑과 더 복잡한 지형에서의 작동을 추구할 계획이다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "다리형 로봇은 복잡한 환경을 탐색하는 데 유망하며, 호핑은 장애물을 극복하고 울퉁불퉁한 지형을 통과하는 효과적인 전략이다. 단일 다리 로봇은 동물의 민첩성을 모방하기에 적합한 낮은 DoF를 가진 자연스러운 미니멀 설계이다."}, {"type": "bullet", "text": "연속 호핑은 작은 지지 다각형과 길어진 공중 위상 때문에 특히 도전적이며, 로봇이 지지 위상 동안에만 단일 발을 사용하여 회복하는 매우 정밀한 제어를 요구한다."}, {"type": "bullet", "text": "호핑 제어는 고전적으로 두 위상을 가진다: 착지를 위한 원하는 다리 각도를 설정하기 위해 PD 제어기를 사용하는 비행 위상과, 방향을 유지하고 이지 속도를 조절하기 위해 토크/힘 제어를 사용하는 지지 위상이다."}, {"type": "bullet", "text": "Raibert의 선구적 연구 계보의 휴리스틱 제어기는 안정적 호핑을 생성하지만 광범위한 파라미터 튜닝을 요구하고 모델 불확실성에 취약한 반면, RL은 환경 피드백으로부터의 시행착오 최적화를 통해 복잡한 거동을 학습할 수 있다."}, {"type": "bullet", "text": "대부분의 표준 호핑 연구는 비교적 시뮬레이션과 최적화가 쉬운 직렬 메커니즘 다리를 사용하는 반면, 병렬 메커니즘 다리는 더 높은 강성, 더 나은 하중 분배, 향상된 힘 전달 효율에도 불구하고 충분히 탐구되지 않았다.", "figure_refs": [2]}, {"type": "bullet", "text": "핵심 어려움은 기존 물리 엔진이 병렬 메커니즘의 결합된 동역학과 운동학 제약을 정확히 시뮬레이션할 수 없어, 시뮬레이터에서 효과적인 정책 학습을 막는다는 것이다.", "figure_refs": [1]}, {"type": "bullet", "text": "저자들은 3D 병렬 설계가 sim-to-real을 더욱 어렵게 만들고 단순 단순화나 운동학 변환이 실패한다고 가정하여, 전이를 처리하기 위한 새로운 토크 수준 변환을 설계한다."}, {"type": "bullet", "text": "기여는 다음과 같다: 연속 단일 다리 호핑을 해결하는 RL 기반 제어기, 3D 병렬 sim-to-real 문제를 처리하는 새로운 토크 수준 변환, 그리고 학습 기반 제어기를 검증하는 체계적 시뮬레이션 및 하드웨어 실험."}]}, "related_works": {"content": [{"type": "bullet", "text": "기존 호핑 제어는 Raibert의 휴리스틱 분해 제어 구조에서 내려오며, 안정적 호핑을 생성하지만 광범위한 파라미터 튜닝을 요구하고 모델 불확실성에 취약한 많은 후속 단일 다리 연구가 있다."}, {"type": "bullet", "text": "RL은 최근 다리형 시스템을 위한 안정적·강건한 보행 제어기를 가능하게 했으며, 시행착오를 통해 학습된 이족 및 사족 점프에서 강한 결과를 보였다."}, {"type": "bullet", "text": "다리 여러 개의 점프 어려움은 주로 신중한 다관절 조정을 요구하는 높은 DoF에서 비롯되는 반면, 연속 단일 다리 호핑은 작은 지지 다각형과 길어진 공중 위상에서 비롯되는 다른 도전 과제를 제기한다."}, {"type": "bullet", "text": "기존 RL 호핑은 연속 점프를 달성하는 병렬 와이어 구동 모노페달 로봇(Ramiel)과 관절형 monoped를 위한 종단간 RL 접근을 포함하지만, 이 연구들은 RL 프레임워크 내에서 단일 다리 시스템의 본질적 어려움을 명시적으로 다루지 않는다."}, {"type": "bullet", "text": "표준 RL 보행에서, 정책은 정확히 시뮬레이션된 강체 동역학으로 시뮬레이션에서 학습되고, 시뮬레이션하기 쉬운 직렬 다리 배치로 설계된 로봇으로 제로샷 전이된다."}, {"type": "bullet", "text": "저자들의 로봇은 정확히 시뮬레이션하기 어려운 3D 병렬 다리 동역학을 가져, 시뮬레이터 내에서 진짜 운동학, 동역학, 접촉을 포착하기 위한 광범위한 시스템 모델링과 식별을 요구한다."}, {"type": "bullet", "text": "유사한 병렬 설계 시뮬레이션 도전은 병렬 다리를 가진 휴머노이드에서 나타나며, 기존 연구는 sim-to-real 전이를 완료하기 위해 단순화 가정을 하거나 운동학 변환을 적용한다. 본 논문은 이들이 3D 3-RSR 다리에는 불충분하다고 주장한다."}]}, "method": {"content": [{"type": "bullet", "text": "균형 및 속도 추적 제어는 POMDP로 정식화되어 Isaac Gym에서 학습된 비대칭 actor-critic으로 해결되며, 액터는 고유수용성 이력만 보고 크리틱은 모든 실측 상태에 접근한다.", "figure_refs": [4]}, {"type": "bullet", "text": "실제 3-RSR 다리와 동일한 세 DoF와 유사한 엔드이펙터 작업 공간을 가진 직렬 템플릿 모델 S가 구축되어, 세 병렬 관절을 두 직교 회전 관절과 하나의 직동(prismatic) 관절로 대체하여 학습이 신뢰할 수 없는 직접 병렬 시뮬레이션을 피한다."}, {"type": "formula", "label": "식 (1) — 각 병렬 체인의 무릎 위치", "latex": "k_i = R_i\\, r + D\\begin{bmatrix} 0 \\\\ \\cos(q_i) \\\\ \\sin(q_i) \\end{bmatrix}", "description": "모터 각도 q_i로부터 병렬 체인 i의 무릎 위치 k_i를 주는 기하학적 순방향 표현으로, R_i는 체인 회전, D는 링크 길이이다. 직렬-병렬 변환에 필요한 폐쇄 체인 순/역 운동학과 야코비안을 구축하는 데 사용된다."}, {"type": "bullet", "text": "관측은 측정된 병렬 모터 위치, 베이스 방향과 각속도, -2pi에서 2pi까지 선형으로 스위프하는 위상 타이머의 코사인/사인(음수 = 지지, 양수 = 유각), 사용자 속도 명령, 원하는 보행 주기, 이전 행동을 포함한다.", "figure_refs": [4]}, {"type": "formula", "label": "식 (8) — 관측 공간", "latex": "o_t = \\big[\\, \\hat{q}^P_{m,t},\\ \\hat{q}_{[r,p,y],t},\\ \\dot{\\hat{q}}_{[r,p,y],t},\\ \\cos(q_{phase,t}),\\ \\sin(q_{phase,t}),\\ \\dot{q}^d_{[x,y],t},\\ T,\\ a_{t-1} \\,\\big]", "description": "액터에 입력되는 고유수용성 관측 벡터: 병렬 모터 위치, 베이스 방향과 각속도, 주기적 위상 타이머 인코딩, 명령된 평면 속도, 원하는 보행 주기 T, 이전 행동 a_{t-1}."}, {"type": "bullet", "text": "액터는 이력 길이 H=5에 대한 beta-VAE 인코더 phi를 사용하여 잠재 벡터 mu_t와 베이스 선속도 및 접촉 상태의 명시적 추정값을 출력한다. 디코더 beta는 재구성에 KL-발산 손실을 더한 것 하에서 다음 관측을 재구성하고, 베이스 MLP 정책은 (mu_t, 추정 속도, 현재 관측)을 행동으로 매핑한다.", "figure_refs": [4]}, {"type": "bullet", "text": "정책은 50 Hz로 병렬 구성의 원하는 관절 위치를 출력한다. 500 Hz의 PD 위치 제어기(Kp=20, Kd=0.5)가 추적 오차를 토크로 변환하며, 보상 항은 추적 항, 위상 스케줄 항, 보조 항을 포함한다."}, {"type": "formula", "label": "식 (9d) — 토크 수준 직렬-대-병렬 변환", "latex": "\\tau^S = (J^S)^{T} (J^P)^{-T} \\tau^P", "description": "(PD 제어기로부터의) 병렬 구성 토크 tau^P를 시뮬레이터로 전송되는 직렬 템플릿 토크 tau^S로 변환하는 야코비안 정역학 매핑이며, J^S와 J^P는 직렬 및 병렬 야코비안이다. tau^P가 직접 적용되는 실제 로봇에서는 변환이 필요 없다."}, {"type": "bullet", "text": "학습은 더 나은 sim-to-real 성능을 가진 강건한 호핑 정책을 생성하기 위해, 로봇 동역학 및 제어 파라미터에 대한 도메인 무작위화와 매끄러운 경사, 거친 경사, 계단을 포함한 무작위화된 지형과 함께 PPO를 사용한다.", "figure_refs": [5]}]}, "experiment": {"content": [{"type": "bullet", "text": "시뮬레이션에서 로봇은 0.4 s 주기로 0.2 m/s 전진 호핑하도록 명령받는다. 5.7 s에 베이스 선속도에 가해진 0.4 m/s 섭동이 위상 스케줄을 잠시 깨뜨리지만, 로봇은 완전히 회복하여 약 2 s 후 정상 호핑을 재개한다.", "figure_refs": [6]}, {"type": "bullet", "text": "beta-VAE 인코더는 시뮬레이터 실측과 일치하는 명시적 베이스 선속도 추정값을 산출하여, 장기 이력 고유수용성이 저구동 공중 위상 동안 누락된 속도 정보를 공급한다는 주장을 뒷받침한다.", "figure_refs": [6]}, {"type": "bullet", "text": "절제 실험은 제안된 방법(상태 추정 + 잠재 공간)을 다양한 속도 명령과 호핑 주기에 걸쳐 상태 추정 전용 및 잠재 공간 전용 베이스라인과 비교하며, 제안된 방법이 분포 내·외에서 전반적으로 더 나은 추적을 제공한다.", "figure_refs": [7]}, {"type": "bullet", "text": "재구성만으로부터의 암묵적 잠재 공간이 불충분하기 때문에, 긴 공중 시간을 가진 속도 추적 호핑 정책에는 명시적 베이스 속도 및 접촉 상태 추정 추가가 결정적임이 밝혀졌으며, 추가 잠재 임베딩도 도움이 되지만 주기가 0.44 s를 초과하면 과적합이 나타난다."}, {"type": "bullet", "text": "실제 하드웨어에서 학습된 정책(beta=0.005)은 몸체 y축을 따라 0.2 m/s로 0.38 s 보행으로 평지에서 연속적으로 호핑하며, 원하는 병렬 관절 위치와 실제 병렬 관절 위치가 긴밀하게 추적된다.", "figure_refs": [9]}, {"type": "bullet", "text": "모션 캡처 기록은 연속 호핑 동안 롤이 0 근처로 유지되고 몸체 높이가 주기적(T=0.38 s)임을 보여, 동작 전반에 걸쳐 안정적 균형을 확인한다.", "figure_refs": [10]}, {"type": "bullet", "text": "10도 경사에서 5회 시험에 걸쳐 SLIP 기반 베이스라인 대비, 제안된 RL 제어기는 157% 더 긴 생존 시간(8.04 +/- 1.34 s 대 3.12 +/- 0.48 s)과 훨씬 작은 위치 추적 오차(0.0039 대 0.0248)를 달성하며, SLIP 제어기는 내리막으로 표류하여 실패한다.", "figure_refs": [11]}, {"type": "bullet", "text": "sim-to-real 비교는 토크 매핑이 1.2 s 이후 유사한 시뮬레이션 및 실제 토크 패턴을 산출하는 반면, 관절 목표 매핑은 균형에 실패하고 직접 MuJoCo 병렬 시뮬레이션은 신뢰할 수 없고 불안정한 결과를 생성함을 보여준다.", "figure_refs": [13]}]}, "discussion": {"content": [{"type": "bullet", "text": "토크 매핑 sim-to-real 방법은 초기 1.2 s 불균형 이후 긴밀하게 정렬되는 시뮬레이션 및 실세계 토크 곡선을 생성하여, 3-RSR 다리에 대한 효과를 검증한다.", "figure_refs": [13]}, {"type": "bullet", "text": "관절 목표(운동학적) 매핑은 운동학 수준 매핑이 직렬과 병렬 관절 구성 간의 복잡한 운동-동역학적 차이를 포착할 수 없기 때문에 실패한다.", "figure_refs": [14]}, {"type": "bullet", "text": "관절 목표 매핑은 실제 배치 중 사용되는 PD 파라미터가 알려지지 않아 경험적으로 선택되어야 하기 때문에 더욱 방해받아, sim-to-real을 더 어렵게 만든다."}, {"type": "bullet", "text": "MuJoCo에서의 직접 병렬 시뮬레이션은 3-RSR 폐쇄 체인에 대한 시뮬레이터의 한계 때문에 호핑할 만큼 안정적인 병렬 관절 구성을 구축할 수 없었다.", "figure_refs": [14]}, {"type": "bullet", "text": "2D나 1D 폐쇄 체인 시뮬레이션과 달리, 3D 병렬 메커니즘은 관절 위치에서 발 위치로의 비유일적 운동학 매핑을 보여, 고충실도 시뮬레이션을 훨씬 어렵게 만든다."}, {"type": "bullet", "text": "세 병렬 관절은 관절 토크가 서로 영향을 미치는 결합 효과를 생성하여, 직접 병렬 시뮬레이션 충실도를 더욱 저하시키고 직렬 템플릿 대리물을 동기 부여한다."}, {"type": "bullet", "text": "경사 실험 전반에 걸쳐 학습된 제어기는 시행착오를 통해 울퉁불퉁한 지형을 극복하며, SLIP 베이스라인의 단순화 모델 가정이 표류하여 실패하는 곳에서 안정적인 y축 이동을 유지한다.", "figure_refs": [11]}]}, "conclusion": {"content": [{"type": "bullet", "text": "이 연구는 등가 직렬 메커니즘에서의 RL과 직렬-병렬 토크 수준 변환을 활용하여, 병렬 메커니즘 다리를 가진 단일 다리 로봇을 위한 연속 호핑 제어기를 제공한다."}, {"type": "bullet", "text": "제어기는 인코더-디코더 구조를 통해 장기 이력 고유수용성으로부터 명시적 속도를 도입함으로써 호퍼의 저구동을 완화한다."}, {"type": "bullet", "text": "시뮬레이션 및 하드웨어 실험은 학습 기반 제어기와 제안된 sim-to-real 변환 방법의 효과를 검증한다."}, {"type": "bullet", "text": "제안된 sim-to-real 변환은 플랫폼 독립적이며 병렬 설계를 가진 다른 로봇에 적용 가능하다."}, {"type": "bullet", "text": "저자들은 이 호핑 프레임워크가 저구동 시스템을 위한 일반적 제어 패러다임 역할을 할 수 있다고 가정한다."}, {"type": "bullet", "text": "향후 과제는 로봇으로 3D 호핑을 달성하고 복잡한 지형에서 동작 능력을 향상시키는 것을 목표로 한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "호핑 주기가 약 0.44 s를 초과하면 전체 제안 모델이 상태 추정 전용 베이스라인을 능가하지 못하며, 이는 더 풍부한 잠재 공간으로부터의 과적합에 기인한다.", "source_quote": "when the hopping period becomes longer (longer than 0.44s), the proposed method fails to outperform the State Estimation Only. This may be due to overfitting caused by the addition of a more informative latent space.", "source_section": "experiment"}, {"claim": "실세계 검증은 평지에서의 2D 호핑 모드와 단일 10도 경사로 제한되며, 완전한 3D 호핑은 아니다.", "source_quote": "We conduct the experiments on the real robot in a 2D manner with two scenarios: Flat Ground ... Slope Ground: A 10-degree slope is placed under the hopper", "source_section": "experiment"}, {"claim": "MuJoCo에서 3-RSR 병렬 메커니즘의 직접 시뮬레이션은 비유일적 관절-대-발 운동학과 관절 간 결합을 보여 신뢰할 수 없으므로, 정확한 고충실도 병렬 시뮬레이션을 달성할 수 없었다.", "source_quote": "due to the limitation of the simulator, we failed to build an accurate parallel joint configuration that is stable enough to hop ... the simulated leg had a non-unique kinematics mapping from the joint position to the foot position.", "source_section": "discussion"}, {"claim": "운동학적 관절 목표 매핑 베이스라인은 실제 병렬 로봇에 대해 알 수 없는 PD 파라미터를 경험적으로 선택해야 하므로, sim-to-real로 가는 그 경로를 더 어렵게 하고 궁극적으로 실패하게 만든다.", "source_quote": "The parameter of the PDS used during the real-world deployment is unknown and should be empirically selected. This makes sim-to-real even more difficult.", "source_section": "discussion"}], "future_works": [{"claim": "제어기를 2D 호핑에서 로봇으로 완전한 3D 호핑으로 확장한다.", "source_quote": "In the future, we plan to achieve 3D hopping with the robot and further enhance its motion capabilities in complex terrains.", "source_section": "conclusion"}, {"claim": "시험된 평지와 단일 경사를 넘어 더 복잡한 지형에서 로봇의 동작 능력을 향상시킨다.", "source_quote": "In the future, we plan to achieve 3D hopping with the robot and further enhance its motion capabilities in complex terrains.", "source_section": "conclusion"}, {"claim": "sim-to-real 변환이 플랫폼 독립적이므로, 제안된 프레임워크를 다른 저구동 로봇과 다른 병렬 설계 플랫폼을 위한 제어 패러다임으로 일반화한다.", "source_quote": "we hypothesize that our proposed hopping framework can be a general control paradigm when dealing with under-actuated systems. Besides, the proposed sim-to-real conversion method is platform-independent and can be applied to other robots with parallel designs.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["병렬 메커니즘 기반 다리는 호핑을 위해 더 높은 강성, 더 나은 하중 분배, 효율적인 힘 전달을 제공하지만, 기존 물리 엔진이 그들의 결합된 동역학과 폐루프 운동학 제약을 정확히 시뮬레이션할 수 없어 시뮬레이션에서의 효과적인 정책 학습을 막는다.", "연속 단일 다리 호핑은 무게중심이 중력에만 지배되는 길어진 완전 저구동 공중 위상(약 0.2-0.4 s)을 겪으므로, 제어기는 착지를 암묵적으로 예측하고 지지 위상 조정만으로 행동해야 한다.", "1D/2D 폐쇄 체인에는 작동하는 단순한 운동학 단순화나 운동학 수준 변환이 3D 병렬 다리에는 실패하여, 그러한 설계의 sim-to-real 전이를 미해결로 남긴다."], "addressed_by_this_work": ["동일한 DoF와 유사한 엔드이펙터 작업 공간을 가진 등가 직렬 템플릿 모델이 학습 중 병렬 다리를 대체하여, 조건이 나쁜 병렬 구조 대신 Isaac Gym에서 신뢰할 수 있는 직렬 메커니즘 시뮬레이션으로 PPO 정책이 학습된다.", "β-VAE 인코더-디코더가 장기 이력 고유수용성을 잠재 벡터로 인코딩하고 MSE를 통해 베이스 선속도와 접촉 상태를 명시적으로 회귀하여, 저구동 공중 위상에 대처하는 데 필요한 속도 정보를 공급한다.", "야코비안 정역학에서 유도된 새로운 토크 수준 변환이 학습 중 직렬 템플릿 토크를 병렬 관절 토크로 매핑하고 배치 시에는 변환이 필요 없어, 유사한 시뮬레이션 및 실제 토크 패턴과 성공적인 sim-to-real 전이를 산출한다."], "remaining_unresolved": ["잠재 공간 과적합으로 인해 약 0.44 s보다 긴 호핑 주기에서 성능이 저하된다.", "하드웨어 시연은 평지와 단일 경사에서의 2D 호핑에 국한되며, 3D 호핑과 복잡한 지형은 향후 과제로 남겨진다.", "3D 병렬 메커니즘 자체의 정확한 고충실도 직접 시뮬레이션은 여전히 달성되지 않아, 이 접근법은 직렬 템플릿 대리물에 의존한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

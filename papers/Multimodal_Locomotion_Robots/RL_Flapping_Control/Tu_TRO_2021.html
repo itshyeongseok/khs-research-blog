@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Bio-Inspired Rapid Escape and Tight Body Flip on an At-Scale Flapping Wing Hummingbird Robot Via Reinforcement Learning</title>
+    <meta name="keywords" content="reinforcement learning, flapping wing micro aerial vehicle, aggressive maneuvers, hummingbird robot, body flip, rapid escape, DDPG, bio-inspired flight control">
+    <meta name="paper-authors" content="Zhan Tu, Fan Fei, Xinyan Deng">
+    <meta name="paper-journal" content="IEEE Transactions on Robotics, Vol. 37, No. 5, October 2021, pp. 1742-1751 · DOI: 10.1109/TRO.2021.3064882">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Bio-Inspired Rapid Escape and Tight Body Flip on an At-Scale Flapping Wing Hummingbird Robot Via Reinforcement Learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Zhan Tu, Fan Fei, Xinyan Deng</div>
+            <div class="journal">IEEE Transactions on Robotics, Vol. 37, No. 5, October 2021, pp. 1742-1751 · DOI: 10.1109/TRO.2021.3064882</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 <span class="term">강화 학습</span>(RL)을 기존의 모델 기반 안정화 제어기와 통합하여, 실제 규모의 이중 모터 날갯짓 벌새 로봇에서 동물과 유사한 곡예 기동을 가능하게 한다. 두 가지 통합 방식이 시연된다: 벌새에서 영감을 받은 빠른 회피 기동에서는 RL이 기준 제어기를 <em>보조</em>하고, 기존 안정화 제어가 무력해지는 360° 몸 뒤집기에서는 RL이 제어를 <em>완전히 인수</em>한다. 뒤집기를 위해 생물학적 데이터나 사전 설정된 기준 궤적에 의존하지 않는 보상 함수 설계가 제안된다. 학습된 정책은 동역학 무작위화(DDPG)를 적용한 고충실도 시뮬레이터에서 훈련되어 STM32 프로세서에 500 Hz로 탑재 이식된다. 실험 결과 로봇은 모델 기반 기준선보다 빠르게 회피 기동을 완료하고, 대략 한 날개폭 정도의 수직 이동 내에서 거의 표류 없는 360° 뒤집기를 수행한다. 프로젝트 맥락에서 이는 모델 프리 RL이 심각하게 과소구동된 날갯짓 플랫폼에서, 정확히 모델 기반 제어가 실패하는 지점의 비행 제어를 담당할 수 있음을 보이는 핵심 시연이다 — 이는 RL 지상 보행에 목표로 삼는 것과 동일한 학습 제어 가교이다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">flapping wing micro aerial vehicle</span><span class="keyword-chip">aggressive maneuvers</span><span class="keyword-chip">hummingbird robot</span><span class="keyword-chip">body flip</span><span class="keyword-chip">rapid escape</span><span class="keyword-chip">DDPG</span><span class="keyword-chip">bio-inspired flight control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">곤충과 벌새는 빠른 180도 회피 선회와 좁은 공간에서의 360도 뒤집기 같은 곡예 기동을 수행하지만, 생체 모방 FWMAV는 이를 따라가지 못한다. 저자들은 그 격차를 세 가지 난제 — 동역학 불확실성, 구동 제약, 제어 기준의 부재 — 로 돌리고, 기존 모델 기반 제어에 강화 학습을 결합할 것을 제안한다. 이중 모터 벌새 로봇에서 서로 다른 기동을 겨냥하기 위해 두 가지 통합 방식(RL 보조 vs. RL 완전 인수)이 소개된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">기존 생체 모방 FWMAV 연구는 대체로 안정적 호버링을 확립했으며, 명시적 기준을 사용하는 적응형 또는 모델 기반 제어를 주로 활용한 공격적 기동 시도는 소수에 불과했다. 저자들은 이전 연구들이 반복 학습, 토크 결합, 또는 궤적 추종에 의존했음을 지적하며 자신들의 기여를 그 맥락 속에 위치시키고, 구동에서 상태로의 사상(mapping)을 마르코프 결정 과정으로 표현할 수 있기 때문에 학습 기반 접근을 동기화한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">로봇은 강체로 모델링된 이중 모터 구동 벌새 FWMAV로, 네 개의 제어 입력(공칭 전압, 차동 전압, 전압 바이어스, 분할 사이클)이 추력과 세 개의 제어 토크로 사상된다. RL은 두 가지 아키텍처를 통해 기존 안정화 제어기와 통합되며, 두 개의 보상 함수가 설계된다: 회피를 위한 추종형 보상과 뒤집기를 위한 기준 없는 '당근과 채찍' 보상이다. 정책은 sim-to-real 이식을 위해 동역학 무작위화를 사용하는 고충실도 시뮬레이터에서 DDPG로 오프-폴리시 훈련된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">비행 시험은 실내 위치 피드백을 위한 Vicon과 500 Hz의 탑재 센서 융합을 사용하여 두 기동을 시뮬레이션과 실제 로봇에서 평가한다. RL 보조 회피는 모델 기반 기준선보다 빠르게 안전 거리에 도달하지만(~18% 시간 / ~3 날갯짓 절약) 자세와 고도 표류가 더 크고 성능이 변동하는 반면, RL 인수 뒤집기는 대략 한 날개폭의 수직 이동 내에서 ~0.15초에 거의 표류 없는 360° 측면 뒤집기를 완료한다. 소비 전력, 완료율, sim-to-real 불일치가 정량화된다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결과는 RL이 기동에 따라 기존 제어를 개선할 수도, 완전히 대체할 수도 있으며, 일부 일관성을 속도와 극한 기동성과 맞바꾼다는 것을 보인다. 비교는 RL이 안정화 제어기와 상충하는 방식으로 플랫폼의 전 기동성을 활용(토크를 한계까지 밀어붙임)함을 드러내는 한편, 뒤집기 사례는 RL이 모델 기반 제어가 구조적으로 실패하는 곳에서 작동할 수 있음을 입증한다. 남은 문제는 sim-to-real 충실도, 강건성, 정책 일반화에 집중된다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 모델 프리 RL을 기존 비행 제어와 결합하면 실제 규모의 이중 구동기 벌새 로봇에서 동물과 유사한 곡예 기동이 가능하다고 결론짓는다. 빠른 회피(RL 보조)와 거의 표류 없는 360° 몸 뒤집기(RL 인수)가 실험적으로 시연되어, 동물의 정교한 구동을 결여함에도 그러한 로봇이 학습 제어를 통해 비견할 만한 비행 성능에 도달할 수 있음을 보였다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "비행 동물은 좁은 공간에서 거의 최대치의 곡예를 달성한다: 파리는 최소한의 점유 면적 내에서 거의 표류 없는 360° 뒤집기를 하고, 벌새는 시각적 위협에 직면했을 때 0.25초 만에 180° 요(yaw) 선회로 빠른 회피를 수행한다.", "figure_refs": [1]}, {"type": "bullet", "text": "지금까지 다수의 생체 모방 FWMAV가 안정적인 호버링을 시연했으나, 동물과 유사한 공격적 기동에 도전한 시도는 극소수이며, 그마저도 자연의 대응물보다 상당히 더 많은 시간과 이동 거리를 요구하는 경우가 많았다."}, {"type": "bullet", "text": "난제 1 — <span class=\"term\">동역학 불확실성</span>: 날갯짓 비행은 고도로 비선형적이며, 고유의 내재 메커니즘과 비정상 공기역학으로 복잡해진 결합 동역학을 가지는데, 그 상당 부분은 호버링 영역 밖에서는 여전히 알려져 있지 않다."}, {"type": "bullet", "text": "난제 2 — <span class=\"term\">구동 제약</span>: 동물의 정교하고 강력한 날개-흉부 시스템에 비해 로봇은 제한된 출력 밀도를 가진 극소수의 구동기만을 보유하여, 민첩한 기동에 심각하게 부족한 제어 노력을 제공한다."}, {"type": "bullet", "text": "난제 3 — <span class=\"term\">제어 기준의 부재</span>: 기존 제어는 명시적 기준 궤적에 의존하는데, 이는 공격적 기동에서 정확히 설정하기가 불가능하다; 더 나쁘게도, 몸 뒤집기 중 일단 뒤집힌 상태가 되면 안정화 제어는 기동 목표와 상충한다."}, {"type": "bullet", "text": "저자들은 RL을 모델 기반 제어와 두 가지 방식으로 — 학습된 정책이 안정화 제어기를 보조하거나 완전히 인수하는 방식으로 — 통합할 것을 제안하고, 이를 빠른 회피와 좁은 공간 360° 뒤집기에 대해 이중 모터 벌새 로봇에서 시연한다."}, {"type": "bullet", "text": "본 연구는 예비 학술대회 버전을 확장한 것이다; 이전의 회피 연구가 (추종 제어처럼) 확정된 기준에 의존했던 반면, 새로운 기여는 전통적 제어기가 완전히 무력해지는 시나리오(360° 뒤집기)를 새로운 기준 없는(reference-free) 보상 설계로 겨냥한다.", "figure_refs": [1, 2]}, {"type": "bullet", "text": "이는 단 두 개의 구동기만을 가진 날갯짓 로봇에서 그처럼 빡빡한 시공간적 제약 하에 이러한 기동이 달성된 최초의 사례로 보고된다."}]}, "related_works": {"content": [{"type": "bullet", "text": "다수의 생체 모방 FWMAV(RoboBee, Nano Hummingbird, 무미익 날갯짓기 등)가 안정적 호버링 비행을 시연하여, 본 연구가 토대로 삼는 플랫폼 기준선을 확립했다."}, {"type": "bullet", "text": "수직 착륙을 수행하기 위해 80 mg, 3 cm 날개폭 FWMAV에 대해 반복 학습과 결합된 적응형 제어기가 설계되었는데, 이는 학습 증강 FWMAV 제어의 초기 시연이다."}, {"type": "bullet", "text": "기존 연구는 28.2 g, 33 cm 날개폭 무미익 날갯짓기에서 초파리에서 영감을 받은 뱅크 선회를 달성하기 위해 제어 토크 결합을 사용하여, 동물이 빠른 뱅크 선회에서 토크 결합을 어떻게 활용하는지를 밝혔다."}, {"type": "bullet", "text": "저자들 자신의 예비 학술대회 연구(날갯짓 로봇에서 극한 벌새 기동 학습)는 직접적인 선행 연구이며 이 체계적 확장의 출발점으로 다루어진다."}, {"type": "bullet", "text": "기존의 공격적 기동 시도는 비행 안정화를 넘어서는 비행 제어에 더 많은 노력을 요구하지만, 로봇은 여전히 상당히 더 많은 시간과 이동 거리를 필요로 하거나, 심지어 안정성을 완전히 잃을 수도 있다."}, {"type": "bullet", "text": "저수준 구동 명령에서 로봇 상태에 이르는 과정은 <span class=\"term\">마르코프 결정 과정</span>으로 모델링될 수 있으며, 이는 기동 제어를 RL 문제로 표현하도록 동기를 부여한다."}, {"type": "bullet", "text": "보조적인 플랫폼 및 모델링 참고문헌으로는 실제 규모의 무미익 날갯짓 벌새 로봇 설계, 날갯짓 비행에서 수동 회전의 준정상(quasi-steady) 공기역학 모델, 그리고 오픈소스 날갯짓 동역학 시뮬레이터(Flappy Hummingbird)가 포함된다."}]}, "method": {"content": [{"type": "bullet", "text": "플랫폼은 완전한 6자유도 제어를 위해 날개 운동학을 조절하는 두 개의 DC 모터로 구동되는 독립 제어 날개 두 개를 가지며; x축 및 y축 관성 모멘트를 제외하면 형태학적으로 화려한 벌새(magnificent hummingbird)에 가깝다.", "figure_refs": [2]}, {"type": "bullet", "text": "비행체는 병진 및 회전 동역학을 가진 강체로 모델링되며, 여기서 몸체 힘 F_b와 토크 τ_b는 선형 적합으로 근사되는 모터 여기(excitation) 변조에 의해 생성된다."}, {"type": "formula", "label": "식 (1) — 강체 비행 동역학", "latex": "\\dot{P}=v,\\quad m\\ddot{P}=RF_b+mg,\\quad \\dot{R}=R\\hat{\\omega},\\quad J\\dot{\\omega}_b=\\tau_b-\\omega_b\\times J\\omega_b", "description": "비행체의 위치/속도 및 회전 동역학으로, R은 회전 행렬, J는 관성 행렬, F_b, τ_b는 두 모터가 생성하는 몸체 좌표계 제어 힘과 토크이다."}, {"type": "bullet", "text": "비결합 날개 운동학으로부터 네 개의 제어 입력이 정의된다: 공칭 전압 u(추력 F_z / 고도), 차동 전압 δV(롤 토크 τ_x), 공칭 전압 바이어스 V0(피치 토크 τ_y), 분할 사이클 매개변수 δσ(요 토크 τ_z).", "figure_refs": [3]}, {"type": "bullet", "text": "RL 문제는 상태 s = [P, v, R, ω_b], 행동 a = [Δu, ΔδV, ΔV0, Δδσ](제어기에 추가되는 부가 명령), 결정론적 폐루프 천이, 그리고 기동별 보상을 가진 마르코프 결정 과정이며; 정책은 완전 연결 MLP π_ν(a_t|s_t)이다.", "figure_refs": [4, 5]}, {"type": "formula", "label": "식 (2) — 기대 할인 수익(return)", "latex": "J=\\mathbb{E}_{a_i\\sim\\pi_\\nu}[R]=\\mathbb{E}_{a_i\\sim\\pi_\\nu}\\left[\\sum_{i=0}^{T}\\gamma^{i-1} r(s_i,a_i)\\right]", "description": "훈련 중 최대화되는 유한 구간(finite-horizon) 목적 함수로, 구간 T와 할인 인자 γ를 가지며; 정책 매개변수 ν는 누적 보상을 최대화하도록 최적화된다."}, {"type": "bullet", "text": "빠른 회피의 경우 기동에 명확한 기준(~0.3초 내에 180° 방위 선회를 동반한 약 3 날개길이 후퇴)이 있으므로, 안정화로 복귀하는 정의된 전환 로직(x < -0.21 m, |ẋ| < 1 m/s, ψ > 180°)을 가진 추종 제어 문제처럼 다루어진다."}, {"type": "formula", "label": "식 (3) — 회피 기동 보상", "latex": "r_t=(f_t+\\varepsilon_f)^{-1}-\\hat{i}\\cdot\\hat{I}+(\\hat{k}\\cdot\\hat{K})^{-}+\\lambda_x(x_T-x)^{-}", "description": "f_t는 안정성+제어 비용이며; 항들은 부정확한 자세를 벌하고 목표 x_T로의 수렴을 보장하는데, (.)^- 표기는 음의 값만 취함을 의미하여 빠른 벌새형 회피를 유도한다."}, {"type": "bullet", "text": "뒤집기의 경우 기준 궤적이 강제되지 않는다; '당근과 채찍' 보상은 로봇 아래에 첫 번째 당근(뒤집힌 회전을 유도)을, 머리 영역에 두 번째 당근(복구를 유도)을 두어, RL이 플랫폼 고유의 최적 거동을 탐색하도록 한다.", "figure_refs": [6]}, {"type": "formula", "label": "식 (4) — 전체 뒤집기 보상", "latex": "r_t=(1-\\lambda)r_1+\\lambda r_2,\\quad r_1=K_1/[1+(1+\\hat{z})^2],\\quad \\bar{r}_2=K_2/[1+(1-\\hat{z})^2]", "description": "λ는 뒤집기 1단계 vs. 2단계를 선택하는 이진 이득이며; r1은 몸체 z축 투영 ẑ가 -1(뒤집힘)에 가까워지는 것을, r̄2는 ẑ가 1(복구)에 가까워지는 것을 보상하고, 표류를 억제하기 위한 안정성 및 위치 추종 항이 추가된다."}, {"type": "bullet", "text": "천이와 보상이 모두 결정론적이므로 훈련은 DDPG(오프-폴리시 액터-크리틱)를 사용한다; 액터/크리틱은 tanh 활성화를 가진 32×32 및 64×64 MLP로, FPU가 활성화된 STM32 Cortex-M4에서 제어 주기당 <1 ms의 비용이 든다."}, {"type": "bullet", "text": "완전한 날갯짓 공기역학, 흉부 및 몸체 동역학을 갖춘 고충실도 시뮬레이터가 사용된다; 동역학 무작위화는 이식 가능한 sim-to-real 솔루션을 위해 질량, 관성, 구동 잡음, 초기 조건 및 센싱 잡음 변동을 주입하고, 종료 조건은 무용한 롤아웃을 잘라내며 좁은 공간 기동을 장려한다.", "figure_refs": [1]}]}, "experiment": {"content": [{"type": "bullet", "text": "실제 시험은 실내 위치 피드백에 Vicon 모션 캡처 시스템을, 자세에 탑재 융합을 갖춘 탑재 관성 센서를 사용한다; 탑재 제어는 포화 제한 명령(u∈[9,18]V, δV∈[-3,3]V, V0∈[-3.5,3.5]V, δσ∈[-0.15,0.15])으로 500 Hz에서 동작한다."}, {"type": "bullet", "text": "회피에서 RL 보조 로봇은 ~20 날갯짓 만에 기동을 완료하는데, 이는 화려한 벌새의 ~10 날갯짓에 비해 더 많지만, 제한된 구동에도 공학적으로 설계된 날갯짓 비행체가 동물과 유사한 극한 기동을 만들어낼 수 있음을 보인다.", "figure_refs": [7]}, {"type": "bullet", "text": "로봇은 기동 전체에 걸쳐 요 토크를 생성하는 반면, 벌새는 단 4 날갯짓 만에 180° 요 선회를 완료하고 꼬리를 감쇠기로 사용해 감속할 수 있다 — 이는 로봇이 결여한 능력이다."}, {"type": "bullet", "text": "회피 전력: 기동 및 호버 단계의 평균 전력은 각각 10.14 W와 5.32 W이며, 스트로크 평균 버스트 전력은 19.38 W(≈3.64× 호버)까지 급증하는데, 이는 정점이 ≈5× 호버인 벌새보다 덜 공격적이다.", "figure_refs": [8]}, {"type": "bullet", "text": "동일 과제에서 전통적 제어기와 비교하면, RL 보조 회피는 자세와 고도 표류가 더 크지만 완료 시간을 ~3 날갯짓(≈0.088초) 단축하여 ~0.5초 기동에서 약 18% 시간을 절약한다; 다만 그 성능은 변동하는 반면 모델 기반 방법은 더 일관적이다.", "figure_refs": [7, 8]}, {"type": "bullet", "text": "뒤집기의 경우 학습된 정책이 완전히 인수한다: 로봇은 먼저 상향 가속을 생성하고, 왼쪽 날개 진폭을 키워 롤을 하며, 뒤집힌 상태가 되면 오른쪽 날개 진폭을 키워 몸체 회전을 감속한 뒤 똑바로 복구한다.", "figure_refs": [9]}, {"type": "bullet", "text": "최적화된 뒤집기는 ~한 날개폭(≈0.17 m)의 수직 이동 내에서 ~0.15초에 완료된다; 뒤집기 전력은 평균 9.278 W(기동)와 6.179 W(호버)이며, 뒤집기 중 조종 명령은 전적으로 학습된 정책에서 나오고 이후 안정화로 복귀한다.", "figure_refs": [10]}, {"type": "bullet", "text": "8회의 뒤집기 시도 중 6회가 성공하고 2회는 복구 중 안정성을 잃었다; 정책은 예상된 전/후 뒤집기가 아니라 측면(횡방향) 뒤집기로 수렴했으며, 로봇은 트림 조건으로 인해 반시계 방향으로 회전하는 경향이 있다.", "figure_refs": [9]}, {"type": "bullet", "text": "sim-to-real 격차가 관찰된다: 시뮬레이션 로봇은 모델링된 z방향 감쇠와 실제 감쇠 간의 불일치 때문에 더 잘 상승하고 고도 면에서 거의 표류가 없는데, 이는 실제 고도 제어를 저하시킨다."}]}, "discussion": {"content": [{"type": "bullet", "text": "제어기를 보조하는 RL은 로봇의 극한 기동성을 탐색하여 회피 속도를 개선한다 — 학습된 정책은 피치와 요 토크를 상한까지 밀어붙이는데, 이는 명시적으로 안정화 제어기의 설계 의도에 반한다.", "figure_refs": [8]}, {"type": "bullet", "text": "절충은 명확하다: RL 기반 방법은 더 빠르게 안전 거리에 도달하지만 성능이 변동하는 반면, 제어 기반 방법은 전반적으로 더 일관적이며, 이 일관성은 소비 전력에도 반영된다."}, {"type": "bullet", "text": "뒤집기의 경우 기존 안정화는 작동할 수 없는데, 뒤집힌 상태에서 그 제어 노력이 제어 목표와 상충하기 때문이다; RL의 완전 인수는 이 구조적 충돌을 해소한다.", "figure_refs": [5]}, {"type": "bullet", "text": "학습된 측면 뒤집기 결과(예상된 전/후 뒤집기 대비)는 더 큰 롤축 토크 생성과 트림 조건으로 합리화되며, 이는 정책이 동물 거동을 모방하기보다 플랫폼 고유의 최적해를 발견함을 시사한다."}, {"type": "bullet", "text": "뒤집기 후의 작은 횡방향 위치 표류는 정상 비행이 재개되면 모델 기반 제어기에 의해 교정 가능하여, 학습 제어와 기존 제어 간의 매끄러운 전환을 보인다."}, {"type": "bullet", "text": "성공 사례들은 심각하게 과소구동된 시스템에서 모델 불확실성, 모델링되지 않은 동역학, 까다로운 성능에 대처하는 생체 모방 로봇용 RL의 가능성을 입증한다."}, {"type": "bullet", "text": "훈련 시간을 절약하고 탐색 범위를 줄이기 위해 확정된 전환 조건이 사용되었으나, 저자들은 장기 훈련으로 RL이 원리적으로 전환 로직 자체를 학습할 수 있다고 언급한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 연구는 생체 모방 날갯짓 로봇에서 동물과 유사한 곡예 기동을 달성하기 위해 RL을 기존 비행 제어와 결합한 성공적 시도를 제시한다."}, {"type": "bullet", "text": "공격적 기동 중, 로봇이 원하는 기동 성능을 달성하도록 돕기 위해 모델 프리 RL 정책이 시뮬레이션에서 훈련된다."}, {"type": "bullet", "text": "동물과 유사한 기동성이 단 두 개의 구동기를 갖춘 실제 규모의 벌새 로봇에서 실험적으로 시연된다."}, {"type": "bullet", "text": "두 가지 곡예 기동이 제시되었다: 실제 벌새에서 관찰되는 빠른 회피, 그리고 거의 표류 없는 360° 몸 뒤집기."}, {"type": "bullet", "text": "성공 사례들은 심각하게 과소구동된 시스템에서 모델 불확실성, 모델링되지 않은 동역학, 까다로운 비행 성능에 대처하는 생체 모방 로봇용 RL의 가능성을 보인다."}, {"type": "bullet", "text": "그러한 로봇이 동물의 정교한 구동을 복제할 수는 없지만, RL과 기존 제어를 결합한 방법은 그들이 자연의 대응물에 비견할 만한 비행 성능을 달성하도록 한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "시뮬레이션 로봇은 모델링된 z방향 감쇠와 실제 감쇠 간의 불일치로 인해 실제 로봇보다 더 나은 상승 능력과 거의 표류 없는 고도를 보였으며, 이는 하드웨어에서 고도 제어 성능을 저하시킨다.", "source_quote": "compared to the real system, the simulated robot showed better ascending capability and almost drift-free altitude performance due to the discrepancy between the modeled and actual z-direction damping. Such a discrepancy affects altitude control performance.", "source_section": "experiment"}, {"claim": "몸 뒤집기 정책은 뒤집기 방향에 걸쳐 일반화되지 않았다: 동물에서 더 흔히 보이는 전/후 뒤집기가 아니라 측면(횡방향) 뒤집기로만 수렴했으며, 이는 트림 조건과 더 큰 롤축 토크에 기인한다.", "source_quote": "the learned 360 body flip maneuver of the robot converges to the side flip motion as shown in Fig. 9, which is a bit out of our expectation since the front/back flip is more observed on the animals.", "source_section": "experiment"}, {"claim": "8회의 실험 뒤집기 시도 중 6회만이 과제를 완료했다; 나머지 2회는 뒤집혔으나 복구 단계에서 안정성을 잃었다.", "source_quote": "We have conducted a total of 8 experimental flight trials, 6 of which completed the task, 2 of them performed upside-down flip but lost stability during the recovery step.", "source_section": "experiment"}, {"claim": "신경망 구조는 탐색되지 않았다; 단일의 작은 고정 액터/크리틱 아키텍처만이 시험되었다.", "source_quote": "In this work, we have not tested different network structures. The proposed structure is versatile for the test maneuvers.", "source_section": "experiment"}], "future_works": [{"claim": "주로 훈련 시간을 절약하기 위해 여기서 사용된 사전 결정된 전환 조건에 의존하기보다, 장기 훈련으로 RL이 기동 전환 로직 자체를 학습하는 데 사용될 수 있다.", "source_quote": "Regarding the switch logic, RL would be able to figure it out with long-term training. Nevertheless, given a determined switch condition can obviously save training time and shrink the searching range.", "source_section": "method"}], "motivation_resolution": {"motivating_problems": ["날갯짓 마이크로 항공기(FWMAV)는 동역학 불확실성 때문에 동물과 유사한 공격적 기동을 따라가지 못한다: 날갯짓 비행은 빠르게 변하고 대체로 알려지지 않은 비정상 공기역학을 가진 고도로 비선형적인 거동이다.", "FWMAV는 심각하게 과소구동되어 있으며(예: 6자유도 제어에 두 개의 모터), 자연 비행체의 출력 밀도를 결여하여 민첩한 기동에 부족한 제어 노력을 제공한다.", "기존 모델 기반 비행 제어는 공격적 기동 중 신뢰할 만한 제어 기준을 결여하며, 완전한 몸 뒤집기 중(로봇이 뒤집힐 때) 안정화 제어가 기동 목표와 능동적으로 상충한다."], "addressed_by_this_work": ["모델 불확실성과 모델링되지 않은 공기역학을 보상하기 위해 RL이 모델 기반 제어와 융합되어, 두 개의 구동기를 가진 로봇에서 동물과 유사한 회피와 뒤집기를 가능하게 한다.", "뒤집기를 위한 보상 함수가 생물학적 데이터나 사전 설정된 기준 궤적을 요구하지 않도록 설계되어, 기준을 정의할 수 없는 곳에서 제어 기준의 필요를 제거한다.", "학습된 정책이 비행 제어를 완전히 인수하는 통합 방식이 뒤집기를 위해 도입되어, 뒤집힌 상태에서 안정화와 기동 목표 간의 모순을 해소한다."], "remaining_unresolved": ["모델링되지 않은 z방향 감쇠로 인한 sim-to-real 고도 제어 불일치가 남아 있다.", "뒤집기 방향 및 더 넓은 기동 계열에 걸친 뒤집기 정책의 일반화는 달성되지 않았다.", "강건한 완료율(6/8)과 학습된 전환이 아닌 수작업으로 설정한 전환 조건에 대한 의존성이 미해결로 남아 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

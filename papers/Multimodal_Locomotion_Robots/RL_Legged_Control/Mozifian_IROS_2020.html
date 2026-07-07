@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning Domain Randomization Distributions for Training Robust Locomotion Policies</title>
+    <meta name="keywords" content="domain randomization, reinforcement learning, sim-to-real transfer, robust locomotion, reality gap, context-conditioned policy, KL-divergence regularization, Proximal Policy Optimization, distribution learning">
+    <meta name="paper-authors" content="Melissa Mozifian, Juan Camilo Gamboa Higuera, David Meger, Gregory Dudek">
+    <meta name="paper-journal" content="2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), October 25-29, 2020, Las Vegas, NV, USA (Virtual), pp. 6112-6117 · DOI: 10.1109/IROS45743.2020.9341019">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning Domain Randomization Distributions for Training Robust Locomotion Policies</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Melissa Mozifian, Juan Camilo Gamboa Higuera, David Meger, Gregory Dudek</div>
+            <div class="journal">2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), October 25-29, 2020, Las Vegas, NV, USA (Virtual), pp. 6112-6117 · DOI: 10.1109/IROS45743.2020.9341019</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 <span class="term">domain randomization (DR)</span> 분포와 그 위에서 성능을 최대화하는 강건한 맥락 조건부 정책을 동시에 학습하는 알고리즘인 <span class="term">LSDR (Learning the Sweet-spot Distribution Range)</span>를 제안하며, 실제 로봇 데이터가 전혀 없는 극단적 경우를 대상으로 합니다. DR 분포를 고정하는 대신, LSDR은 학습 가능한 대리 분포를 최적화하여 해결 가능하고 높은 보상을 주는 시뮬레이션 환경에 집중시키는 한편, 넓은 사전 분포에 대한 KL-발산 정규화기가 분포가 사소하게 쉬운 환경으로 붕괴하는 것을 방지합니다. 기울기는 로그-도함수 점수 함수 추정량으로 추정되고 정책은 PPO로 갱신됩니다. MuJoCo Hopper와 Half-Cheetah 벤치마크에서 LSDR은 과제 실현 가능성의 한계 부근에 있는 물리적으로 타당한 매개변수 범위로 수렴하며, 초기 분포에 둔감하고, 망라적 격자 학습보다 훨씬 적은 경험을 사용하면서 고정 domain randomization 대비 점프스타트 및 점근적 성능을 개선합니다. 본 연구는 수동 튜닝이 인간 직관에 부적합하기 때문에 DR-범위 선택의 자동화가 필수적이라고 주장합니다.</div>
+            <div class="keywords"><span class="keyword-chip">domain randomization</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">robust locomotion</span><span class="keyword-chip">reality gap</span><span class="keyword-chip">context-conditioned policy</span><span class="keyword-chip">KL-divergence regularization</span><span class="keyword-chip">Proximal Policy Optimization</span><span class="keyword-chip">distribution learning</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">시뮬레이션에서 로봇 행동을 학습하는 것은 안전하지 않은 실제 하드웨어 탐색을 줄여주기 때문에 매력적이지만, 현실 격차(reality gap)에 의해 제한되며, 실제 로봇 데이터가 없을 때 순수 시뮬레이션 학습이 광범위한 물리적 로봇을 포괄할 수 있는지가 미해결 문제입니다. domain randomization (DR)은 다양한 시뮬레이션 모델에 대해 정책을 학습시켜 이 격차를 메우지만, 너무 넓거나 너무 좁은 분포는 모두 실패함에도 불구하고 DR 분포의 선택은 깊이 연구되지 않았습니다. 저자들은 실제 데이터가 전혀 없는 극단적 경우를 연구하고, 해결 가능하고 높은 보상을 주는 환경에 학습을 집중하는 '스윗스팟' DR 분포와 강건한 정책을 공동으로 학습할 것을 제안합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 LSDR을 강건하고 일반화 가능한 제어기, 다중 과제 학습, 심층 RL 일반화 연구의 오랜 계보와 연관 짓고, 이어서 시뮬레이터 매개변수를 실제 데이터에 맞추거나(Chebotar, Ramos), 최악 성능을 최적화하거나(Rajeswaran/EPOpt), 기대 향상을 최대화하는 시뮬레이터를 선택하는(Paul, Mehta) sim-to-real DR 기법들과 관련짓습니다. 또한 LSDR을 커리큘럼 방식의 분포 확장(OpenAI)과 고정 DR 분포를 사용하는 맥락 조건부 정책 기법들 사이에 위치시키며, LSDR은 학습 중 분포를 학습하고 적응시킴으로써 이를 확장합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 맥락 벡터 z가 변화하는 동역학을 포착하는 매개변수적 MDP 분포에 대한 학습을 정식화하고, DR 분포 p(z)에 대한 기대 수익을 최대화하기 위해 정책을 z에 조건화합니다. 이들의 LSDR 알고리즘은 넓은 사전 분포로부터의 직접 샘플링을 학습 가능한 대리 분포 p_phi(z)로 대체하며, 이는 점수 함수 기울기를 통해 해결 가능하고 높은 보상을 주는 환경에 집중하도록 갱신되는 한편 사전 분포에 대한 KL-발산 정규화기가 붕괴를 방지합니다. PPO는 정책을 갱신하고, 실용적 보정(첫 번째 목적 항을 사전 분포에서 샘플링, 수익 표준화)은 분포 붕괴와 항 스케일링을 해결합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">LSDR은 MuJoCo Hopper와 Half-Cheetah 보행 벤치마크에서 평가되며, 몸통 크기, 밀도, 발 마찰, 관절 감쇠를 단일 차원(이산) 및 다차원(가우시안) 설정 모두에서 무작위화합니다. 학습된 분포는 실현 가능성의 한계 부근의 물리적으로 타당한 범위로 수렴하고, 실행 전반에 걸쳐 재현 가능하며, 초기 분포에 둔감합니다. 고정 DR과 비교하여 LSDR은 점프스타트 및 점근적 테스트 시점 성능을 개선하고 망라적 격자 학습보다 훨씬 적은 경험으로 높은 보상의 정책에 도달합니다. 최적화기로 EPOpt을 사용하면 높은 보상 환경으로의 편향을 더욱 완화합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 환경 분포를 행동 정책과 함께 학습하는 것이 에이전트가 광범위한 물리적 매개변수에 걸쳐 어려운 제어 과제를 해결하게 한다고 주장하며, 이는 시뮬레이션 보행에서 검증되었습니다. 이 기법은 실현 가능성의 한계 부근의 다양한 범위로 수렴하고, 초기 분포에 둔감하며, DR 분포를 고정하는 통용 관행에 비해 학습하는 것의 이점을 입증합니다. DR 범위의 수동 설정이 인간 직관에 부적합하기 때문에, 저자들은 자동화된 DR 범위 선택을 강건한 sim-to-real 전이를 향한 결정적 단계로 위치시킵니다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">LSDR은 실제 데이터가 없는 체제에서 domain randomization 분포와 강건한 맥락 조건부 정책을 공동으로 학습하며, KL 정규화기가 붕괴를 방지하는 한편 해결 가능하고 높은 보상을 주는 환경에 집중합니다. Hopper와 Half-Cheetah에서 물리적으로 타당하고 실현 가능성에 근접한 범위로 수렴하고, 초기 분포에 강건하며, 망라적 격자 학습보다 훨씬 적은 경험을 사용하면서 고정 DR을 능가합니다. 저자들은 DR 범위 선택의 자동화가 필수적이라고 결론짓고, 더 나은 분포 목적과 더 유연한 매개변수화에 대한 향후 연구를 개략합니다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "시뮬레이션에서 로봇 행동을 학습하는 것은 실제 하드웨어 상에서 잠재적으로 안전하지 않은 상태 탐색의 필요성을 줄여주기 때문에 중요한 방법론이지만, 행동 학습 에이전트는 그 환경과의 상호작용에 결정적으로 의존합니다."}, {"type": "bullet", "text": "저자들은 핵심 질문을 제기합니다: 로봇 공장 사용 사례에서처럼 아직 존재하지 않을 수도 있는 실세계 대상 로봇에 대한 데이터가 전혀 없다면, 순수 시뮬레이션 학습이 광범위한 잠재적 물리적 로봇을 포괄할 수 있는가?"}, {"type": "bullet", "text": "<span class=\"term\">Domain randomization (DR)</span>은 매개변수가 과제 분포로부터 무작위로 샘플링되는 다양한 시뮬레이션 모델 집합에 대해 성능을 최대화하도록 정책을 학습시킴으로써 현실 격차에 대처하며, 그 효과는 순수 시뮬레이션에서 학습되어 실제 로봇으로 전이되는 제어기와 실세계 데이터로 DR 분포를 미세 조정하는 방식을 통해 입증되었습니다."}, {"type": "bullet", "text": "깊이 다루어지지 않은 측면은 DR 분포의 선택이며, 이는 시뮬레이션 경험 내에서의 일반화를 보장하기 위해 신중하게 선택되어야 합니다."}, {"type": "bullet", "text": "너무 넓은 DR 분포는 성능이 떨어지는 정책이나 느린 수렴을 초래할 수 있는 반면, 너무 좁은 분포에 대한 학습은 잘 일반화되지 않는 정책으로 이어집니다.", "figure_refs": [1, 9]}, {"type": "bullet", "text": "대부분의 기존 기법은 실제 로봇 데이터의 가용성을 가정합니다. 저자들은 대신 실제 로봇 데이터가 전혀 없는 극단적 경우를 연구하며, 이 경우 적절한 DR 분포의 선택이 결정적입니다."}, {"type": "bullet", "text": "제안된 기법은 다양성과 성능 사이의 절충을 찾아, 높은 보상이 가능한 환경에 집중하도록 DR 분포를 최적화하는 한편 KL-발산 목적을 통해 분포 매개변수를 정규화하고 가장 성능이 낮은 시뮬레이터로부터 더 많은 데이터를 사용합니다."}, {"type": "bullet", "text": "이 알고리즘은 domain randomization 분포를 학습하는 동시에 학습된 분포에 대한 성능을 최대화하도록 정책을 최적화하여, '스윗스팟' 분포로 수렴합니다.", "figure_refs": [1]}, {"type": "bullet", "text": "OpenAI Gym 벤치마크 모음의 제어 문제에서 평가된 이 기법은 고정 domain randomization의 성능을 개선하고 초기 시뮬레이터 분포 매개변수에 강건하며, 서로 다른 실험에서 유사한 DR 분포로 반복적으로 수렴합니다."}]}, "related_works": {"content": [{"type": "bullet", "text": "강건하거나 일반화 가능한 제어기의 개발은 오랜 역사를 가지고 있습니다: Caruana는 로봇 공학 맥락에서 다중 과제 학습을 탐구한 최초의 인물 중 하나였고, Baxter는 베이지안/정보이론적 맥락에서 다중 과제 학습을 고찰했습니다."}, {"type": "bullet", "text": "Packer 등은 심층 RL의 일반화에 대한 실증 연구를 제시하여 시뮬레이션 매개변수를 변화시킬 때의 보간과 외삽을 검증하며, 본 연구는 학습 분포 매개변수가 학습되고 정책 학습 중에 변화하는 경우로 그 연구를 확장합니다."}, {"type": "bullet", "text": "Chebotar 등은 매개변수가 실세계 데이터에 맞춰진 시뮬레이터 분포에 대해 정책을 학습시키며, 정책 최적화와 시뮬레이션 대 실제 궤적 불일치를 최소화하여 DR 분포를 갱신하는 것을 번갈아 수행합니다. 이와 대조적으로 본 연구는 실제 로봇 상호작용을 최소화하기 위해 다양한 실현 가능 분포에 대해 정책을 학습합니다."}, {"type": "bullet", "text": "Ramos 등은 실세계 궤적을 사용하여 시뮬레이션 매개변수의 사후 분포를 계산하는 우도 없는(likelihood-free) 추론 기법을 채택합니다."}, {"type": "bullet", "text": "Rajeswaran 등(EPOpt)은 CVaR 목적을 사용하여 최악 성능을 최적화함으로써 시뮬레이터 모델 분포에 대해 강건한 정책을 학습합니다. 저자들은 학습된 DR 분포의 다양성을 장려하기 위해 그들의 기법을 CVaR 목적과 결합합니다."}, {"type": "bullet", "text": "Paul 등은 베이지안 최적화 프레임워크를 사용하여 기대 정책 향상이 가장 큰 시뮬레이터를 샘플링할 확률을 최대화하는 반면, Mehta 등(Active Domain Randomization)은 DR 범위 내에서 더 어려운 사례를 향해 정책 탐색을 유도합니다."}, {"type": "bullet", "text": "OpenAI는 좁고 해결 가능한 DR 분포에서 시작하여 학습이 진행됨에 따라 점진적으로 넓혀 가면서 무작위화된 환경에 대한 분포를 자동으로 생성하는데, 이는 DR 변수의 차원이 증가함에 따라 확장되지 않는 단순한 전략입니다."}, {"type": "bullet", "text": "다른 기법들은 맥락 벡터가 관측되지 않은 물리적 속성(예: 마찰, 질량)을 표현하는 맥락 조건부 정책에 의존하며 테스트 시점에 기울기 하강이나 집단 기반 탐색을 통해 맥락을 최적화합니다. 이들은 고정 DR 분포를 사용하며 여기서 제안된 바와 같이 학습 중 분포를 적응시킴으로써 이익을 얻을 수 있습니다."}]}, "method": {"content": [{"type": "bullet", "text": "문제는 상태, 행동, 전이 동역학 p, 보상 함수 r, 할인 인자 γ, 초기 상태 분포 ρ0로 각각 정의되는 매개변수적 마르코프 결정 과정에 대해 정식화되며, 보상의 기대 합을 최대화하는 정책 π를 학습하는 것이 목표입니다."}, {"type": "formula", "label": "Eq. — MDP에 대한 RL 목적", "latex": "J_M(\\pi) = \\mathbb{E}_{\\tau}\\!\\left[R(\\tau)\\,\\middle|\\,\\pi\\right] = \\mathbb{E}_{\\tau}\\!\\left[\\textstyle\\sum_{t=0}^{\\infty} \\gamma^t r_t\\right]", "description": "표준 RL 목적은 궤적 $\\tau$에 대한 정책 $\\pi$의 기대 할인 수익을 최대화하며, 여기서 $r_t = r(s_t, a_t)$입니다."}, {"type": "bullet", "text": "본 연구는 domain randomization 분포 p(z)로부터 추출된 맥락 벡터 z(전이 동역학, 보상, 초기 상태 분포 등의 변화)로 각각 기술되는 MDP 분포에 대해 성능을 최대화하는 것을 목표로 합니다. 정책은 맥락에 조건화되며, π(a|s,z)에서 z는 질량, 마찰, 감쇠와 같은 물리적 매개변수를 인코딩합니다."}, {"type": "bullet", "text": "저자들은 DR 분포와 그 위에서 성능을 최대화하는 강건한 정책을 동시에 학습하는 <span class=\"term\">LSDR (Learning the Sweet-spot Distribution Range)</span>를 도입합니다. LSDR은 적절한 DR 범위의 추측을 표현하는 사전 분포 p(z)를 요구합니다."}, {"type": "bullet", "text": "p(z)로부터 직접 샘플링하는 대신, LSDR은 학습 가능한 매개변수 φ를 갖춘 대리 분포 p_phi(z)를 사용하여, p_phi(z)가 선택한 데이터로 정책을 갱신하고 정책 성능에 기반해 φ를 갱신함으로써 학습이 시뮬레이션 동역학의 실현 가능 영역에 집중하도록 합니다.", "figure_refs": [3]}, {"type": "bullet", "text": "학습 분포 갱신은 첫 번째 항이 해결 가능성이 더 높은 환경에서의 향상을 장려하는 한편, KL-발산 항이 분포가 소수의 사소하게 쉬운 환경으로 붕괴하는 것을 막는 목적을 최대화합니다."}, {"type": "formula", "label": "Eq. (1) — DR 분포 목적", "latex": "\\arg\\max_{\\phi}\\; L_{DR}(\\phi) - \\alpha\\, D_{KL}\\!\\left(p(z)\\,\\|\\,p_{\\phi}(z)\\right)", "description": "대리 분포 매개변수 φ는 분포를 높은 보상 영역으로 유도하는 보상 가중 항 $L_{DR}(\\phi) = \\mathbb{E}_{z\\sim p(z)}[J_{M_z}(\\pi)\\log p_{\\phi}(z)]$을 최대화하도록 최적화되며, 붕괴를 방지하기 위해 $\\alpha$로 스케일된 넓은 사전 분포 $p(z)$로부터의 KL 발산으로 정규화됩니다."}, {"type": "bullet", "text": "φ에 대한 목적의 기울기는 로그-도함수(점수 함수) 기울기 추정량을 사용하여 추정되며, K개의 샘플링된 맥락에 대한 몬테카를로 갱신을 산출합니다."}, {"type": "formula", "label": "Eq. (2) — φ에 대한 몬테카를로 갱신", "latex": "\\phi \\leftarrow \\phi + \\lambda \\frac{1}{K}\\sum_{i=1}^{K} J_{M_{z_i}}(\\pi)\\,\\nabla_{\\phi}\\log p_{\\phi}(z_i)\\; -\\; \\lambda\\,\\alpha\\,\\nabla_{\\phi} D_{KL}\\!\\left(p(z)\\,\\|\\,p_{\\phi}(z)\\right)", "description": "점수 함수 갱신은 높은 수익 $J_{M_{z_i}}(\\pi)$을 가진 맥락 쪽으로 분포를 재가중하는 한편 KL 기울기 항은 $p_{\\phi}(z)$를 사전 분포에 가깝게 유지하며, $z_i$는 붕괴를 피하기 위해 $p(z)$로부터 샘플링될 수 있습니다."}, {"type": "bullet", "text": "p_phi(z)로부터의 샘플로 φ를 갱신하는 것은 문제가 될 수 있는데, p_phi(z) 하에서 낮은 확률의 맥락은 정책 성능 정보를 제공하지 않아 분포 붕괴를 야기하기 때문입니다(단일 차원 이산 실험에서 관찰됨). 첫 번째 목적 항을 사전 분포 p(z)로부터의 샘플로 평가하면 기울기가 편향되지만 붕괴를 피할 수 있습니다.", "figure_refs": [3]}, {"type": "bullet", "text": "두 목적 항이 유사한 스케일을 갖도록, 수익 추정치 J는 지수 평균화된 배치 통계로 표준화되고 α는 하이퍼파라미터 탐색을 통해 설정됩니다. 전체 학습 및 테스트 절차(Algorithm 1과 2)에서 정책 갱신 단계에는 Proximal Policy Optimization (PPO)이 사용됩니다."}]}, "experiment": {"content": [{"type": "bullet", "text": "이 기법은 OpenAI Gym 모음의 두 가지 표준 MuJoCo 벤치마크 보행 과제—Hopper와 Half-Cheetah—에서 평가되며, 이들은 동역학이 변화될 때 더 어려운 환경을 제시합니다.", "figure_refs": [2]}, {"type": "bullet", "text": "몸통 크기, 밀도, 발 마찰, 관절 감쇠에 해당하는 맥락 벡터 z의 명시적 인코딩이 사용됩니다. 실험은 단일 차원 DR(한 번에 한 매개변수, 이산 분포)과 다차원 DR(다변량 가우시안)을 모두 연구합니다."}, {"type": "bullet", "text": "사전 분포 p(z)는 해결 가능 환경과 해결 불가능 환경을 모두 포함하는 범위에 대한 균등 분포로 선택됩니다. 이산 분포는 지지 영역을 균등하게 초기화된 100개의 빈으로 이산화하는 한편, 다차원 가우시안은 평균을 테스트 범위 평균으로, 분산을 사전 분산의 10분의 1로 초기화합니다."}, {"type": "bullet", "text": "실험은 세 가지 질문에 답하는 것을 목표로 합니다: 넓은 DR 분포로 정책을 학습하는 것이 해결 가능 환경에서의 성능에 영향을 미치는지, DR 분포를 학습하는 것이 실제 해결 가능 범위로 수렴하는지, 그리고 DR 분포를 학습하는 것이 이로운지."}, {"type": "bullet", "text": "Table I과 분포 진화 플롯은 학습된 p_phi(z)가 더 좁고 물리적으로 타당한 범위로 수렴함을 보여줍니다. Hopper의 경우 학습된 분포는 처음부터 정책을 찾을 수 있는 환경 집합과 밀접하게 일치하며, 분포는 약 1500 에폭 후에 수렴합니다.", "figure_refs": [4, 5, 6, 7]}, {"type": "bullet", "text": "재현성은 Hopper 몸통 크기 실험을 7회 실행하여 평가했으며, 약 [0.00086 ± 0.00159, 0.09275 ± 0.00342]의 평균 학습 범위를 산출했고, 이 기법은 초기 DR 분포에 둔감한 것으로 나타났습니다."}, {"type": "bullet", "text": "정책 최적화기로 PPO를 사용하여, LSDR은 Hopper와 Half-Cheetah 모두에서 Fixed-DR 대비 점프스타트 및 점근적 테스트 시점 성능을 명확히 개선하며, 정책은 에폭당 B = 4000 샘플로 3000 에폭 동안 학습되고 분포는 M = 10 기울기 단계에 걸쳐 K = 10개의 추가 궤적을 사용하여 갱신됩니다. 테스트는 해결 불가능한 맥락을 포함하여 p(z)의 전체 지지 영역에 걸칩니다.", "figure_refs": [8]}, {"type": "bullet", "text": "LSDR이 망라적인 맥락별 격자 학습에는 미치지 못하지만, 훨씬 적은 경험(격자의 4e9 단계 대비 1.2e7 단계)을 관찰하면서 균등 DR을 명확히 능가합니다.", "figure_refs": [1]}, {"type": "bullet", "text": "PPO를 EPOpt-PPO(최악 10% 궤적으로부터 갱신)로 대체하면 높은 보상 환경으로의 초기 편향이 완화되어, 더 넓은 학습 몸통 크기 범위(약 0.0에서 0.14), 더 빠른 수렴(균등 DR 에폭의 약 절반에서 누적 보상 3000 이상), 그리고 더 우수하고 분산이 낮은 점근적 성능을 산출합니다.", "figure_refs": [9]}]}, "discussion": {"content": [{"type": "bullet", "text": "에이전트가 환경 분포를 행동 정책과 함께 학습하도록 허용함으로써, 에이전트는 광범위한 물리적 매개변수에 걸쳐 어려운 제어 과제를 해결하는 법을 학습할 수 있으며, 주요 실험 검증은 시뮬레이션 로봇 보행에서 이루어집니다."}, {"type": "bullet", "text": "이 기법은 초기 domain randomization 분포에 민감하지 않으며 과제의 실현 가능성 한계 부근의 다양한 범위로 수렴하고, 단일 차원 이산 분포와 다변량 가우시안 분포 모두로 검증되었습니다."}, {"type": "bullet", "text": "결과는 domain randomization 분포를 고정으로 유지하는 기존 통용 관행에 비해 이를 학습하는 것의 이점을 보여줍니다."}, {"type": "bullet", "text": "LSDR은 광범위한 환경에 걸쳐 강건하게 작동하는 정책을 학습하여, 실제 대상 로봇에 접근할 수 없는 설정에서 학습 진행을 최대화합니다."}, {"type": "bullet", "text": "개선되고 더 일관된 성능은 학습된 p_phi(z)가 사전 분포 p(z)에 비해 더 낮은 분산을 갖는 데서 기인할 수 있으며, 이는 정책 기울기 추정치의 분산을 줄일 수 있습니다.", "figure_refs": [9]}, {"type": "bullet", "text": "스케일되지 않은 보상, 비선형 동역학, 그리고 많은 다른 복잡한 요인들은 DR 범위의 수동 설정을 인간 직관에 부적합하게 만들므로, 이 단계를 자동화하는 것은 시뮬레이션에서 실제로의 전이의 강건성을 개선하는 데 결정적입니다."}, {"type": "bullet", "text": "저자들은 LSDR을 광범위한 로봇 공학 과제를 해결하기 위한 DR 범위 선택 자동화라는 유망한 방향에서의 새로운 단계로 위치시킵니다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 DR 분포와 그 위에서 성능을 최대화하는 강건한 맥락 조건부 정책을 동시에 학습하는 알고리즘인 LSDR을 제시하며, 실제 로봇 데이터가 전혀 없는 극단적 경우를 겨냥합니다."}, {"type": "bullet", "text": "LSDR은 넓은 사전 분포에 대한 KL-발산 정규화기가 분포가 소수의 사소한 환경으로 붕괴하는 것을 방지하는 한편, DR 분포를 높은 보상의 해결 가능 환경 쪽으로 최적화합니다."}, {"type": "bullet", "text": "Hopper와 Half-Cheetah 벤치마크에서 LSDR은 실현 가능성의 한계 부근의 물리적으로 타당한 매개변수 범위로 수렴하고 초기 DR 분포에 강건하며, 실행 전반에 걸쳐 반복적으로 수렴합니다."}, {"type": "bullet", "text": "DR 분포를 학습하는 것은 고정된 넓은 DR 대비 점프스타트 및 점근적 성능을 개선하고 망라적 격자 학습보다 훨씬 적은 경험으로 높은 보상의 정책에 도달합니다."}, {"type": "bullet", "text": "저자들은 스케일되지 않은 보상과 비선형 동역학 하에서 수동 튜닝이 인간 직관에 부적합하기 때문에 DR 범위 선택의 자동화가 결정적이라고 결론짓습니다."}, {"type": "bullet", "text": "향후 확장은 분포 학습을 위한 더 나은 목적과 DR 분포를 위한 더 유연한 매개변수화를 탐구할 것입니다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "LSDR은 훨씬 더 샘플 효율적이긴 하지만, 망라적인 맥락별 격자 학습의 성능에는 미치지 못합니다.", "source_quote": "While our method does not match the performance of the exhaustive grid training, it is clearly better than training on an uniform DR distribution.", "source_section": "discussion"}], "future_works": [{"claim": "분포 학습을 위한 더 나은 목적과 DR 분포를 위한 더 유연한 매개변수화를 탐구합니다.", "source_quote": "Further extension of this work will explore better objectives for learning the distribution and more flexible parameterizations for the DR distribution.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["실제 로봇 경험이 시뮬레이션할 수 있는 상황에 대응하지 않을 수 있기 때문에 현실 격차는 시뮬레이션 기반 학습을 제한합니다.", "domain randomization 분포의 선택은 깊이 다루어지지 않았으나, 너무 넓은 분포는 성능이 떨어지거나 느리게 수렴하는 반면 너무 좁은 분포는 일반화에 실패합니다.", "대부분의 기존 DR 기법은 실제 로봇 데이터의 가용성을 가정하여, 실제 로봇 데이터가 전혀 없는 극단적 경우(대상 로봇이 아직 존재하지 않을 수도 있음)를 미해결로 남깁니다.", "맥락 조건부 정책 기법들은 학습 중 적응됨으로써 이익을 얻을 수 있는 고정 DR 분포를 사용합니다."], "addressed_by_this_work": ["LSDR은 domain randomization 분포와 강건한 맥락 조건부 정책을 동시에 학습하여, 분포를 해결 가능하고 높은 보상을 주는 환경에 집중시킵니다.", "넓은 사전 분포에 대한 KL-발산 정규화기가 다양성과 성능의 균형을 잡아, 쉬운 환경으로의 붕괴와 지나치게 넓은 분포의 성능 저하를 모두 방지합니다.", "LSDR은 실제 데이터가 없는 극단적 설정에서 작동하여, 전적으로 시뮬레이션에서 학습하고 물리적으로 타당하며 실현 가능성에 근접한 매개변수 범위로 수렴합니다.", "LSDR은 DR 분포를 고정으로 유지하기보다 학습 중에 적응시켜, Fixed-DR 대비 점프스타트 및 점근적 테스트 시점 성능을 개선합니다."], "remaining_unresolved": ["LSDR은 훨씬 적은 경험을 요구하긴 하지만, 망라적인 맥락별 격자 학습의 성능에는 미치지 못합니다.", "더 나은 목적과 더 유연한 DR 분포 매개변수화가 탐구되어야 하며, 실제 로봇(sim-to-real) 검증은 본 논문에서 수행되지 않습니다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

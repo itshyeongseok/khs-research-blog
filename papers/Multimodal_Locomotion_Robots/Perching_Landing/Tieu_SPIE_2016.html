@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Demonstrations of bio-inspired perching landing gear for UAVs</title>
+    <meta name="keywords" content="perching landing gear, UAV, underactuated mechanism, bio-inspired grasping, compliant foot, four-bar linkage, gravity actuation, 3D printing">
+    <meta name="paper-authors" content="Mindy Tieu, Duncan M. Michael, Jeffery B. Pflueger, Manik S. Sethi, Kelli N. Shimazu, Tatiana M. Anthony, Christopher L. Lee">
+    <meta name="paper-journal" content="Proc. SPIE Vol. 9797, Bioinspiration, Biomimetics, and Bioreplication 2016, paper 97970X, pp. 97970X-1 to -8 · DOI: 10.1117/12.2218167">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Demonstrations of bio-inspired perching landing gear for UAVs</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">Mindy Tieu, Duncan M. Michael, Jeffery B. Pflueger, Manik S. Sethi, Kelli N. Shimazu, Tatiana M. Anthony, Christopher L. Lee</div>
+            <div class="journal">Proc. SPIE Vol. 9797, Bioinspiration, Biomimetics, and Bioreplication 2016, paper 97970X, pp. 97970X-1 to -8 · DOI: 10.1117/12.2218167</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 학회 논문은 새 크기의 UAV가 가지 형태의 구조물과 턱(ledge)에 착륙·횡목(perch)·이륙할 수 있게 하는 두 가지 생체모방 <span class="term">perching landing-gear</span> 개념의 실현 가능성과 성능을 시연한다. 첫 번째 개념은 조류 다리 해부 구조를 모방한다: UAV의 무게가 4절 링크(four-bar linkage)를 접어 두 개의 마주 보는 다중 분절 컴플라이언트 발이 대상을 감싸도록 말리게 하는, 중력 작동·케이블 구동·저작동(underactuated) 파지 발 메커니즘이다. 발은 유연한 열가소성 수지(NinjaFlex)와 더 단단한 ABS로 3D 프린팅된 단일 컴플라이언트 메커니즘이며, 설계는 다양한 형상과 크기에 대해 최적화된다. 박쥐의 휴식에서 영감을 받은 두 번째 개념은 UAV가 전선이나 작은 가지에 안정적으로 매달릴 수 있게 하는 2재료 3D 프린팅 후크이다. RC 회전익기에 대한 준정적 및 비행 시험은 다양한 표면에서의 횡목을 확인하는 한편, 수동 비행 제어가 장비를 횡목에 안정적으로 정렬할 만큼 정밀하지 않음을 드러낸다.</div>
+            <div class="keywords"><span class="keyword-chip">perching landing gear</span><span class="keyword-chip">UAV</span><span class="keyword-chip">underactuated mechanism</span><span class="keyword-chip">bio-inspired grasping</span><span class="keyword-chip">compliant foot</span><span class="keyword-chip">four-bar linkage</span><span class="keyword-chip">gravity actuation</span><span class="keyword-chip">3D printing</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 UAV 응용이 평평한 표면의 VTOL을 넘어 바람이 부는 가변 환경으로 확장됨에 따라 적응형 횡목 착륙 장비에 대한 동기를 부여한다. 휴식 중인 새의 무게가 다리 힘줄을 조여 발가락을 닫는 조류 디지털 힘줄 잠금 메커니즘(digital tendon-locking mechanism)을 활용하며, 선행 수동 및 능동 파지 개념을 조사한다. 저자들은 저작동 시스템을 사용하여 능동/모터 구동 착륙 과정을 최소화하는 것을 목표로 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론에서 인용된 관련 연구는 조류 생체역학과 선행 UAV 횡목 메커니즘에 걸쳐 있다. 저자들은 자신들의 저작동·중력 구동 접근법을 수동 조류 영감 그리퍼 및 능동 다중 액추에이터 파지 시스템, 그리고 후크 기반 전력선 횡목과 대비하여 위치시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">두 가지 착륙 장비 시스템이 설계된다. 첫 번째는 UAV의 무게 하에서 접혀 낚싯줄 케이블을 당겨 컴플라이언트 3D 프린팅 파지 발가락(ABS + NinjaFlex)을 말리게 하는 중력 작동 4절 링크로, 서보 잠금장치, 선택적 접근각 작동, 소형화된 변형을 갖는다. 두 번째는 UAV를 전선이나 작은 가지에 매다는 2재료 3D 프린팅 후크이다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">안정성 및 민첩성 시험은 꼭두각시처럼 내려진 드론과 수동 비행으로 수행되었다. 정적 중력 작동 4절 장비는 여러 표면에서 성공적으로 횡목한 반면, 각도 작동 버전은 너무 민감한 것으로 판명되었고, 수동 비행은 횡목에 필요한 정밀도가 결여되었다. 매달림 후크는 비행 중 매달린 케이블에 성공적으로 걸리고 풀렸다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 중력 작동 접근법의 절충을 논의한다: 저렴하고 빠르게 제작되며 확장 가능하고 횡목 자체에는 전력이 필요 없지만, 각도 작동 확장은 불안정성을 도입하며 정렬 요구가 주된 실용적 장벽이다. 이들은 횡목을 신뢰할 수 있게 만드는 길로 자율성(컴퓨터 비전)을 규정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 컴플라이언트 케이블 작동 발가락을 구동하는 중력 구동 4절 링크가 횡목 자체에 전력이 필요 없는 실현 가능하고 저렴하며 확장 가능한 횡목 솔루션이지만, 신뢰할 수 있는 비행 중 횡목은 자율 제어와 더 안정적인 각도 작동 메커니즘을 기다린다고 결론짓는다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "전통적인 UAV 착륙 플랫폼은 상대적으로 평평한 표면에서 수직 이착륙만 허용하는 정적 썰매 구조물이다."}, {"type": "bullet", "text": "확장되는 멀티로터 응용(감시, 촬영, 시료 수집)은 안정성을 희생하지 않으면서 중간 정도의 바람 외란에 견디는 더 적응적인 착륙 장비를 요구한다."}, {"type": "bullet", "text": "설계는 잠자는 새가 횡목하는 방식에서 영감을 받는다: 체중이 발목/무릎을 굽혀 다리 힘줄을 조여 발가락이 닫히도록 당기고, 새가 날기 위해 들어올리면 그립이 풀린다."}, {"type": "bullet", "text": "Xie 등과 Doyle 등은 UAV 횡목-및-방출을 위해 이 수동 파지 개념을 활용한다; Thomas 등은 자율 비행 중 빠른 파지를 위해 액추에이터를 추가했다."}, {"type": "bullet", "text": "점점 효율적인 전자장치와 제조가 소형 UAV를 가능하게 하며, 다중 액추에이터 착륙 방법을 축소하기 어려운 점이 저작동을 동기화한다."}, {"type": "bullet", "text": "Moore와 Tedrake의 경량 확장 가능 후크 설계는 실속(stalling) 거동을 활용하여 고정익기를 횡목시키고, UAV 충전소로서 전력선 횡목 가능성을 강조한다."}, {"type": "bullet", "text": "본 연구는 중력 작동 케이블 구동 파지 장비와 가지/전선용 매달림 메커니즘을 제안하여 능동/모터 구동 착륙에 대한 의존을 최소화한다.", "figure_refs": [1]}, {"type": "bullet", "text": "설계는 제작된 후 구현 용이성과 성능을 위해 민첩성 및 안정성 시험을 통해 평가되었다."}]}, "related_works": {"content": [{"type": "bullet", "text": "Quinn과 Baumel은 횡목 중 수동 파지를 생물학적으로 뒷받침하는 조류 디지털 힘줄 잠금 메커니즘을 기술한다."}, {"type": "bullet", "text": "Xie 등은 착륙, 파지, 횡목을 위한 생체영감 UAV 다리-발 메커니즘을 제안했다(AIAA Atmospheric Flight Mechanics, 2015)."}, {"type": "bullet", "text": "Doyle 등은 쿼드로터 횡목을 위한 조류 영감 수동 메커니즘을 개발했다(IEEE/ASME Trans. Mechatronics, 2013)."}, {"type": "bullet", "text": "Thomas 등은 마이크로 비행체의 빠르고 자율적인 조류 영감 파지를 위해 액추에이터를 추가한 생체영감 파지 메커니즘을 만들었다."}, {"type": "bullet", "text": "Moore와 Tedrake는 LQR-Trees를 사용하여 횡목하는 고정익 UAV를 합성·검증하고 고정익 UAV로 전력선 횡목을 시연했다."}, {"type": "bullet", "text": "비대칭형(anisodactyl) 새 발 해부 구조(앞으로 세 개, 뒤로 한 개의 발가락)는 파지를 유지하면서 무게를 줄이기 위해 두 개의 마주 보는 발가락을 선택하는 데 영향을 준다."}, {"type": "bullet", "text": "저자들은 소형화에 저항하는 무거운 다중 액추에이터 설계를 피하면서 저작동과 중력 작동을 강조함으로써 자신들의 연구를 차별화한다."}]}, "method": {"content": [{"type": "bullet", "text": "각 다리는 낚싯줄 케이블을 안내하는 풀리를 갖춘 두 개의 아크릴 4절 링크를 사용한다; UAV 무게가 링크를 접어 케이블 구동 파지 발가락을 작동시키며, DJI FlameWheel F550(~2.3 kg)에 맞게 최적화되었다.", "figure_refs": [1]}, {"type": "bullet", "text": "재밍/잠금 메커니즘(스프링 역할을 하는 ABS와 NinjaFlex)이 4절 링크를 접힌 상태로 유지하여 바람 외란이 그립을 느슨하게 할 수 없게 한다; 서보가 이륙을 위해 잠금을 해제한다.", "figure_refs": [2]}, {"type": "bullet", "text": "네 개의 동일한 컴플라이언트 발가락은 강성 ABS 분절과 NinjaFlex 스프링 척추를 결합한다; NinjaFlex 두께 구배와 가변 분절 높이가 기저 분절이 끝단 분절보다 먼저 작동하도록 하여 적절한 감쌈을 보장한다.", "figure_refs": [3]}, {"type": "bullet", "text": "바닥 표면의 폴리에스터-비닐 폼 메시 패드가 마찰을 증가시키며, 분절 간 각도는 접촉 면적을 최대화하도록 최적화된다."}, {"type": "bullet", "text": "섀시와 4절 링크 사이의 접근각 서보모터는 드론이 각도를 두고 횡목에 접근할 수 있게 하며(VTOL 제거), 이 구성은 균형 제어기가 있으면 이로울 역진자처럼 거동한다.", "figure_refs": [3]}, {"type": "bullet", "text": "소형화된 변형은 링크 다리를 ~2.5 cm로 줄이고 100-g Dromida Ominus를 위해 두 개의 발을 갖춘 세 개의 링크로 된 단일 넓은 다리를 사용하여, 안정성을 위해 역진자를 짧게 만든다."}, {"type": "bullet", "text": "탑재 제약이 특성화된다: F550은 700-1900 g 탑재 용량(최대 이륙 1200-2400 g에서 프레임 500 g을 뺀 값)을 갖는 반면, Dromida Ominus는 ~60 g의 추가 무게만 견디므로, 확장 가능한 장비를 동기화한다.", "figure_refs": [4]}, {"type": "bullet", "text": "매달림 시스템은 강성을 위한 T-스플라인과 드론 상단에 볼트로 고정하기 위한 나사 인서트를 갖춘 곡선형 3D 프린팅 후크(ABS + NinjaFlex)로, 확장 가능하며 더 큰 UAV를 위해 이중 후크로 만들 수도 있다.", "figure_refs": [5]}]}, "experiment": {"content": [{"type": "bullet", "text": "꼭두각시 시험은 배터리로 무게를 더한 F550을 2x4 나무 블록 위로 내렸다; 장비가 횡목을 파지하고, 잠금이 링크를 접힌 상태로 유지했으며, 블록을 단단히 파지한 채 드론을 들어올릴 수 있었다.", "figure_refs": [6]}, {"type": "bullet", "text": "각도 작동 4절 장비는 극도의 정렬 정밀도가 요구되고 서보 기어가 부하 하에서 건너뛰었기 때문에 가지에 횡목하지 못해, 각도 작동을 제거하게 되었다.", "figure_refs": [7]}, {"type": "bullet", "text": "고정 각도 정적 4절 구성은 같은 가지에 성공적으로 횡목했다.", "figure_refs": [7]}, {"type": "bullet", "text": "정적 장비 꼭두각시 시험은 PVC 파이프, 가지, 돌 턱, 난간에서 성공했으며, 폼 패딩이 미끄러짐을 방지했다; 두 개의 발가락만으로 돌 턱 가장자리를 잡았을 때에도 장비가 정지 상태를 유지했다.", "figure_refs": [8]}, {"type": "bullet", "text": "컴플라이언트 발가락은 돌 턱의 평평한 직교 표면뿐만 아니라 불규칙한 가지 및 난간 표면도 감쌌다."}, {"type": "bullet", "text": "작동하는 F550에 대한 수동 비행 시험은 가지에 횡목할 만큼 충분히 정밀하게 정렬할 수 없었으며, 시도들이 횡목을 빗나갔다.", "figure_refs": [9]}, {"type": "bullet", "text": "이륙 시험은 정지하여 횡목한 위치에서 성공했으며, 드론이 가지를 놓고 비행에 진입했고 추가된 착륙 장비 무게를 쉽게 운반했다.", "figure_refs": [9]}, {"type": "bullet", "text": "소형 쿼드콥터의 매달림 후크는 매달린 케이블에 접근하여 후크를 걸고 매달려 정지한 다음, 이륙하여 분리되었다.", "figure_refs": [10]}]}, "discussion": {"content": [{"type": "bullet", "text": "케이블 구동 유연 발가락을 작동시키는 중력 구동 4절 장비는 가지, 봉, 기타 불규칙한 플랫폼에 횡목을 가능하게 한다."}, {"type": "bullet", "text": "설계는 더 작은 UAV로 확장 가능하며, 전체 조립체를 3D 프린팅을 통해 빠르고 저렴하게 만들 수 있다."}, {"type": "bullet", "text": "횡목 자체에는 배터리나 전자장치가 필요 없으나, 잠금 및 접근각 제어를 위해 작동을 추가할 수 있다."}, {"type": "bullet", "text": "충분한 UAV 무게가 주어지면, 4절 링크와 파지 발가락의 모든 피벗이 중력에 의해 수동적으로 작동될 수 있다."}, {"type": "bullet", "text": "주된 실용적 한계는 정렬이다: 수동 제어로는 장비를 안정적으로 위치시킬 수 없어, 자율 컴퓨터 비전 안내를 가리킨다."}, {"type": "bullet", "text": "이륙은 UAV 무게가 더 이상 4절 링크를 압축하지 않으면 파지가 쉽게 풀리기 때문에 착륙보다 정확도가 덜 필요하다."}, {"type": "bullet", "text": "동적 각도 작동 장비의 불안정성은 기어-치 마찰에 대한 의존에서 비롯되므로, 상부 중심이 높은 드론의 균형을 잡으려면 개선된 잠금이 필요하다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "케이블 구동 유연 발가락을 작동시키는 중력 구동 4절 링크는 가지, 봉, 기타 불규칙한 플랫폼에 횡목을 가능하게 한다."}, {"type": "bullet", "text": "장비는 더 작은 UAV로 축소되며 빠르고 저렴하게 제작된다."}, {"type": "bullet", "text": "횡목 자체에는 배터리나 전자장치가 필요 없으나, 잠금 및 각도 작동을 추가할 수 있다."}, {"type": "bullet", "text": "수동 비행은 장비를 횡목에 정렬할 만큼 충분한 제어를 제공하지 못했지만, 컴퓨터 비전이 자율 횡목을 가능하게 할 수 있다."}, {"type": "bullet", "text": "이륙은 UAV 무게가 제거되면 안정적인 파지가 쉽게 풀리기 때문에 착륙과 같은 정확도가 필요하지 않다."}, {"type": "bullet", "text": "동적 접근각 4절 장비는 상부 중심이 높은 구성의 균형을 잡으려면 더 많은 연구와 개선된 잠금이 필요하다."}, {"type": "bullet", "text": "각도 작동에서 비롯되는 자가 수평 및 이동의 잠재적 이점은 높게 평가되며 추가 조사할 가치가 있는 것으로 간주된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "수동 비행 제어는 UAV를 가지에 횡목시킬 만큼 충분히 정밀하게 착륙 장비를 정렬할 수 없었다.", "source_quote": "Manual flight of the UAV to perch was not able to provide the control needed to align the landing gear with the perch.", "source_section": "conclusion"}, {"claim": "동적 접근각 4절 장비는 불안정하고 서보 기어에서 건너뛰므로, 상부 중심이 높은 구성의 균형을 잡으려면 더 많은 연구와 개선된 잠금이 필요하다.", "source_quote": "Due to the instability introduced with the actuation of the approach angle, the dynamic four-bar landing gear requires more research and the implementation of improved locking mechanisms before it is able to balance the top heavy configuration.", "source_section": "conclusion"}, {"claim": "현재의 각도 작동 잠금은 UAV 기울어짐에 대응하기 위해 주로 기어 치 사이의 마찰에 의존한다.", "source_quote": "the current design relies mostly on the friction between gear teeth to counteract any tipping of the UAV.", "source_section": "conclusion"}, {"claim": "무겁고 큰 드론의 경우 ABS 후크가 너무 약할 수 있어 더 강한 주조/성형 금속이 필요할 수 있다.", "source_quote": "In cases where the drone is heavy and large, the hook design may have to be made of stronger material than ABS plastic.", "source_section": "method"}], "future_works": [{"claim": "컴퓨터 비전의 발전을 사용하여 자율 비행체가 중력 작동 4절 장비로 가지에 횡목할 수 있게 한다.", "source_quote": "However, the advancement of computer vision may enable autonomous vehicles to perch on branches using the gravity actuated four-bar.", "source_section": "conclusion"}, {"claim": "접근각 작동이 제공하는 자가 수평 및 이동의 이점을 추가로 조사한다.", "source_quote": "However, the possible benefits of self leveling and locomotion are high and should be further investigated.", "source_section": "conclusion"}, {"claim": "각도 접근을 위해 UAV 질량 중심을 착륙 장비와 정렬하기 위한 자이로스코프와 균형 제어기를 추가한다.", "source_quote": "Controlling the angle between the perching landing gear and the drone chassis would likely require the introduction of a gyroscope and a control mechanism for aligning the drone's center of mass with the landing gear's centers of mass.", "source_section": "method"}], "motivation_resolution": {"motivating_problems": ["전통적인 UAV 착륙 플랫폼은 평평한 표면에서의 수직 이착륙에 국한된 정적 썰매로, 적응성이 결여되어 있다.", "확장되는 UAV 응용(감시, 촬영, 시료 채취)은 바람 외란에 견디면서 다양한 구조물에 횡목하는 착륙 장비를 필요로 한다.", "선행 능동 다중 액추에이터 착륙 방법은 무겁고 점점 소형화되는 UAV로 확장되지 않는다.", "불규칙한 구조물에 횡목하고 가능하면 전력선에서 충전할 수 있는 착륙 장비가 필요하다."], "addressed_by_this_work": ["중력 작동·저작동 케이블 구동 발이 능동/모터 구동 과정을 최소화하고 가지, 봉, PVC 파이프, 난간, 돌 턱에 횡목한다.", "컴플라이언트 3D 프린팅 발이 불규칙하고 평평한 표면을 감싸며 소형 UAV로 확장 가능하여 적응성을 시연한다.", "별도의 박쥐 영감 후크는 소형 쿼드콥터가 전선에 매달릴 수 있게 하여 머리 위 케이블 횡목 문제를 다룬다.", "폼 메시 마찰 패드와 서보 잠금이 기저 및 바람 외란 하에서 안정적인 파지를 유지한다."], "remaining_unresolved": ["수동 제어로는 비행 중 신뢰할 수 있는 자율 정렬과 횡목이 달성되지 않는다.", "각도 작동(비-VTOL) 접근법은 여전히 불안정하며 향후 과제로 미뤄진다.", "전력선 충전과 자가 수평 이동은 동기는 부여되었으나 시연되지 않았다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

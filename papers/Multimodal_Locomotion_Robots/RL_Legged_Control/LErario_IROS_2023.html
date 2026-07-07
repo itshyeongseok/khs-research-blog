@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning to Walk and Fly with Adversarial Motion Priors</title>
+    <meta name="keywords" content="multimodal locomotion, adversarial motion priors, reinforcement learning, aerial humanoid robot, iRonCub, walk-to-fly transition, imitation learning, jet-powered actuation">
+    <meta name="paper-authors" content="Giuseppe L'Erario, Drew Hanover, Angel Romero, Yunlong Song, Gabriele Nava, Paolo Maria Viceconte, Daniele Pucci, Davide Scaramuzza">
+    <meta name="paper-journal" content="IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Abu Dhabi, 2024 (arXiv:2309.12784v4, 2023) · DOI: see IEEE Xplore">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning to Walk and Fly with Adversarial Motion Priors</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Giuseppe L'Erario, Drew Hanover, Angel Romero, Yunlong Song, Gabriele Nava, Paolo Maria Viceconte, Daniele Pucci, Davide Scaramuzza</div>
+            <div class="journal">IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Abu Dhabi, 2024 (arXiv:2309.12784v4, 2023) · DOI: see IEEE Xplore</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 제트 추진 공중 휴머노이드 로봇 <span class="term">iRonCub</span>이 걷기와 비행 사이를 자동으로 매끄럽게 전환하도록 하는 학습 기반 방법을 제시한다. <span class="term">Adversarial Motion Priors (AMP)</span>를 활용하여 로봇이 수작업 보상 함수 없이 (모션 캡처로부터의) 인간형 걷기 보행과 궤적 최적화된 비행 동작을 모방하게 하고, 강화학습(PPO)이 환경 피드백으로부터 이동 모드를 선택한다. 보상 내 추력/에너지 대리(proxy) 항이 지면에 도달 가능할 때는 걷기를, 그렇지 않을 때는 비행을 장려하여 자발적 모드 전환을 만들어낸다. NVIDIA Isaac Gym에서 평지 및 복잡 지형에 대한 실험이 지형 인지 다중 모드 이동을 입증하며, 실제 JetCat P250 데이터로부터 식별한 제트 엔진 LSTM 모델이 현실적 구동 하에서 접근법을 검증한다. 저자들은 이를 명시적 궤적 추종기나 상태 기계 없이 공중 휴머노이드가 걷기와 비행을 매끄럽게 전환하는 최초의 시연으로 보고한다.</div>
+            <div class="keywords"><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">adversarial motion priors</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">aerial humanoid robot</span><span class="keyword-chip">iRonCub</span><span class="keyword-chip">walk-to-fly transition</span><span class="keyword-chip">imitation learning</span><span class="keyword-chip">jet-powered actuation</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">많은 동물이 이동 방식을 전환하지만, 공중과 지상 이동을 결합한 로봇은 드물며 어떻게/언제 전환할지는 여전히 미해결 문제이다. 본 논문은 Adversarial Motion Priors와 강화학습을 사용하는 학습 기반 방법을 제안하여, 공중 휴머노이드가 인간형 걷기와 궤적 최적화된 비행을 모방하면서 과제와 환경에 따라 자발적으로 모드를 전환하도록 한다. 이 접근법은 제트 추진 공중 휴머노이드 iRonCub에서 시뮬레이션으로 시연된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 다리/공중 휴머노이드 이동을 위한 모델 기반 궤적 최적화(TO)와 모델 프리 강화학습 사이에 자신을 위치시킨다. 단순화 또는 중심(centroidal) 모델을 사용하는 TO는 빠르거나 구조 인지적이지만 계산 집약적이고 환경 의존적인 반면, RL은 모델 프리 정책을 학습하지만 부자연스럽고 시뮬레이터를 악용하는 동작을 만들 수 있다. AMP와 DeepMimic 같은 데이터 기반 모방 방법이 자연스러운 동물/인간 동작 스타일을 학습 제어기에 내장하는 방안으로 검토된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">로봇은 부유 기저(floating-base) 다물체 시스템으로 모델링되며, 이동은 심층 RL로 푸는 MDP로 정식화된다. AMP는 데이터셋 전이와 정책 생성 전이를 구분하는 판별자(discriminator)를 통해 스타일 보상을 제공하고, 목표 거리·원하는 속도·바라보기에 대한 과제 보상과 걷기를 유도하는 추력 페널티가 결합된다. 관측 공간은 로봇 상태, 주변 지형의 고도 지도(elevation map), 목표를 포함하며, 행동 공간은 원하는 관절 위치와 추력 동역학 입력을 출력한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">학습은 60 Hz로 제어되는 4096개의 병렬 PPO 에이전트와 함께 NVIDIA Isaac Gym을 사용했으며, NVIDIA Quadro RTX 6000에서 약 두 시간이 소요되었다. 두 시나리오를 시험했다: v_d = 0.8 m/s의 평지 다중 모드 주행과, 7x9 고도 지도를 사용한 거친 지형·디딤돌·구덩이 위의 지형 인지 이동이다. 절제(ablation) 실험은 걷기 및 비행 사전의 효과를 분리하며, 제트 추진 사례는 JetCat P250 데이터에서 식별한 LSTM 제트 모델을 내장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">궤적 최적화와 비교할 때, 학습된 정책은 온라인으로 적응하고 복잡한 비용 함수 없이 고도 지도로부터 지형을 추론하는 반면, TO는 오프라인 궤적 연결과 별도의 지형 처리 모듈을 필요로 한다. TO 방법은 해당 해 한 건당 계산이 더 빠르고 12개 항의 비용을 사용하지만 지형 인지적이지 않고 온라인도 아니다. 현실적 제트 동역학은 이상적 추력 대비 전환을 느리게 하여 이상화된 구동과 식별된 구동 사이의 간극을 부각한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 AMP와 RL의 결합이 공중 휴머노이드가 걷기와 비행 사이를 매끄럽게 전환하도록 하며, 인간 모션 캡처로부터 자연스러운 보행을, 궤적 최적화로부터 효율적인 공중 패턴을 학습한다고 결론짓는다. 로봇은 복잡 지형을 주행하고 명시적 내비게이션 제약 없이 자동으로 전환한다. 이 방법은 시뮬레이션에서 검증되었으며, 실세계 신뢰성과 추가 동작 사전이 다음 단계로 제시된다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "이동 방식 간 전환은 동물계 전반에서 흔하지만, 공중과 지상 이동을 결합할 수 있는 로봇은 드물어 다중 환경 주행이 부분적으로 미해결로 남아 있다."}, {"type": "bullet", "text": "기존의 맞춤형 다중 모드 시스템에는 박쥐에서 영감받은 비행-보행 로봇, 프로펠러 구동 이족 로봇, 변형 로버, 구르는 사족 로봇, 수중 로봇, 비행 휴머노이드 로봇이 있다."}, {"type": "bullet", "text": "이동 형태 간 전환을 어떻게 그리고 언제 할지를 다룬 연구는 거의 없으며, 예컨대 상위 수준 과제가 주어졌을 때 공중 휴머노이드가 걷기와 비행을 전환할 적절한 시점이 그러하다."}, {"type": "bullet", "text": "본 논문은 공중 휴머노이드 로봇이 다중 모드 이동을 나타내도록 하는 학습 기반 방법을 발전시키며, AMP와 RL을 사용하여 자동적이고 매끄러운 전환의 자발적 발현을 연구한다.", "figure_refs": [1]}, {"type": "bullet", "text": "Generative Adversarial Imitation Learning (GAIL)을 기반으로 하는 AMP는 참조 데이터셋에 내재된 '스타일'을 에이전트가 재현하도록 학습시키는데, 여기서는 인간 걷기와 궤적 최적화된 비행이다."}, {"type": "bullet", "text": "모드 전환은 보상 내 에너지/추력 대리 항으로 관리되며, 지면이 도달 범위 내일 때는 걷고 그렇지 않으면 날도록 장려한다."}, {"type": "bullet", "text": "정책은 제트 추진 공중 휴머노이드 iRonCub에 대해 학습되며, 이상적 추력과 실제로 식별한 제트 추진 구동 모델 양쪽에서 시험된다."}, {"type": "bullet", "text": "저자들은 궤적 최적화 궤적을 명시적으로 추종하거나 상태 기계를 사용하지 않고 공중 휴머노이드가 걷기와 비행을 매끄럽게 전환하는 최초의 시연이라고 주장한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "표준 이동 아키텍처는 제어를 실현 가능한 궤적을 생성하는 궤적 최적화(TO) 계층과 이를 안정화하는 전신 제어 계층으로 분해한다."}, {"type": "bullet", "text": "다리/휴머노이드 TO는 흔히 선형 역진자(LIP)나 운동 발산 성분(DCM) 같은 단순화 모델에 의존하는데, 이는 빠르지만 로봇의 전체 구조를 활용하지 못한다."}, {"type": "bullet", "text": "전체 동역학 접근법은 로봇의 완전한 구조를 사용하지만 계산 비용이 크며, 축소된 중심 운동량 동역학은 복잡성을 낮추는 절충안이다."}, {"type": "bullet", "text": "TO 방법은 여전히 계산 집약적이고 환경에 대한 사전 지식을 요구하여 온라인 사용을 제한한다."}, {"type": "bullet", "text": "모델 프리 RL은 모델 없이 상태-행동 정책을 학습하여 새로운 제어 전략(예: 사족 보행, 매개변수화된 이족 이동, 챔피언 수준 드론 레이싱)을 가능하게 한다."}, {"type": "bullet", "text": "RL의 주된 난제는 학습된 에이전트가 흔히 자연스러운 행동을 보이지 못하고 시뮬레이터 부정확성을 악용한다는 점으로, DeepMimic과 AMP 같은 데이터 기반 방법을 통한 동물/인간 동작 모방의 동기가 된다."}, {"type": "bullet", "text": "AMP는 GAIL로부터 단서를 얻어 에이전트가 참조 데이터셋의 스타일을 재현하도록 학습시키며, 선행 연구는 AMP가 복잡한 보상 함수를 대체할 수 있음을 보인다."}]}, "method": {"content": [{"type": "bullet", "text": "로봇은 부유 기저 형식론으로 모델링된다: 형상 q = (기저 위치, SO(3) 내 기저 자세, 관절 위치)로, 환경과 외부 렌치(wrench)를 교환하는 시스템의 운동 방정식을 가능하게 한다."}, {"type": "formula", "label": "식 (1) — 부유 기저 운동 방정식", "latex": "M(q)\\dot{\\nu} + C(q,\\nu)\\nu + G(q) = \\begin{bmatrix} 0_{6\\times1} \\\\ \\tau \\end{bmatrix} + \\sum_{i=1}^{n_b} J_i^\\top f_i", "description": "질량 행렬 M과 코리올리 행렬 C, 중력 벡터 G, 내부 구동 토크 tau, 그리고 야코비안 J_i를 통해 매핑되는 외부 렌치 f_i가 부유 기저 동역학을 지배하며, 추력은 외부 렌치로 입력된다."}, {"type": "bullet", "text": "이동은 마르코프 결정 과정(S, A, P, R, gamma)으로 모델링되며, 심층 RL은 기대 할인 수익을 최대화하는 정책 파라미터를 찾는다.", "figure_refs": [2]}, {"type": "formula", "label": "식 (3) — AMP 결합 보상", "latex": "r_t = w^G r_t^G + w^S r_t^S", "description": "총 보상은 과제 보상 r^G(목표 도달 / 원하는 기저 속도)와 스타일 보상 r^S(데이터셋 동작과 유사)를 AMP와 같이 스칼라 w^G, w^S로 가중하여 결합한다."}, {"type": "bullet", "text": "판별자 D는 데이터셋 전이와 에이전트 생성 전이를 구분하며, 그 출력이 스타일 보상을 정의하고 안정적 GAN 학습을 위한 기울기 페널티로 학습된다."}, {"type": "formula", "label": "식 (5) — 판별자로부터의 스타일 보상", "latex": "r_t^S = -\\log\\left(1 - \\frac{1}{1+e^{-D_\\Phi(\\chi_t,\\chi_{t+1})}}\\right)", "description": "연속된 관측 쌍에 대한 판별자 출력을, 에이전트의 전이가 동작 데이터셋과 유사할 때 높아지는 보상으로 매핑한다."}, {"type": "bullet", "text": "세 가지 과제 보상이 에이전트를 안내한다: 기저-목표 거리 최소화(식 6), 목표를 향해 원하는 속도 v_d로 이동(식 7), 체크포인트 바라보기(식 8)이며, 목표 도달 시 1이 된다."}, {"type": "formula", "label": "식 (9) — 추력 페널티", "latex": "r_t^T = -\\left\\| \\frac{T_t}{T_{max}} \\right\\|^2", "description": "정규화된 추력 제곱으로 추진 소모를 페널티화하여 가능할 때 다리 이동을 사용하도록 장려하며, T_max는 각 제트가 가할 수 있는 최대 추력이다."}, {"type": "bullet", "text": "관측 공간은 로봇 벡터(기저 자세 쿼터니언, 기저 속도, 관절 위치/속도, 말단 효과기 위치, 추력)를 V x L 지형 셀의 고도 지도 및 기저 좌표계 내 목표 위치와 연결한다.", "figure_refs": [2]}, {"type": "bullet", "text": "행동 공간은 (PD 제어기에 입력되는) 원하는 관절 위치와 추력 동역학 입력 u를 출력하며, 추력 세기는 점증적으로 적분되어 지정 링크에 순수 힘으로 적용된다."}, {"type": "bullet", "text": "걷기 사전(prior)은 추력을 0으로 둔 채 역기구학(iDynTree)으로 iRonCub에 리타깃팅한 CMU 모션 캡처 클립에서 오고, 비행 사전은 전체 상태를 제공하는 궤적 최적화에서 온다.", "figure_refs": [3, 4]}]}, "experiment": {"content": [{"type": "bullet", "text": "학습은 대규모 병렬 학습으로 Isaac Gym 시뮬레이터를 사용했다: 60 Hz로 제어되는 4096개 PPO 에이전트로, NVIDIA Quadro RTX 6000에서 약 2시간이 소요되었다.", "figure_refs": [5]}, {"type": "bullet", "text": "평지 시나리오에서 로봇은 원하는 속도 0.8 m/s로 걷고, 이륙하고, 날고, 착륙하며, 0.7 m에서 2.0 m 간격의 경유점에 도달하고, 각 에피소드는 기저-지면 거리가 0.4 m 미만일 때 종료된다.", "figure_refs": [6]}, {"type": "bullet", "text": "지형 인지 시나리오에서 로봇은 평지·거친 지형·디딤돌·구덩이를 0.8 m/s로 처리하며, 7x9 셀 높이 지도(각 셀 폭 0.3 m)를 사용해 도달 가능한 지형을 디디고 가능할 때 걷고 지면에 도달할 수 없을 때 난다.", "figure_refs": [7]}, {"type": "bullet", "text": "절제 실험: 동작 사전이 없으면 정책은 특정 행동을 보이지 않고(높은 추력 사용), 걷기 사전만 있으면 결코 날지 않으며, 비행 사전만 있으면 걷기를 학습하지 못하고, 두 사전이 모두 있으면 더 낮은 추력 사용으로 효율적으로 걷고 난다.", "figure_refs": [8]}, {"type": "bullet", "text": "공중 동작 사전은 궤적 최적화 해에서 물려받은 최적화된 추력 사용을 내장하는데, 비행 전용 정책이 사전 없는 정책보다 추력을 적게 사용하기 때문이다."}, {"type": "bullet", "text": "사용된 보상 계수: 목표 가중치 0.1, 속도 가중치 0.7, 바라보기 가중치 0.2, 추력 페널티 가중치 0.11, 초매개변수 c1 = c2 = 0.5이며, PPO는 할인율 0.99, 학습률 5e-5, GAE lambda 0.95, 클립 0.2, 4096개 액터를 사용했다."}, {"type": "bullet", "text": "제트 엔진(JetCat P250, 각 T_max = 250 N)은 로드셀 데이터에서 식별한 LSTM으로 모델링되었으며, 식별 오차는 평균 절대 오차 4.995 N, 제곱평균제곱근 오차 8.061 N이었다.", "figure_refs": [9]}, {"type": "bullet", "text": "제트 추진 사례에서 추력 페널티는 1e-8로 줄이고 최소 스로틀을 15%(약 40 N 최소 추력)로 설정했으며, 정책은 더 느리긴 해도 여전히 걷기-비행 전환을 학습했고 예컨대 디딤돌 위에서 공중 모드를 사용했다."}]}, "discussion": {"content": [{"type": "bullet", "text": "비교 대상 궤적 최적화 방법은 IPOPT로 푸는, 중심 동역학과 상보성(complementarity) 접촉 정식화를 갖춘 100-노드 구간의 다중 사격(multiple-shooting) 최적 제어 문제를 사용한다."}, {"type": "bullet", "text": "TO는 다리-공중 전환을 만들 수 있지만 복잡한 비용 함수와 긴 계산을 요구하여 재계획을 막으며, 시나리오마다 여러 오프라인 궤적의 연결이 필요할 것이다."}, {"type": "bullet", "text": "학습된 정책은 환경에 온라인으로 적응하고 복잡한 보상 없이 걷기/비행을 전환하며 고도 지도로부터 지형을 추론하는데, 이는 별도 지형 모듈이 없는 비교 대상 TO나 고전 제어로는 실현 불가능하다.", "figure_refs": [7]}, {"type": "bullet", "text": "비교 표: 학습된 방법은 지형 인지적이고 온라인이며(TO는 둘 다 아님), 둘 다 자동 전환을 달성하고, 정책은 TO의 12개 항 대비 4개 항 비용을 7초 에피소드 길이로 사용한다.", "figure_refs": [8]}, {"type": "bullet", "text": "해 한 건당 계산 시간은 정책 학습에 약 2시간 대 TO 방법에 약 30분이지만, 정책은 이후 온라인으로 실행된다."}, {"type": "bullet", "text": "식별된 제트 동역학은 이상적 추력보다 느리게 반응하여 이륙 추력 도달에 더 오래 걸리고 현실적 구동 하에서 전환이 더 느리다.", "figure_refs": [9]}, {"type": "bullet", "text": "추력 페널티 조정은 걷기 대 비행 선호를 절충한다: 너무 높으면 로봇이 지형 가장자리에 머무르고, 너무 낮으면 지형이 드문드문할 때 날아버린다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "제안 방법은 공중 휴머노이드 로봇이 Adversarial Motion Priors를 사용하여 걷기와 비행 모드 사이를 매끄럽게 전환하도록 한다."}, {"type": "bullet", "text": "자연스러운 보행 패턴은 인간형 보행에서, 효율적인 공중 이동 패턴은 궤적 최적화된 동작에서 학습된다."}, {"type": "bullet", "text": "로봇은 복잡 지형을 주행하고 내비게이션 형태에 대한 명시적 제약 없이 이동 형태를 자동으로 전환한다."}, {"type": "bullet", "text": "접근법은 시뮬레이션에서만 시험되었으며 실세계 신뢰성에 대한 추가 조사가 필요하다."}, {"type": "bullet", "text": "이 결과는 공중 휴머노이드를 수색·구조 및 모니터링 임무에 배치하는 방향으로의 진전으로 자리매김된다."}, {"type": "bullet", "text": "더 많은 동작 사전의 통합이 공중 휴머노이드 로봇공학의 역량을 넓히는 방안으로 제안된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "이 방법은 시뮬레이션에서만 검증되어 실세계 신뢰성은 아직 조사가 필요하다.", "source_quote": "Although our method has been tested in simulation environments and necessitates further investigations of its reliability in real-world domains, this result marks progress towards the application of aerial humanoid robots in various fields, such as search and rescue and monitoring missions, where diverse and demanding scenarios are encountered.", "source_section": "conclusion"}, {"claim": "현실적 제트 추진 구동 하에서는 이륙 반응이 이상적 추력 사례보다 느려 걷기-비행 전환이 더 느리다.", "source_quote": "The response dynamics of the jet propulsion system exhibit a comparatively slower response rate when compared to the ideal thrust case: attaining the take-off thrust requires a longer time.", "source_section": "discussion"}, {"claim": "추력 페널티 조정은 자명하지 않은데, 페널티가 너무 높으면 필요한 비행을 억제하고 너무 낮으면 걸어야 할 때 로봇이 날아버리기 때문이다.", "source_quote": "Tuning the thrust penalization is not trivial.", "source_section": "experiment"}], "future_works": [{"claim": "더 많은 동작 사전을 통합하여 공중 휴머노이드 로봇공학의 이동 레퍼토리와 잠재력을 넓힌다.", "source_quote": "Looking forward, the integration of more motion priors might broaden the potential of aerial humanoid robotics in future challenges.", "source_section": "conclusion"}, {"claim": "시뮬레이션을 넘어 실세계 영역에서 접근법의 신뢰성을 조사한다.", "source_quote": "Although our method has been tested in simulation environments and necessitates further investigations of its reliability in real-world domains, this result marks progress towards the application of aerial humanoid robots in various fields, such as search and rescue and monitoring missions, where diverse and demanding scenarios are encountered.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["공중과 지상 이동을 결합할 수 있는 로봇은 드물며, 이동 형태 간 전환을 어떻게 그리고 언제 할지 이해하는 연구는 거의 없다.", "궤적 최적화 기반 이동은 계산 집약적이고 환경에 대한 사전 지식을 요구하며 복잡한 비용 함수를 필요로 하여 온라인 재계획을 막는다.", "모델 프리 강화학습 에이전트는 흔히 자연스러운 행동을 보이지 못하고 시뮬레이터 부정확성을 악용하여 비효율적인 해를 낳는다."], "addressed_by_this_work": ["AMP+RL 정책은 상위 계획기, 상태 기계, 명시적 궤적 추종 없이 자발적으로 발현되는 모드 전환과 함께 걷기·비행·내비게이션을 학습한다.", "정책은 고도 지도를 통해 지형에 온라인으로 적응하고 단순한 보상만 사용하여, 궤적 최적화가 요구하는 복잡한 비용 함수와 오프라인 궤적 연결을 회피한다.", "적대적 동작 사전이 인간형 보행과 궤적 최적화된 비행을 모방하여 자연스러운 이동 스타일을 만들고, 최적화된 추력 사용을 내장하여 시뮬레이터 악용 행동을 줄인다."], "remaining_unresolved": ["모든 결과가 시뮬레이션이므로 실세계 신뢰성은 검증되지 않았다.", "현실적 제트 구동은 이상적 추력 가정 대비 걷기-비행 전환을 느리게 한다.", "추력 페널티 조정은 여전히 수동적이고 민감도가 높은 단계로 남아 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Preference-Based Learning for User-Guided HZD Gait Generation on Bipedal Walking Robots</title>
+    <meta name="keywords" content="preference-based learning, hybrid zero dynamics, bipedal locomotion, gait generation, trajectory optimization, human-in-the-loop tuning, sample-efficient learning, AMBER-3M">
+    <meta name="paper-authors" content="Maegan Tucker, Noel Csomay-Shanklin, Wen-Loong Ma, Aaron D. Ames">
+    <meta name="paper-journal" content="2021 IEEE International Conference on Robotics and Automation (ICRA) (arXiv:2102.04450v2, Mar 2021) · open-source code at github.com/maegant/ICRA2021-LearningHZD">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Preference-Based Learning for User-Guided HZD Gait Generation on Bipedal Walking Robots</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Maegan Tucker, Noel Csomay-Shanklin, Wen-Loong Ma, Aaron D. Ames</div>
+            <div class="journal">2021 IEEE International Conference on Robotics and Automation (ICRA) (arXiv:2102.04450v2, Mar 2021) · open-source code at github.com/maegant/ICRA2021-LearningHZD</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 제어 이론과 기계학습을 융합하여 수동 파라미터 튜닝 없이 안정적이고 강건한 이족 보행을 얻는 프레임워크 <span class="term">LINECOSPAR-NLP</span>를 제시한다. 보행은 <span class="term">하이브리드 영동역학(hybrid zero dynamics, HZD)</span> 궤적 최적화(FROST/IPOPT를 통한 직접 콜로케이션)로 생성되며, 그러한 보행을 형성하는 다섯 가지 '필수 제약(essential constraints)'(전진 속도, 발 들림 위상, 최소 발 들림, 충격 속도, 보폭)은 인간의 쌍별(pairwise) 선호로부터 잠재 효용 함수에 대한 베이즈 사후분포를 추론하는 고차원 <span class="term">선호 기반 학습(preference-based learning)</span> 알고리즘으로 튜닝된다. 결정적으로 이는 보상 함수의 수작업 설계를 피하고 시뮬레이션을 전혀 사용하지 않는다. 평면 이족 로봇 AMBER-3M에서의 두 하드웨어 실험—첫째는 강체 점접촉 발(point-feet), 둘째는 의도적으로 모델링되지 않은 컴플라이언트 스프링 발(spring-feet)—은 50회 미만의 반복으로 안정적이고 강건하며 효율적이고 자연스러운 보행을 달성한다. 다중모드 로봇의 RL 구동 지상 보행 서브시스템에 대해, 이 연구는 보상 엔지니어링에 대한 보상 없는(reward-free) 샘플 효율적 대안으로, 운영자 선호가 하드웨어에서 실제 이족 보행을 직접 튜닝할 수 있음을 보여준다.</div>
+            <div class="keywords"><span class="keyword-chip">preference-based learning</span><span class="keyword-chip">hybrid zero dynamics</span><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">gait generation</span><span class="keyword-chip">trajectory optimization</span><span class="keyword-chip">human-in-the-loop tuning</span><span class="keyword-chip">sample-efficient learning</span><span class="keyword-chip">AMBER-3M</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">하드웨어에서의 동적 이족 보행은 제어, 공학, 기계학습에 걸친 벤치마크 문제로 남아 있다. 고전 제어 접근(ZMP, LIP, SLIP, 중심체 동역학)과 HZD 프레임워크는 안정성 보장을 제공하지만 모델링되지 않은 동역학에 대한 강건성을 요구하며, 이는 역사적으로 고된 파라미터 튜닝을 통해 얻어졌다. 기계학습 접근(RL, 모방 학습)은 수동 튜닝을 피하지만 정성껏 설계된 보상 함수와 현실과 어긋나는 물리 엔진에 의존한다. 본 논문은 제어 이론의 형식적 안정성을 복잡한 파라미터 조합을 보행 거동으로 매핑하는 학습과 결합할 것을 제안하며, 인간의 쌍별 선호로부터 HZD 보행을 튜닝하기 위해 선호 기반 학습을 사용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 외골격 보행 최적화를 위한 저자들의 기존 선호 기반 학습과 걷기, 달리기, 사족 보행을 위한 더 넓은 HZD 문헌에 기반한다. 모델 기반 제어(안정성 보장을 제공하지만 튜닝이 필요)와 강화학습 및 모방 학습(수동 튜닝을 피하지만 보상 함수와 물리 엔진이 필요)을 대조한다. Self-Sparring / 다중 결투(multi-dueling) 밴딧과 가우시안 과정 선호 학습이 LINECOSPAR-NLP가 확장하는 알고리즘적 기반을 제공한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">제어 방식은 두 기둥에 기반한다: 전차수 동역학을 영동역학 다양체로 축소하여 보행 안정성을 인증하는 HZD와, 베지에(Bezier) 계수로 매개화된 안정적 주기 보행을 생성하는 직접 콜로케이션 궤적 최적화(FROST/IPOPT)이다. 보행은 연속 동역학과 이산 충격 리셋을 갖는 하이브리드 제어 시스템으로 인코딩되며, 하이브리드 불변(HZD) 조건이 성립해야 한다. 보행을 형성하는 다섯 가지 '필수 제약'은 허용 대역(tolerance band)으로 재정식화되어 LINECOSPAR-NLP로 튜닝되며, 이는 쌍별 선호로부터 잠재 효용 함수에 대한 베이즈 사후분포를 모델링하고 무작위 선형 부분공간을 따라 Self-Sparring 톰슨 샘플링으로 새로운 보행을 선택한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">LINECOSPAR-NLP는 평면 이족 로봇 AMBER-3M에서 다섯 가지 필수 제약을 두 하드웨어 구성으로 튜닝하도록 배치된다: 강체 점접촉 발(AMBER3M-PF)과 컴플라이언트 스프링 발(AMBER3M-SF)이며, 후자는 컴플라이언스를 모델과 제어기에서 의도적으로 제외했다. 제어는 오프보드에서 약 1 kHz로 실행되고, 보행은 5차 베지에 다항식과 기계적 운송 비용(mechanical cost of transport, MCOT)을 최적화 비용으로 사용한다. 반복마다 두 보행을 비교하며(n=2), 선호는 걷기 능력, 강건성, 소음, 시각적 매력으로 순위가 매겨진다. 두 실험 모두 50회 반복 이내에 안정적이고 강건하며 효율적인 보행으로 수렴한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 선호 기반 학습이 보상 엔지니어링이나 시뮬레이션 없이, 상당한 모델 불확실성 하에서도 하드웨어에서 동적으로 안정적인 걷기를 체계적으로 실현할 수 있음을 시연한다. 점접촉 발 사례는 효율적이고 강건한 보행으로의 수렴을 보이는 한편, 스프링 발 사례는 프레임워크가 역사적으로 정교한 모델을 요구했던 모델링되지 않은 컴플라이언스를 보상할 수 있음을 보인다. 이 연구는 또한 운영자가 직접 측정하지 않고도 식별할 수 있는 잠재적 효율 향상(더 낮은 MCOT)을 드러내어, 다요인 최적화 신호로서 인간 판단의 강점을 예시한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 HZD 보행 생성을 위해 특별히 구축된 고차원 선호 기반 학습 프레임워크 LINECOSPAR-NLP를 제시하고 실험적으로 검증하며, 이는 파라미터 튜닝의 부담 없이 HZD의 이론적 이점을 제공한다. 제공하기 쉬운 쌍별 선호만을 사용하여, 모델링되지 않은 컴플라이언트 다리를 포함하여 50회 하드웨어 반복 이내에 시뮬레이션 없이 안정적이고 강건하며 효율적이고 자연스러운 걷기를 실현한다. 저자들은 프레임워크를 사족 로봇과 3D 이족 로봇으로, 그리고 더 큰 샘플 효율성을 위한 더 풍부한 피드백(순서형 레이블)으로 확장하는 것을 지적하며, 결과를 학습과 제어의 경계에서의 진전으로 규정한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "하드웨어에서 동적 이족 보행을 실현하는 것은 제어, 공학, 고성능 컴퓨팅, 기계학습에 걸친 벤치마크 문제로 남아 있다."}, {"type": "bullet", "text": "보행 안정성은 영점 모멘트점(ZMP)과 LIP, SLIP, 중심체 동역학 같은 단순 모델 기반 방법을 포함한 많은 제어 관점에서 연구되었지만, 이들은 전차수(full-order) 동역학을 고려하지 않는다."}, {"type": "bullet", "text": "하이브리드 영동역학(HZD) 프레임워크는 전차수 동역학을 저차원 영동역학 다양체로 축소하고 리아푸노프 방법을 사용하여 하이브리드 시스템의 안정성을 인증한다."}, {"type": "bullet", "text": "실험적 성공은 이론적 안정성 이상을 필요로 한다: 모델링되지 않은 동역학에 대한 강건성, 즉 역사적으로 확장성을 제한하는 집약적이고 비직관적인 파라미터 튜닝으로 해결되어 온 '라스트 마일 미션'이다."}, {"type": "bullet", "text": "강화학습은 걷기 학습을 단순화하지만 거동을 전적으로 결정하는 정성껏 설계된 보상 함수에 의존한다. 모방 학습은 대신 전문가 시연으로부터 보상을 추론한다."}, {"type": "bullet", "text": "두 학습 방법 모두 탄성 충격, 미끄러지는 접촉, 입상 매질 같은 거친 지형 동역학에 여전히 어려움을 겪는 물리 엔진(Bullet, MuJoCo, RaiSim)에 크게 의존하여 sim-to-real 격차를 넓힌다."}, {"type": "bullet", "text": "본 논문은 제어 이론적 안정성의 형식성을 복잡한 파라미터 조합을 보행 거동에 관련짓는 기계학습의 능력과 결합하여, 선호 기반 학습을 HZD 보행 생성과 통합한다.", "figure_refs": [1]}, {"type": "bullet", "text": "그 결과는 운영자의 쌍별 선호(보행 A가 보행 B보다 선호됨)만을 기반으로 한 하드웨어에서의 최적 보행으로, 모듈식 이족 로봇 AMBER-3M에서 시뮬레이션 없이 50회 미만의 반복으로 시연되었다."}]}, "related_works": {"content": [{"type": "bullet", "text": "HZD 기반 직접 콜로케이션 최적화(FROST)는 이전에 걷기, 달리기, 사족 보행을 위한 보행을 생성하여, 본 논문이 기반하는 모델 기반 토대를 확립했다."}, {"type": "bullet", "text": "Raibert의 선구적 호핑 로봇 연구와 Raibert형 제어기는 필수 제약 정식화가 일반화하는 보폭/속도 관계의 단순 모델 튜닝을 예시한다."}, {"type": "bullet", "text": "강화학습 접근(예: 실세계에서 걷기 학습, Cassie 보행 설계)은 사전 지식을 피하지만 보상 구성에 의해 결정된다."}, {"type": "bullet", "text": "모방 학습 방법은 전문가 시연으로부터 기저 보상을 추론하며, 전문가 데이터로부터 안정적 사족 동작을 학습하는 것을 포함한다."}, {"type": "bullet", "text": "이 프레임워크는 저자들의 기존 LINECOSPAR 알고리즘과 이전의 선호 기반 외골격 보행 최적화를 확장하여 학습을 NLP 안에 내장한다."}, {"type": "bullet", "text": "알고리즘적 기반은 톰슨 샘플링을 위한 Self-Sparring / 다중 결투 밴딧과 사후분포 추정을 위한 가우시안 과정 선호 학습을 포함한다."}, {"type": "bullet", "text": "기존 컴플라이언트 이족 로봇 성공 사례(예: ATRIAS, MABEL)는 정교한 모델에 의존했으며, 이는 그러한 모델 없이 모델링되지 않은 컴플라이언스를 견디는 방법을 동기 부여한다."}]}, "method": {"content": [{"type": "bullet", "text": "보행은 유각 발이 지면에 닿을 때 연속 시간 동역학과 이산 시간 충격이 교대하는 하이브리드 제어 시스템으로 인코딩된다."}, {"type": "formula", "label": "식 (1) — 연속 시간 매니퓰레이터 동역학", "latex": "D(q)\\ddot{q} + H(q,\\dot{q}) = Bu", "description": "관성 행렬 D, 드리프트 벡터 H, 구동 행렬 B, 입력 u가 고정(pinned) 연속 동역학을 정의한다. m < n이므로 AMBER-3M은 저구동(underactuated)이다."}, {"type": "formula", "label": "식 (4) — 단일 영역 하이브리드 제어 시스템", "latex": "HC = \\begin{cases} \\dot{x} = f(x) + g(x)u & x \\notin S \\\\ x^{+} = \\Delta(x^{-}) & x^{-} \\in S \\end{cases}", "description": "스위칭 표면 S에서 벗어나는 연속 흐름이 충격 시 리셋 사상 Delta와 결합되어 걷기의 전체 하이브리드 동역학을 인코딩한다."}, {"type": "formula", "label": "식 (5) — 가상 제약(출력)", "latex": "y(q,\\alpha) = y^{a}(q) - y^{d}(\\tau(q),\\alpha)", "description": "출력은 실제 측정된 출력과 타이밍 변수 tau(q) 및 베지에 계수 alpha로 매개화된 원하는 출력 간의 차이이며, y를 0으로 구동하면 보행이 실현된다."}, {"type": "formula", "label": "식 (6) — HZD(하이브리드 불변) 조건", "latex": "\\Delta(S \\cap Z_{\\alpha}) \\subset Z_{\\alpha}", "description": "리셋 사상이 충격을 영동역학 표면 Z_alpha 내에 유지하도록 요구하여 축소차수 하이브리드 시스템의 안정성을 인증하며, alpha는 이를 만족하도록 생성된다."}, {"type": "bullet", "text": "베지에 계수 alpha는 폐루프 동역학, HZD 조건, 결정 변수 경계, 물리적 제약, 그리고 '필수 제약'을 만족하는 HZD 궤적 최적화 NLP(FROST를 통한 직접 콜로케이션, IPOPT로 해결)로 얻어진다."}, {"type": "bullet", "text": "다섯 가지 필수 제약이 튜닝된다: 평균 전진 몸통 속도, 최소 발 들림을 강제하는 위상 값 tau_c, 비지지 발의 최소 들림, 하향 충격 속도, 그리고 보폭(Table I이 경계와 이산화를 제공).", "figure_refs": [2]}, {"type": "bullet", "text": "필수 제약은 허용 대역 a - delta <= p(X) <= a + delta로 재정식화되어, 목표를 알 수 없는 잠재 효용 함수 U에 대해 a* = argmax U(a)를 식별하는 것으로 전환한다."}, {"type": "formula", "label": "식 (7)-(8) — Self-Sparring 톰슨 샘플링", "latex": "f_k \\sim \\mathcal{N}(\\mu_B, \\Sigma_B), \\quad a_i^{k} = \\arg\\max_{a \\in B} f_k(a)", "description": "행동 부분집합 B에 대한 가우시안 사후분포로부터 n개의 샘플을 뽑고 최대화하는 행동을 선택하여, 다음에 시도할 보행을 고르는 샘플 효율적이고 후회 최소화(regret-minimizing) 방법을 제공한다."}, {"type": "bullet", "text": "LINECOSPAR-NLP는 샘플링을 부분집합 S_i = L_i union E_{i-1}(최선의 이전 행동과 교차하는 무작위 선형 부분공간에 실행된 행동을 더한 것)으로 제한하고, 가우시안 과정 사전분포와 두꺼운 꼬리 시그모이드(heavy-tailed-sigmoid) 선호 우도를 통해 사후분포를 모델링하며, 라플라스 근사로 이를 추정한다. LINECOSPAR로부터의 세 가지 변경(a*_{i-1}를 지나는 선, n>1 배칭, coactive 피드백 없음)이 이를 NLP에 적응시킨다."}]}, "experiment": {"content": [{"type": "bullet", "text": "실험은 세 가지 교체 가능한 하지 구성(평평한 발, 점접촉 발, 스프링 발)을 가진 평면 이족 로봇 AMBER-3M에서 실행된다. 제어는 오프보드 i7-6700HQ CPU에서 약 1 kHz로 실행된다."}, {"type": "formula", "label": "식 (13) — 기계적 운송 비용(MCOT)", "latex": "\\mathrm{MCOT} = \\int_{t_0}^{t_f} \\frac{P(t)}{mgv}\\, dt", "description": "보행 최적화를 위한 비용 함수이며, 여기서 P(t)는 관절 동력의 2-노름 합이다. 낮은 MCOT는 더 에너지 효율적인 보행을 나타낸다."}, {"type": "bullet", "text": "운영자가 한 번에 최대 두 개의 보행만 신뢰성 있게 기억했기 때문에 학습은 반복당 n=2개의 보행을 비교하여 사용했다. 더 높은 n은 학습률을 높일 것이다.", "figure_refs": [2]}, {"type": "bullet", "text": "선호는 우선순위가 매겨진 기준으로 순위가 정해졌다: 걷기 가능, 트레드밀 속도 섭동에 강건, 외부 외란에 강건, 거친 충격 소음 없음, 시각적으로 매력적임."}, {"type": "bullet", "text": "AMBER3M-PF(강체 점접촉 발, 1.373 m, 21.3 kg)는 27개의 고유 보행을 샘플링하며 30회 반복을 실행했다. 보행이 빠르게 걷기 기준을 충족했으므로 선호는 강건성과 외관에 의해 좌우되었다.", "figure_refs": [3]}, {"type": "bullet", "text": "반복에 걸쳐 보행은 더 부드럽고, 더 외란에 강건하며, 더 효율적이 되었다. 최소/중간/최대 효용 보행(반복 1, 21, 26에서 샘플링됨)은 각각 0.74, 0.95, 0.26의 MCOT를 가졌으며, 높은 효용 보행일수록 더 긴밀한 위상 초상(phase-portrait) 추적을 보였다.", "figure_refs": [4]}, {"type": "bullet", "text": "AMBER3M-SF(컴플라이언트 스프링 발, 1.430 m, 23.5 kg)는 의도적으로 여전히 강체 모델을 가정하고 수정되지 않은 제어기 게인을 사용하면서 정확히 동일한 절차를 반복했다."}, {"type": "bullet", "text": "모델링되지 않은 컴플라이언스 때문에 많은 초기 SF 보행이 걷지 못했으므로 주기적 걷기 보행이 강하게 선호되었다. 50회 반복과 37개의 고유 보행에 걸쳐 알고리즘은 더 우수한 추적과 더 낮은 MCOT(강조된 세 보행에 대해 1.16, 0.38, 0.33)를 가진 보행으로 수렴했다.", "figure_refs": [3]}]}, "discussion": {"content": [{"type": "bullet", "text": "이 프레임워크는 HZD의 이론적 보장을 선호 기반 학습과 결합하여 수동 파라미터 튜닝을 제거함으로써 동적으로 안정적인 걷기를 체계적으로 실현한다."}, {"type": "bullet", "text": "쌍별 선호는 인간이 여러 요인(안정성, 강건성, 소음, 외관, 효율)을 고차원 파라미터 공간을 탐색하는 것보다 훨씬 쉬운 단일 '더 좋음/나쁨' 판단으로 압축하게 한다.", "figure_refs": [4]}, {"type": "bullet", "text": "역사적으로 정교한 모델에 의존했던 제어 과제인 모델링되지 않은 컴플라이언트 다리에서 강건한 걷기가 달성되어, 모델 불확실성 하에서 이 방법의 효과를 부각한다."}, {"type": "bullet", "text": "효율이 명시적으로 측정되거나 보상되지 않았음에도 프레임워크가 실험적 효율(더 낮은 MCOT)을 향상시켜, 운영자가 식별할 수 있는 잠재적 속성임을 보인다."}, {"type": "bullet", "text": "시뮬레이션 환경에 대한 어떠한 의존도 피함으로써 물리 엔진이 탄성 충격과 접촉에 대해 겪는 sim-to-real 격차를 우회한다."}, {"type": "bullet", "text": "50회 미만 반복 이내의 수렴은 직접 하드웨어 실험에 적합한 샘플 효율성을 시연한다."}, {"type": "bullet", "text": "결과는 기계학습과 제어 이론을 통합하는 잠재력을 예시한다: 제어는 구조를 제공하고 학습은 최종 거동을 형성한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "LINECOSPAR-NLP는 파라미터 튜닝의 어려움 없이 HZD의 이론적 이점을 활용하기 위해 선호 기반 학습을 HZD 최적화 문제와 통합한다."}, {"type": "bullet", "text": "선호 기반 학습은 샘플 효율적이며 사용자가 '좋은' 걷기에 대한 척도를 수학적으로 정의할 필요가 없고, 대신 쉬운 쌍별 선호에 의존한다."}, {"type": "bullet", "text": "이 방법은 시뮬레이션 요구 없이 50회 반복 이내에 안정적이고, 모델 불확실성에 강건하며, 외부 섭동에 강건하고, 효율적이며, 자연스러워 보이는 보행을 실험적으로 실현한다."}, {"type": "bullet", "text": "역사적으로 정교한 모델에 의존했던 도전적 제어 과제인 모델링되지 않은 컴플라이언트 다리로 강건한 걷기를 달성한다."}, {"type": "bullet", "text": "향후 과제는 사족 로봇과 3D 이족 로봇 같은 더 많은 플랫폼으로 프레임워크를 확장하는 것을 포함한다."}, {"type": "bullet", "text": "향후 과제는 또한 순서형 레이블 같은 추가적인 정성 피드백 메커니즘을 통해 샘플 효율성을 향상시키는 것을 포함한다."}, {"type": "bullet", "text": "결과는 제어가 구조를 제공하고 학습이 최종 거동을 형성하는, 기계학습과 제어 이론의 경계에 놓인 풍부한 잠재력을 시연한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "이 접근법은 비교되는 각 보행에 대해 쌍별 선호 피드백을 제공할 인간 운영자가 루프 안에 있어야 한다.", "source_quote": "Although this requires the human to provide feedback, there are two major benefits of our approach", "source_section": "method"}, {"claim": "반복당 하나 이상의 행동을 샘플링하고 질의하는 것(n>1)은 샘플 효율성을 낮추는데, 이는 하드웨어에서 배치된 연속 보행 실행을 허용하기 위해 받아들인 절충이다.", "source_quote": "we modify the LINECOSPARNLP algorithm to sample and query n > 1 actions in each iteration. This results in worse sample-efficiency, but allows for batched gait generation that enables the generated gaits to be executed on hardware back to back.", "source_section": "method"}, {"claim": "전체 고차원 탐색 공간에 대한 사후분포 계산은 다루기 어려우므로, 사후분포는 실행된 행동의 집합에 대해서만 근사된다.", "source_quote": "Since obtaining the posterior over the entire search space A for high-dimensional action spaces has been shown to be computationally intractable [27], the posterior is only updated over E", "source_section": "method"}, {"claim": "필수 제약 파라미터와 효용 간의 매핑이 비선형 최적화 문제에 대해 거의 잘 이해되지 않기 때문에 coactive(사용자 제안) 피드백은 사용되지 않는다.", "source_quote": "because this mapping is rarely well-understood for parameters of a nonlinear optimization problem, LINECOSPARNLP does not utilize coactive feedback.", "source_section": "method"}], "future_works": [{"claim": "사족 로봇과 3D 이족 로봇 같은 추가 로봇 플랫폼으로 프레임워크를 확장한다.", "source_quote": "Future work includes extending this framework to more robotic platforms, such as quadrupeds and 3D bipedal robots", "source_section": "conclusion"}, {"claim": "순서형 레이블 같은 추가적인 정성 피드백 메커니즘을 통해 프레임워크의 샘플 효율성을 향상시킨다.", "source_quote": "as well as improving the sample-efficiency of the framework through additional qualitative feedback mechanisms such as ordinal labels [41].", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["모델 기반 HZD 보행은 모델링되지 않은 동역학에 대한 강건성을 필요로 하며, 이는 역사적으로 이론을 하드웨어로 옮기는 확장성을 제한하는 고되고 비직관적인 '라스트 마일' 파라미터 튜닝 과정을 통해 달성되었다.", "강화학습은 그 구성이 결과 거동을 전적으로 결정하는 정성껏 설계된 보상 함수에 의존하며, 모방 학습과 RL은 모두 탄성 충격과 미끄러지는 접촉 같은 거친 지형 동역학에 어려움을 겪는 물리 엔진에 크게 의존한다.", "'좋은' 걷기의 기저 효용은 명확한 수학적 기술을 허용하지 않아, 파라미터 조합과 실험적 거동 간의 관계가 비직관적이기 때문에 보상 기반 또는 수동 튜닝 방법을 어렵게 만든다."], "addressed_by_this_work": ["선호 기반 학습은 인간의 쌍별 선호만으로 HZD 필수 제약을 체계적으로 튜닝하여, 수동 튜닝과 명시적으로 정의된 보상/효용 함수의 필요성을 제거한다.", "LINECOSPAR-NLP는 학습을 HZD 최적화 문제에 직접 내장하여, 사전 계산된 보행 라이브러리의 필요성을 제거하고 시뮬레이션 없이 하드웨어에서 최적 보행을 생성한다.", "AMBER-3M에서의 두 하드웨어 실험(강체 점접촉 발과 모델링되지 않은 컴플라이언트 스프링 발)은 역사적으로 정교한 모델을 요구했던 도전적 컴플라이언트 다리 사례를 포함하여, 50회 미만의 반복으로 안정적이고 강건하며 효율적이고 자연스러운 걷기를 달성했다."], "remaining_unresolved": ["인간 운영자가 선호를 제공하기 위해 루프 안에 남아 있어야 하므로, 튜닝은 완전히 자율적이지 않다.", "반복당 여러 행동을 배칭하면 샘플 효율성을 희생하며, 사후분포는 실행된 행동에 대한 근사일 뿐이다.", "시연은 평면(2D) 이족 로봇에 국한된다. 사족 로봇과 3D 이족 로봇으로의 확장, 그리고 더 나은 샘플 효율성을 위한 더 풍부한 피드백은 향후 과제로 남겨진다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

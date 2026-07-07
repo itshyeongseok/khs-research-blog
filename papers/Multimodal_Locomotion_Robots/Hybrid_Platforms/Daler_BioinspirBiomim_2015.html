@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>A bioinspired multi-modal flying and walking robot</title>
+    <meta name="keywords" content="multi-modal locomotion, aerial-terrestrial robot, adaptive morphology, integrated locomotor strategy, foldable wings, dual-use actuators, cost of transport, bioinspired robot design, vampire-bat inspiration, flying wing">
+    <meta name="paper-authors" content="Ludovic Daler, Stefano Mintchev, Cesare Stefanini, Dario Floreano">
+    <meta name="paper-journal" content="Bioinspiration & Biomimetics, Vol. 10, No. 1, 016005 (2015). DOI: 10.1088/1748-3190/10/1/016005. Published 19 January 2015.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">A bioinspired multi-modal flying and walking robot</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Ludovic Daler, Stefano Mintchev, Cesare Stefanini, Dario Floreano</div>
+            <div class="journal">Bioinspiration & Biomimetics, Vol. 10, No. 1, 016005 (2015). DOI: 10.1088/1748-3190/10/1/016005. Published 19 January 2015.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">DALER는 무게 393 g, 날개폭 72 cm의 비행익(flying-wing) 로봇으로, 흡혈박쥐(Desmodus rotundus)에서 영감을 얻어 단일 공유 이동 장치를 사용해 장거리 비행과 지상 보행을 모두 수행한다. 두 날개 끝('윙저론(wingeron)')은 비행 제어면이자 지상 추진을 위한 회전 휠레그(wheg)로 동시에 기능하며, 접이식 날개는 날개폭을 30% 줄여 지면 그립과 민첩성을 높이는 적응형 형태를 제공한다. 저자들은 윙저론 기하 구조를 최적화하여 두 이동 모드를 양립 가능하게 만들면 통합 단일 구동기 전략이 동역학적으로 실현 가능함을 보이는 구동기 정합 이론을 유도하며, 구동기 출력 ~37% 증가를 대가로 77% 질량 통합(가산 설계 대비 43.5% 경량)을 달성한다. 실험은 최대 >20 m/s 비행과 7 cm/s 지상 보행(수송 비용 15~20 J/kg/m), 그리고 다중 모드 로봇을 위한 일반화된 6단계 설계법을 시연한다. 본 프로젝트에 대한 핵심 대조는 개념적이다: DALER는 지상 운동에 동일한 공중 부속물을 재사용(통합 전략)하는 반면, 오니솝터에 전용 이족 다리를 부착하는 것은 가산 전략이며, DALER의 정량화된 통합 대 무게/출력 절충은 그 설계 선택을 구조화한다.</div>
+            <div class="keywords"><span class="keyword-chip">multi-modal locomotion</span><span class="keyword-chip">aerial-terrestrial robot</span><span class="keyword-chip">adaptive morphology</span><span class="keyword-chip">integrated locomotor strategy</span><span class="keyword-chip">foldable wings</span><span class="keyword-chip">dual-use actuators</span><span class="keyword-chip">cost of transport</span><span class="keyword-chip">bioinspired robot design</span><span class="keyword-chip">vampire-bat inspiration</span><span class="keyword-chip">flying wing</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 탐색구조와 탐사를 위한 하이브리드 공중-지상 로봇의 동기를 제시하며, 비행에 쓰이지 않는 부속물을 더해 무게와 항력을 높이는 만연한 가산 전략과, 단일 이동 장치가 여러 모드에 기능하는 통합 전략을 대조한다. 비행을 명백히 손상시키지 않으면서 날개로 달리고 점프하는 흡혈박쥐 Desmodus rotundus에서 주로 영감을 얻어, DALER는 통합 전략과 적응형 접이식 날개 형태를 결합한다. 저자들은 이를 비행 로봇에 전용 다리를 부착할지 결정하는 데 핵심이 되는 바로 그 가산 대 통합 딜레마로 규정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 연구는 가산형 공중-지상 로봇(HyTAQ의 케이지, 충돌 견딤 구형 케이지 및 바퀴형 설계)과 MMALV, BOLT 이족 오니솝터 같은 벤치마크 비교 대상을 검토하며, 후자는 오니솝터 + 다리 지상 운동과 직접 관련된다. 또한 점프-활공 하이브리드와 수동 활공 MultiMo-Bat를 조사하고, 다중 모드성을 벤치마킹하기 위해 다용성/복잡성 및 질량 통합 지표를 채택한다. 광범위한 생물학적 참고문헌 — 흡혈박쥐 지상 이동, 도롱뇽 보법 전환, 골격근 작동 범위 유추 — 이 생체영감을 뒷받침하고 단일 구동기 동역학 문제를 구조화한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">DALER는 두 날개 끝('윙저론')이 피치/롤 제어면이자 지상 구동 휠레그로 동시에 작용하는 비행익으로, 그 기하 구조가 제약(삼각형 형상, 공력 중심을 통과하는 축)되어 두 모드가 양립 가능한 동역학을 공유한다. 구동기 정합 이론은 빠르고 저토크인 비행 대 느리고 고토크인 지상 운동의 상충하는 토크-속도 요구를 다루어, 비행 작동점을 이동시켜 — 윙저론 면적을 키우면서 회전을 늦춰 기동성을 보존 — 단일 DC 모터가 둘 다에 기능하도록 푼다. 접이식 날개는 비행 최적화를 지면 그립과 교환하는 적응형 형태(30% 날개폭 감소)를 더하며, PID 윙저론 속도 제어를 갖는 5섹션 기계 설계로 구현된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">일곱 가지 윙저론 속도와 세 가지 날개 개방도에 걸친 수송 비용 측정은 최대 속도의 75% 근처에서 최소가 되는 U자형 COT 곡선을 드러냈으며, 접은 날개가 더 낮은 COT와 35% 높은 로봇 속도를 주었다 — 적응형 형태를 정량적으로 검증하지만, 최적 개방도는 속도 의존적이다. 지상 성능은 9 cm 간격 건너기와 6 cm 단차 오르기로 7 cm/s에 도달했고, 비행은 6에서 >20 m/s에 걸쳤으며, 두 모드에서 측정된 윙저론 모터 작동 영역이 단일 구동기의 토크-속도 직선 아래에 들어 통합 설계를 확인했다. 질량 통합은 1.77(가산 대비 43.5% 경량), 다용성은 0.183으로, 두 모드 모두 능동임에도 비교된 날개형 다중 모드 로봇 중 가장 높았다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 자연의 통합 전략이 두 모드의 동역학이 단일 공유 구동기 범위 안에 들 때 최소 절충으로 로봇에 전이되며, 적응형 형태가 절충을 최소화하여 이를 보완한다고 결론짓는다. 그들은 프로젝트에 결정적인 비용 — 통합 단일 구동기 접근은 두 최적화 구동기보다 ~37% 많은 출력(무게 대용)이 필요 — 을 정량화하고, 그 결과를 생물학에 되먹여 흡혈박쥐의 손상되지 않은 비행을 설명한다. 명시된 한계에는 호버링/VTOL 부재와 학습이나 인지 없이 고전적 PID 제어에 의존하는 점이 포함되며, 저자들은 전이 가능한 지침으로 일반화된 6단계 설계법을 제시한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">DALER는 윙저론이 비행 제어면이자 지상 구동 휠레그로 기능하는 393 g 비행익을 시연하며, 흡혈박쥐에서 영감을 얻은 단일 공유 이동 장치로 능동 비행(>20 m/s)과 보행(7 cm/s)을 달성한다. 적응형 접이식 날개 형태가 지상 COT를 낮추고 속도를 높여 77% 질량 통합과 비교된 날개형 다중 모드 로봇 중 가장 높은 다용성을 내며, 구동기 정합 이론과 6단계 설계법이 정량화된 ~37% 출력 페널티로 통합 설계가 실현 가능한 시점을 확립한다. 이족 오니솝터 + RL 프로젝트에 대해 이 로봇은 가산 대 통합 결정을 구조화하고 학습 기반 지상 제어가 채울 미해결 제어/인지 간극을 드러낸다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "하이브리드 공중-지상 이동이 가능한 로봇은 탐색구조, 위험 환경 탐사, 환경 모니터링에 기여할 수 있다; 전진 비행과 지상 이동을 결합하면 빠른 장거리 이동과 철저한 국소 탐사(예: 부분 붕괴 건물에서 생존자 수색)라는 이중 이점을 얻는다."}, {"type": "bullet", "text": "다중 모드 이동은 환경 적응성, 이동 다용성, 운용 유연성을 높이지만, 추가되는 모든 이동 모드가 기동성, 속도, 또는 에너지 효율에서 성능 손실을 야기하는 경향이 있어, 다양한 환경에서 성공하는 로봇은 여전히 초기 단계에 있다."}, {"type": "bullet", "text": "<span class=\"term\">가산 전략</span>: 현재 대부분의 비행-보행 로봇은 비행 중 쓰이지 않는 추가 구동기, 메커니즘, 또는 전용 부속물(바퀴, 원통/구형 케이지, 다리)을 통해 보조 모드를 얻는데, 이는 무게와 항력을 더해 공중 효율과 기동성을 떨어뜨린다."}, {"type": "bullet", "text": "<span class=\"term\">통합 전략</span>: 많은 동물은 단일 이동 장치(구동기 + 부속물)를 여러 모드에 사용한다 — 예컨대 바다오리과(Alcidae) 바닷새는 비행과 수영 모두에 날개 추진을 쓰고, 일부 박쥐는 날개를 비행과 보행 모두에 쓴다 — 이는 메커니즘, 구동기, 센서의 수, 따라서 전체 무게와 복잡성을 제한한다."}, {"type": "bullet", "text": "통합 접근은 단일 이동 시스템이 잠재적으로 상충하는 동역학을 수용해야 하므로 가산 접근보다 어렵다; 저자들은 이를 예비 비행-보행 로봇과 점프-활공 로봇에서 탐구한 바 있다."}, {"type": "bullet", "text": "동물(비행 뱀, 바닷새, 도롱뇽)도 성능 향상을 위해 원하는 모드에 형태를 적응시킨다 — 비행 뱀은 양력을 높이려 몸을 납작하게 하고, 바다오리는 날개를 부분적으로 접어 효율적인 후퇴익 끝으로 만들며, 도롱뇽은 보행에서 수영으로 전환할 때 다리를 접는다 — 이는 로봇의 적응형 형태에 동기가 된다."}, {"type": "bullet", "text": "흡혈박쥐 Desmodus rotundus가 핵심 생물학적 사례 연구이다: 혈액 기반 식이 때문에 날개를 사용한 뛰어난 지상 능력(달리기, 점프)을 비행을 명백히 손상시키지 않으면서 진화시켜, 통합 전략과 적응형 날개 형태를 결합했다 — DALER 설계 원리의 영감 원천이다."}, {"type": "bullet", "text": "예비 시제품은 날개 끝을 휠레그로 사용했으나 추가적인 보행 전용 구동기와 고정 형태에 의존했다; 본 논문은 대신 윙저론이 비행 제어와 보행 모두에 기능하고 접이식 날개가 형태 적응을 제공하는 비행익을 제시한다."}, {"type": "bullet", "text": "프로젝트 관련성: DALER는 오니솝터에 이족 다리를 부착하는 것과 직접 핵심이 되는 가산 대 통합 설계 딜레마를 예시한다 — 전용 다리는 가산 선택이므로, DALER의 정량화된 절충(무게, 항력, COT, 다용성)은 그 결정을 저울질하는 기준선을 제공한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "맥락으로 인용된 가산형 지상/공중 로봇: 개선된 지상/공중 소형 로봇(Kossett 등), 원통형 케이지를 사용하는 HyTAQ 하이브리드 지상-공중 쿼드로터(Kalantari & Spenko), 구형 케이지를 가진 충돌 견딤 비행 로봇(Briod 등), 그리고 지상 운동에 바퀴를 쓰는 로봇들 — 모두 비행에 쓰이지 않는 부속물을 더한다."}, {"type": "bullet", "text": "MMALV(Bachmann 등 2009): 공중과 지상 이동이 가능한 생물 영감 마이크로 비행체로, 비교 로봇으로 사용된다(복잡성 36 — 구동기 6개, 자유도 6개)."}, {"type": "bullet", "text": "BOLT(Peterson & Fearing): 날개와 다리를 단일 구동기로 구동하여 날개 보조 달리기를 시연한 이족 오니솝터(복잡성 12 — 구동기 3개, 자유도 4개); 오니솝터 + 다리 지상 이동에 직접 관련된 선행 연구이다."}, {"type": "bullet", "text": "EPFL 점프-글라이더(Kovac 등)와 곤충 영감 점프 미니로봇(Li 등)이 메커니즘 설계를 통해 모드 결합을 탐구한 하이브리드 점프-활공 플랫폼으로 인용된다."}, {"type": "bullet", "text": "MultiMo-Bat(Woodward & Sitti 2014): 질량 통합 지표에서 1.69를 기록한 생물 영감 통합 점프-활공 로봇 — 그러나 그 비행은 수동(활공)이라 DALER의 능동 공중 + 지상 이동과 달리 비행 구동기가 필요 없다."}, {"type": "bullet", "text": "Nie, Pacheco-Corcho & Spenko(2013)의 다용성 및 복잡성 지표가 이동 로봇 다중 모드성을 벤치마킹하기 위해 채택된다; Woodward & Sitti(2014)의 질량 통합 지표가 로봇 질량이 모드 간에 얼마나 공유되는지 정량화하는 데 사용된다."}, {"type": "bullet", "text": "광범위한 생물학적 참고문헌이 생체영감을 뒷받침한다: 흡혈박쥐 지상 이동과 달리기/점프(Riskin, Schutt 등), 척수 모델로 구동되는 도롱뇽 수영-보행 전환(Ijspeert 등), 그리고 근육-구동기 유추(골격근은 좁은 변형/속도/하중 범위에서만 효율적으로 작동)."}, {"type": "bullet", "text": "동물 근육 유추가 공학 문제를 구조화한다: 새는 근육을 최적 수축 속도 범위에 유지하기 위해 활공과 플래핑을 번갈아 하며, 이는 두 이동 모드에 걸쳐 DC 모터를 효율적 작동 범위 내에 유지해야 하는 로봇의 필요와 유사하다."}]}, "method": {"content": [{"type": "bullet", "text": "플랫폼: 동체와 꼬리가 없어 제작이 단순하고 착지에 강건하여 선택된 비행익; 두 날개 끝(윙저론)은 비행 중 피치와 롤을 제어하고 지상 이동을 구동하는 휠레그로 작용하며, 두 모드가 양립 가능한 동역학을 공유하도록 설계된다."}, {"type": "bullet", "text": "이중 용도 윙저론 설계(2단계 중 1단계): 세 가지 기하 제약 — 제어 토크를 최소화·분리하기 위해 회전축이 공력 중심(평균 공력 시위의 ~25%)을 통과해야 함; 최대 지상 토크를 최소화하기 위해 회전축이 윙저론 중심에 있어야 함; 지면 그립을 최대화하기 위해 뒷전이 회전축과 평행해야 함."}, {"type": "formula", "label": "식 1 — 평균 공력 시위", "latex": "\\mathrm{MAC} = A - \\frac{2(A-B)^2}{3(A+B)}", "description": "뿌리 시위 A와 끝 시위 B를 갖는 윙저론의 MAC. 세 설계 제약(식 1-6)을 풀면 S = A, B = 0이 강제되어 윙저론이 삼각형이어야 함을 의미한다; 큰 후퇴각은 끝 와류를 만들어 높은 받음각에서 실속을 지연시켜 곡예 편향을 돕는다."}, {"type": "bullet", "text": "구동기 선택 문제(2단계): 비행은 저토크에서 빠른 윙저론 운동이 필요하고, 지상은 저속에서 고토크가 필요하다; 단일 DC 모터가 둘 다 만족해야 한다. 모터의 연속 토크는 열 방출로, 최대 속도는 정류/베어링 마모로 제한되어 본질적인 토크-속도 절충을 만든다."}, {"type": "formula", "label": "식 7 — DC 모터 토크-속도 직선", "latex": "n(M) = n_0 - kM", "description": "출력 토크 M의 함수로서의 회전 속도 n으로, 무부하 속도 n_0와 속도/토크 기울기 k를 갖는다. 각 모터는 무부하 속도에서 실속 토크까지의 직선이다; 작동점은 구동기 직선 위(또는 아래)에 있을 때만 달성 가능하다."}, {"type": "formula", "label": "식 10 — 최대 모터 출력", "latex": "P_{\\max} = \\frac{1}{4}\\frac{n_0^2}{k}", "description": "구동기 무게의 대용으로 쓰이는 최대 전달 가능 출력(이펙터는 대략 일정한 출력 밀도를 가짐). 통합 단일 구동기 출력을 두 최적화 구동기의 합(P_max,a + P_max,b)과 비교하면 37%의 통합 전략 페널티가 나온다."}, {"type": "bullet", "text": "해법 3(채택된 통합 설계): 비행 작동점 A를 A'로 이동시켜 지상 최적화 구동기 b에 정합시키는데, 윙저론 면적을 키워 줄어든 회전 속도를 보상함으로써 기동성을 보존한다 — 두 작동점을 하나의 구동기 범위 내에서 동역학적으로 양립 가능하게 만든다."}, {"type": "formula", "label": "식 21 — 윙저론 양력", "latex": "L = \\tfrac{1}{2}\\,\\rho v^2 A_{wn} C_L", "description": "공기 밀도 rho, 비행 속도 v, 윙저론 면적 A_wn, 양력계수 C_L을 갖는 윙저론의 양력. 양력률(식 23)을 미분하면 윙저론 속도를 줄이면서 면적을 비례적으로 키우면 기동성이 보존됨을 보인다."}, {"type": "formula", "label": "식 24 — 기동성 보존 스케일링", "latex": "A_{wn}\\, n_{wn} = \\mathrm{const}", "description": "윙저론 면적과 회전 속도의 곱을 일정하게 유지: 윙저론을 늦추면서(지상 구동기에 정합) 면적을 키우면 양력 변화율 — 따라서 비행 기동성 — 이 변하지 않는다."}, {"type": "bullet", "text": "접이식 날개(적응형 형태): 펼친 날개는 긴 날개폭(최대 양력)과 큰 CM-축 거리(비행 기동성)를 준다; 접은 날개는 짧은 날개폭(지상 민첩성)과 회전축 근처 CM(지면 그립, 윙저론 미끄러짐 없음)을 준다. 각 접이식 섹션은 17에서 6 cm(65%)로 짧아져 날개폭 30% 감소이며, 1~2초 만에 형태 변환된다."}, {"type": "bullet", "text": "기계적 구현(2차 DALER): 다섯 몸체 섹션 — 중앙 프레임(프로펠러, 전자장치, 배터리), 두 접이식 섹션, 두 윙저론. 외측 리브의 DC 모터가 동기 벨트를 통해 윙저론을 구동한다; 홀 효과 센서가 윙저론 각을 읽는다; 자동 잠금 이중 암 케이블 메커니즘을 갖는 단일 DC 모터가 날개를 접는다; 사전 부하 스프링이 직물을 인장한다(최대 12.5 J 흡수, 8.4 m/s에서의 충돌). 100 Hz PID 제어기가 윙저론 회전 속도를 조절한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "지상 COT 측정: 나무 바닥에서 시간, 거리, 모터 전류와 전압을 기록했다; 평균 전기 출력에 구동 시간을 곱해 에너지를 구한 뒤, 질량과 거리로 나눠 COT(J kg^-1 m^-1)를 얻었다. 일곱 윙저론 속도 × 다섯 반복 × 세 날개 개방도(열림 / 반쯤 닫힘 / 완전 닫힘)를 시험했다."}, {"type": "bullet", "text": "COT 대 속도는 U자형을 보인다: 저속에서 높은 COT, 최대 윙저론 회전 속도의 75% 근처에서 최소, 그다음 윙저론이 미끄러지는 고속에서 급격한 상승. 접은(닫힌) 날개는 열린 날개보다 훨씬 낮은 COT를 주며 — 같은 윙저론 속도에서 35% 높은 로봇 속도 — 적응형 형태의 가치를 정량적으로 입증한다."}, {"type": "bullet", "text": "형태는 연속적으로 적응되어야 한다: 0.04 m/s 미만에서는 반쯤 닫힌 날개가 완전 닫힘을 능가하는데(접은 날개는 걸음당 CM을 더 많이 들어올리게 강제하는 반면 저속에서는 정지 마찰이 지배), CM 들어올림과 윙저론 미끄러짐 사이의 최적 절충은 속도 의존적이다. 중앙 프레임 마찰을 줄이면(끝 바퀴), >0.1 m/s에서 COT 15-20 J kg^-1 m^-1 — 작은 달리는 동물과 비슷하다."}, {"type": "bullet", "text": "지상 성능: 최대 반복 가능 간격 건너기 9 cm(0.25 몸길이), 최대 등반 단차 6 cm(1 몸높이), 최대 상향 경사 9도, 최대 전진 속도 7 cm/s(0.2 BL/s), 최대 제자리 회전 24 deg/s(1회전당 15초); 지상 자율성은 평평한 나무에서 ~60분, 거친 지형에서 3셀 1 Ah LiPo로 ~30분."}, {"type": "bullet", "text": "비행 성능: 최소(실속 전) 속도 6 m/s(손 발사 가능), 최대 >20 m/s, 순항 ~12 m/s로 1 Ah 배터리에서 15-20분 자율성; 내부 루프 및 풀 롤 기동을 통해 측정된 최대 일정 피치율 120 deg/s, 롤율 180 deg/s. 지상 운동을 위한 추가 부속물을 더하지 않았으므로 항력은 비행 전용 날개와 같다."}, {"type": "bullet", "text": "통합 설계 검증: 측정된 윙저론 모터 작동 영역은 비행에서 0-25 rpm / 100-150 N·mm 토크, 지상 이동에서 0-15 rpm / 650-850 N·mm이다; 두 측정 영역 모두 단일 구동기의 직선 아래에 놓여, 하나의 모터가 동역학적으로 양립 가능한 두 모드에 기능함을 확인한다."}, {"type": "bullet", "text": "질량 통합 = 1.77(질량의 77%가 두 모드에 공유; 로봇은 가산 등가물보다 43.5% 경량). 무게 분해: 공유 301 g, +지상 전용 42 g(접이식 날개 관절/베어링/스프링, 플랫폼의 10.7%), +비행 전용 50 g(브러시리스 추진), 총 393 g. 접이식 날개 추가는 동일 날개 하중의 고정익 대비 ~33% 배터리 용량 비용이 든다."}, {"type": "bullet", "text": "다용성/복잡성 벤치마크: DALER 다용성 0.183(1차 DALER 0.141, MMALV 0.128, BOLT 0.118 대비) — 참조 조사의 어느 로봇보다 높음(0.16을 초과한 것 없음) — 복잡성 16(구동기 4개, 자유도 4개)으로, 1차 DALER(49)와 MMALV(36)보다 낮다; 이 결과는 MultiMo-Bat의 수동 활공과 달리 DALER의 공중 및 지상 이동이 둘 다 능동이기 때문에 주목할 만하다."}]}, "discussion": {"content": [{"type": "bullet", "text": "자연의 다중 모드 전략은 최소 절충으로 로봇에 적용될 수 있다: 두 이동 모드가 단일 공유 구동기의 작동 범위와 양립 가능한 동역학을 부과할 때 통합 전략이 편리하며, 주 모드에 미미한 영향으로 보조 모드를 더하면서 구조 질량과 복잡성을 최소화한다."}, {"type": "bullet", "text": "적응형 형태는 절충을 최소화하는 좋은 보완 해법으로 나타난다: 비행 최적화 로봇이 접이식 날개를 통해 공중 성능을 희생하지 않고 지상 능력을 향상시킬 수 있다."}, {"type": "bullet", "text": "정량화된 절충(프로젝트 결정적): 통합 단일 구동기 접근은 두 독립 최적화 구동기보다 ~37% 많은 출력(무게 대용)을 요구한다 — 빠르고 저토크인 비행과 느리고 고토크인 지상 운동을 모두 정합하는 단일 모터는 빠르면서도 강해야 하므로 더 무겁다; 부품 수준 추정은 단일 구동기 페널티를 19-57% 더 무겁게 둔다."}, {"type": "bullet", "text": "이 연구는 생물학에 되먹인다: 동역학적으로 양립 가능한 이동 모드가 비행 최적화 몸체에서 지상 능력으로 인한 명백한 손상을 Desmodus rotundus가 보이지 않는 이유를 설명할 수 있으며, 적응형 형태는 다른 환경을 위해 몸을 능동적으로 재형성하는 동물 관찰로 뒷받침된다."}, {"type": "bullet", "text": "명시된 한계 — 호버링/VTOL 없음: 저자들은 어수선한 환경에서의 수직 이륙과 비행에 필요한 호버링 능력을 더하고자 하며, 이는 현재 플랫폼이 전진 비행 속도와 활주로 같은 발사가 필요함을 암시한다."}, {"type": "bullet", "text": "프로젝트 관련성: DALER의 핵심 교훈 — 무게/항력 페널티를 피하기 위해 지상 운동에 동일한 공중 장치를 재사용 — 은 전용 이족 다리를 부착하는 것(가산 선택)의 정반대이다. 본 논문은 다리 장착 오니솝터 프로젝트가 예산화해야 할 그 가산 선택의 정량적 비용(추가 질량, 항력, 감소된 공중 COT)을 제공한다."}, {"type": "bullet", "text": "RL 목표와 관련된 제어 간극: DALER는 윙저론에 100 Hz PID 속도 제어기만 사용하고 학습 기반 제어나 인지가 없다; 저자들은 임시방편적 제어와 인지가 필요함을 지적한다 — 바로 다리 장착 비행 로봇을 위해 RL 기반 보행 제어기가 채울 틈새이다."}, {"type": "bullet", "text": "일반화된 6단계 설계법(임무 정의, 주 모드/기본 설계 선택, 재사용 가능한 구조/구동기 식별, 양립 가능한 동역학을 위한 형상 최적화, 상이한 CM 제약을 위한 적응형 형태 사용, 작업별 연속 최적화에 형태 활용)이 다른 다중 모드 로봇을 위한 전이 가능 지침으로 제시된다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "DALER는 날개 끝(윙저론)이 비행 제어면이자 지상 구동 휠레그로 작용하는 393 g 비행익을 시연하며, 흡혈박쥐에서 영감을 얻은 단일 공유 이동 장치로 능동 비행(>20 m/s)과 보행(7 cm/s, COT 15-20 J/kg/m)을 달성한다."}, {"type": "bullet", "text": "적응형 접이식 날개 형태(30% 날개폭 감소)는 지상 COT를 낮추고 지상 속도를 높여, 낮은 복잡성(16)에서 77% 질량 통합(가산 대비 43.5% 경량)과 비교된 날개형 다중 모드 로봇 중 가장 높은 다용성(0.183)을 낸다."}, {"type": "bullet", "text": "구동기 정합 이론과 6단계 설계법은 통합 다중 모드 설계가 실현 가능한 시점을 확립한다: 두 모드의 작동점이 하나의 구동기 작동 범위에 들도록 공유 부속물의 기하 구조를 최적화하고, 이중 구동기 대비 정량화된 ~37% 출력 페널티를 수용한다."}, {"type": "bullet", "text": "이족 오니솝터 + RL 프로젝트에 대해: DALER는 가산 대 통합 결정(전용 다리 = 가산, 측정 가능한 무게/항력/COT 비용 동반)을 구조화하고 미해결 제어/인지 간극을 드러낸다 — DALER의 고전적 PID는 프로젝트가 겨냥하는 학습 기반 지상 제어에 못 미치며, 그 COT와 형태 절충은 설계 기준선을 제공한다."}, {"type": "bullet", "text": "저자들은 플랫폼에 호버링과 수직 이륙이 없음 — 최소 전진 비행 속도 6 m/s와 손 발사가 필요 — 을 인정하며, 어수선한 환경 운용을 위한 호버링 능력을 주요 다음 단계로 명명한다."}, {"type": "bullet", "text": "채택된 다용성 및 질량 통합 지표는 저자들이 DALER를 기존 날개형 다중 모드 로봇보다 정량적으로 상위에 두게 하여, 통합 + 적응형 형태 접근을 일회성 시제품이 아니라 일반화 가능한 설계 템플릿으로 위치시킨다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "통합 단일 구동기 전략은 무게 면에서 최적이 아니다: 비행과 지상 작동점을 모두 정합하는 단일 모터는 두 개의 개별 최적화 구동기보다 ~37% 많은 출력(무게 대용)을 요구하여, 구동기 수준에서 통합 로봇이 이상적 가산 설계보다 무거워진다.", "source_quote": "It can be observed that the power required by the single actuator strategy is 37% higher than the overall power required by multiple actuators.", "source_section": "discussion"}, {"claim": "로봇은 호버링과 수직 이륙 능력이 없으며, 저자들은 이를 어수선한 환경에서의 이륙과 비행에 필요한 것으로 식별한다.", "source_quote": "Concerning the locomotion flexibility of the DALER, we would like to add hovering capabilities, which are needed for vertical take-off and flight in cluttered environments.", "source_section": "discussion"}], "future_works": [{"claim": "다중 모드 이동의 생물학적 원리에 대한 이해를 심화하고, 임시방편적 제어 기법과 다목적 인지 능력을 로봇에 통합한다.", "source_quote": "Our aim in the near future is to deepen the understanding of the biological principle of multi-modal locomotion, also integrating ad hoc control techniques and multi-purpose perception capabilities into the robot.", "source_section": "discussion"}, {"claim": "어수선한 환경에서의 수직 이륙과 비행을 가능하게 하는 호버링 능력을 추가한다.", "source_quote": "Concerning the locomotion flexibility of the DALER, we would like to add hovering capabilities, which are needed for vertical take-off and flight in cluttered environments.", "source_section": "discussion"}, {"claim": "다양한 임무 시나리오에 맞춰 기하 파라미터(날개폭, 시위 등)를 최적화하기 위해 차기 DALER 버전의 질량-출력 모델을 개발한다.", "source_quote": "Furthermore, we are currently developing a mass-and-power model of this future version of the DALER prototype in order to be able to optimize its geometrical parameters (e.g. wingspan, chord, etc) to different mission scenarios.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["기존 비행-보행 로봇은 대부분 가산 전략을 사용하여 비행에 쓰이지 않는 전용 구동기, 메커니즘, 부속물(바퀴, 케이지, 다리)을 더해, 무게와 항력을 높이고 그로 인해 공중 효율과 기동성을 떨어뜨린다.", "대부분의 다중 모드 로봇은 주 이동 모드에 고도로 최적화된 형태를 가져 보조 모드에서 덜 효과적이며, 큰 성능 절충으로 이어진다.", "통합 전략(여러 모드에 기능하는 단일 이동 장치)의 구현은 하나의 구동기/구조가 서로 다른 기질이 부과하는 상충하는 동역학을 수용해야 하므로 어렵다."], "addressed_by_this_work": ["비행 제어면이자 지상 구동 휠레그로 기능하는 이중 용도 '윙저론'(날개 끝)을 설계하여 비행에 쓰이지 않는 부속물이 없게 했다; 윙저론이 이미 비행익의 일부이므로 추가 무게와 항력이 최소화된다.", "비행 최적화 형상(긴 날개폭, 높은 양력, 큰 CM-축 거리)과 지상 최적화 형상(짧은 날개폭, 높은 그립, 회전축 근처 CM)을 전환하는 적응형 형태로서 접이식 날개를 도입하여 모드 간 절충을 최소화했다; 77% 질량 통합과 가산 설계 대비 43.5% 질량 절감을, 비교된 날개형 다중 모드 로봇 중 가장 높은 다용성(0.183)과 함께 시연했다.", "윙저론 기하 구조를 최적화하면 비행과 지상 작동점이 하나의 구동기 작동 범위 안에서 동역학적으로 양립 가능해져 단일 이동 시스템을 가능하게 함을 보이는 구동기 정합 이론과 6단계 설계법을 유도했다."], "remaining_unresolved": ["통합 단일 구동기 해법은 여전히 두 독립 최적화 구동기 대비 본질적인 ~37% 출력(무게) 페널티를 안고 있다 — 빠르고 저토크인 비행과 느리고 고토크인 지상 운동 사이의 충돌은 완전히 제거될 수 없다.", "호버링이나 수직 이륙이 없다; 로봇은 전진 비행 속도(최소 비행 속도 6 m/s)가 필요하고 지상 속도가 낮다(7 cm/s, 0.2 BL/s).", "제어는 윙저론의 개루프/PID 회전 속도 조절이다; 어수선한 지형을 위한 고급 제어, 인지, 자율성은 아직 개발되어야 한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

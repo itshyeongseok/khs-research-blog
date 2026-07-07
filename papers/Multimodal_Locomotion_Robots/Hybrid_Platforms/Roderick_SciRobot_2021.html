@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Bird-inspired dynamic grasping and perching in arboreal environments</title>
+    <meta name="keywords" content="bio-inspired robotics, aerial grasping, dynamic perching, SNAG, underactuated grasper, perching sufficiency region, bird foot biomechanics, quadrotor, tendon locking mechanism, digital flexor mechanism">
+    <meta name="paper-authors" content="W. R. T. Roderick, M. R. Cutkosky, D. Lentink">
+    <meta name="paper-journal" content="Science Robotics, Vol. 6, Issue 61, eabj7562, 1 December 2021. DOI: 10.1126/scirobotics.abj7562 · Tier 1 (Science Robotics, JCR Q1).">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Bird-inspired dynamic grasping and perching in arboreal environments</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">W. R. T. Roderick, M. R. Cutkosky, D. Lentink</div>
+            <div class="journal">Science Robotics, Vol. 6, Issue 61, eabj7562, 1 December 2021. DOI: 10.1126/scirobotics.abj7562 · Tier 1 (Science Robotics, JCR Q1).</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 약 750 g 쿼드로터에 장착된 새에서 영감받은 이족 다리-발 시스템 <span class="term">SNAG</span>(stereotyped nature-inspired aerial grasper)를 제시하며, 이는 공중 로봇이 복잡한 자연 표면에 동적으로 횃대 착지(perch)하고 비행 중 불규칙 물체를 잡을 수 있게 한다. 각 저구동 다리는 두 가지 조류 기구를 구현한다 — 충격 운동량을 수동적으로 파지력으로 변환하는 <span class="term">지굴근 기구(digital flexor mechanism)</span>(DFM)와 자세를 수동적으로 잠그는 <span class="term">힘줄 잠금 기구(tendon locking mechanism)</span>(TLM) 유사물(발목 래칫) — 으로 50 ms 이내에 발가락을 횃대 둘레로 감는다. 저자들은 다차원 <span class="term">횃대 착지 충분 영역(perching sufficiency region)</span>을 정식화한다: 착지 성공을 낳는 하드웨어·기구학·행동·횃대 변수들의 공간으로, 선·각운동량 한계, 발 정렬 오차, 다리 가동 범위 제약으로 경계 지어지며, 나뭇가지에서의 약 190회 통제된 발사 실험으로 입증된다. 핵심 발견: 폐루프 균형 제어가 충분 영역을 현저히 넓히고, 등척(isometric) 스케일링된 더 큰 동물/로봇은 길이의 5제곱(l^5)으로 증가하는 각운동량을 수용해야 하며, 두 흔한 조류 발가락 배열(전삼지형 vs. 대지형)은 미미한 횃대 착지 성능 차이만 낳아 수목 횃대 착지가 발가락 위상 간 강한 진화적 선택압이 아님을 시사한다. SNAG는 먹잇감 유사 물체(약 4.5 m/s)도 잡았으며, 오리건 숲에서 온도와 습도를 기록하는 환경 모니터링과 함께 횃대 착지가 시연되었다.</div>
+            <div class="keywords"><span class="keyword-chip">bio-inspired robotics</span><span class="keyword-chip">aerial grasping</span><span class="keyword-chip">dynamic perching</span><span class="keyword-chip">SNAG</span><span class="keyword-chip">underactuated grasper</span><span class="keyword-chip">perching sufficiency region</span><span class="keyword-chip">bird foot biomechanics</span><span class="keyword-chip">quadrotor</span><span class="keyword-chip">tendon locking mechanism</span><span class="keyword-chip">digital flexor mechanism</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">새는 다양한 복잡 표면에서 자주 그리고 외견상 쉽게 이착륙하며, 다리가 착지 시 운동량을 흡수하고 발이 횃대를 감싸 쥐는 접촉 시간(Tau 이론) 유도 전략을 따르는데, 이때 발가락 패드 마찰을 확률적 발톱 힘과 결합하고 특수 힘줄 특성으로 잠근다. 저자들은 최근 생체역학 발견을 활용하여 이러한 수동·능동 행동을 모사하는 정형화된 자연 영감 공중 파지기 SNAG를 만든다. 서론은 민첩한 조류 파지와 제한된 로봇 역량 사이의 간극을 제시하고, 기여를 예고한다: 횃대 착지 충분 영역, 발가락 배열 비교, 스케일링 결과, 숲 시연이다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 SNAG를 기존 공중 파지·횃대 착지 로봇 및 조류 생체역학 문헌과 대비하여 위치시킨다. 이전 로봇들은 정지 물체를 집거나, 발사된 물체를 잡거나, 불규칙 또는 원통형 표면(포즈를 취한 가지와 단일 나뭇가지 포함)에 수직 착지할 수 있었으나, 어느 것도 횃대 착지 후 균형 자세 제어를 수행하지 못했고 새가 다양한 복잡 표면에 동적으로 충돌하며 신뢰성 있게 파지할 때 보이는 다재다능함에 근접하지 못했다. 본 연구는 새가 접촉 시 발-표면 상호작용을 어떻게 적응시키는지에 대한 저자들의 선행 발견과 문서화된 조류 기구(DFM, TLM) 및 발가락 형태(전삼지형, 대지형)에 직접 기반하여, SNAG를 로봇이자 생물학적 가설 검증 도구로 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">SNAG는 약 750 g 쿼드로터에 장착된 새 영감 이족 발-다리 시스템으로 구성되며, 핵심 다리·발가락·발톱 치수는 송골매 사체 두 구로부터 질량 기준 등척 스케일링되었다. 각 저구동 다리(약 50 g, 비행 질량의 6.7%)는 단 두 개의 모터로 14자유도를 구동한다: 고관절 서보모터가 다리를 지향시키고 몸체 균형을 잡으며, 역구동 불가(non-backdrivable) 발 모터가 충격 시 신속 해제로 방출되는 스프링 에너지를 저장한다. DFM은 충격 운동량을 수동적으로 파지력으로 변환하고, 발목 래칫 TLM이 자세를 잠그며, 힘줄 차동(differential)이 유연한 발톱 끝 발가락에 파지력을 분배한다. 평면 횃대 착지 충분 모델은 선·각운동량과 발 정렬 오차, 다리 가동 범위를 경계 짓고, 운동량 방정식은 실험으로 입증되며, 재료·방법은 모델 임계값과 레일 발사 실험 장치를 상술한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">SNAG는 발 형태, 균형 전략, 착지 속도, 충격 및 다리 각도, 표면 특성이 충분 영역을 어떻게 좌우하는지 매핑하기 위해 레일-탄성 밴드 장치(로터 없음)로 나뭇가지를 향해 약 190회의 매우 신뢰성 있는 시도로 발사되었다. 전삼지형과 대지형 발은 작은 임계값 차이만 보였고(견고한 기능적 관련성 없음), 폐루프 균형은 고정 다리 각도 방식 대비 충분 영역을 현저히 넓혔다. 로봇은 직경 38, 64, 165 mm 참나무 횃대와 이끼 낀 오리나무 가지에 착지했고, 다리별 독립 에너지 흡수로 경사진 가지를 수용했으며, 약 4.5 m/s로 발사된 먹잇감 유사 물체를 잡았고, 오리건 숲에서 온도와 습도를 기록하며 횃대 착지했다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">동적 횃대 착지 성능은 정형화된 새 영감 행동과 기구의 집합 — 다리 지향, DFM과 힘줄 차동을 통한 수동적 에너지 흡수와 파지력 증폭, 유연한 발톱 끝 발가락 순응, TLM 잠금, 무게중심 균형 — 이 새가 사용하는 동일한 체중 6.7% 예산 내에서 견고한 횃대 착지에 충분함을 보이며, 각 다리는 자체 무게의 10배를 지탱한다. 14자유도를 두 모터와 희소 센싱(중력 방향용 발 가속도계)으로 저구동함으로써, SNAG는 동물이 횃대 착지와 균형에 희소한 상태 지식만 필요할 수 있고 큰 미끄러짐이 없으면 균형 행동이 대체로 정형화됨을 시사한다. 논의는 또한 생물학적 추론(근육/힘줄 장력 개시와 유사한 신속 해제 타이밍, 수목 횃대 착지에 대한 약한 선택압을 함의하는 미미한 발가락 배열 효과)을 도출하고, 착지 시 각운동량이 길이의 5제곱으로 증가한다는 등척 스케일링 법칙을 보고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 SNAG가 새 영감 기구와 행동이 어떻게 공중 로봇으로 하여금 복잡한 자연 표면에 동적으로 횃대 착지하고 불규칙 물체를 잡게 하는지를 시연하며, 충격 에너지를 수동적으로 파지력으로 변환하고 50 ms 이내에 발가락을 감아 고속 충돌을 수용한다고 결론짓는다. 횃대 착지 충분 영역은 설계·제어 패러다임을 제공한다: 고전적 대리 지표를 최적화하기보다, 로봇은 자신의 목표와 관련된 충분 영역을 벗어날 가능성을 최소화해야 한다. 본 연구는 조류 횃대 착지 기관에 대한 이해를 발전시키며 — 두드러진 발가락 배열 차이가 큰 횃대 착지 성능 변화를 낳지 않음을 보이고 — 숲처럼 저비용 로봇이 환경 및 생물다양성 모니터링을 위해 자연 표면에 횃대 착지하게 하는 설계 개념을 부각한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "새는 횃대 착지와 먹잇감 파지 중 다양한 복잡 표면과 접촉하며, 도시 및 자연 서식지 모두에서 이러한 행동을 자주 그리고 외견상 쉽게 수행한다.", "figure_refs": [1]}, {"type": "bullet", "text": "착지하는 새는 접촉 시간 기반 유도 전략(Tau 이론)을 따라, tau(추정 충돌 시간)의 변화율을 일정하게 유지하여 횃대와의 통제된 충돌을 이룬다.", "figure_refs": [1]}, {"type": "bullet", "text": "접촉 시 다리는 새의 운동량을 흡수하고 발은 횃대를 감싸 쥐어 표면 가변성을 처리하는데, 예측 가능한 발가락 패드 마찰을 표면의 사용 가능한 요철을 찾아 긁는 확률적 발톱 힘과 결합한다."}, {"type": "bullet", "text": "많은 새에서 발가락 힘줄의 일부를 따라 돌출한 특수 구조가 힘줄 초(sheath)와 상호작용하여 발가락을 효과적으로 잠그며(힘줄 잠금 기구), 파지를 고정한다."}, {"type": "bullet", "text": "맹금류는 또한 공중에서 먹잇감을 동적으로 잡아야 하지만, 비행 중 접촉을 처리하고 먹잇감을 파지하는 동역학과 행동에 대한 보고는 매우 적다."}, {"type": "bullet", "text": "가장 흔한 배열들 간 발가락 위상 다양성은 횃대 착지, 등반, 조작에서의 기능적 절충을 나타낼 수 있으나, 겹치는 생태적 지위로 인해 관련 선택압을 판단하기 어렵다."}, {"type": "bullet", "text": "현재 공중 로봇 파지기는 파지 역량이 제한적이다: 이전 로봇들은 신뢰성이 낮은 채 좁은 범위의 특수 표면용으로 개발되었고, 여러 새 영감 횃대 착지 기구는 성공적인 이착륙을 결코 시연하지 못했으며, 어느 것도 횃대 착지 후 균형을 위한 자세 제어를 수행하지 못했다."}, {"type": "bullet", "text": "일부 새는 느린 호버링 비행으로 수직 착지하지만, 대부분은 동적으로 통제된 충돌을 일으키며 현재 공중 로봇보다 훨씬 넓은 범위의 표면 기하에 횃대 착지한다."}, {"type": "bullet", "text": "저자들은 두 다리에 정형화된 수동·능동 제어 행동과 새 영감 치수를 활용하는 SNAG를 소개하고, 이를 사용해 횃대 착지 충분 영역을 탐구하며 저비용 생태계 센싱을 위한 포획과 숲 횃대 착지를 시연한다.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "공중 로봇은 원격 센싱, 점검, 수색·구조에 유용함이 입증되었으나, 운반을 위해 복잡한 실세계 물체를 파지하거나 횃대 착지하여 에너지를 절약하는 능력의 한계로 사회적 영향이 제약된다."}, {"type": "bullet", "text": "여러 기존 파지 기구는 다양한 정지 물체를 집거나 자신을 향해 발사된 물체를 잡을 수 있어 로봇 동적 파지의 선행 기술을 확립했다."}, {"type": "bullet", "text": "일부 선행 로봇은 포즈를 취한 가지와 단일 나뭇가지를 포함한 불규칙 또는 원통형 표면에 수직 또는 준수직 착지를 시연했으나, 표면 범위가 좁았다."}, {"type": "bullet", "text": "선행 로봇 중 어느 것도 횃대 착지 후 균형을 위한 자세 제어를 수행하지 않는데, 이는 조류 횃대 착지 성공의 핵심 요인으로 식별된다."}, {"type": "bullet", "text": "로봇의 다리와 파지기 설계는 조류 뒷다리의 기능 해부학에서 영감을 받아, 근육이 힘줄을 통해 구동하는 강체 뼈/연골 구조를 조정된 직렬 스프링이 달린 Spectra 힘줄로 구동되는 경질 플라스틱 구조로 재현한다.", "figure_refs": [2]}, {"type": "bullet", "text": "두 핵심 조류 다리 내부 기구가 설계의 동기가 된다: 발목 둘레로 경로가 잡힌 발가락 굴곡 힘줄이 다리가 굽으며 장력을 받는 지굴근 기구(DFM)와, 힘줄 특성이 표면에서 발가락을 잠그는 힘줄 잠금 기구(TLM)이다.", "figure_refs": [2]}, {"type": "bullet", "text": "새 다리에서 근위부(발목 위)에 위치한 줄어든 파지 근육 질량은 민첩성을 높이는데, SNAG는 발 대신 고관절부에 구동기를 배치하여 이 원리를 모사한다.", "figure_refs": [2]}, {"type": "bullet", "text": "가장 흔한 두 조류 발가락 배열 — 전삼지형(앞 셋, 뒤 하나; 예: 송골매)과 대지형(앞 둘, 뒤 둘; 예: 사랑앵무) — 은 모두 마주보는 발가락을 가져 횃대 착지를 가능하게 하지만, 횃대 착지/파지 성능에 대한 그 효과를 분리한 선행 실험 연구는 없다.", "figure_refs": [4]}]}, "method": {"content": [{"type": "bullet", "text": "전자 장치를 포함한 SNAG의 파지 기구는 약 250 g이며, 각 다리는 약 50 g(약 750 g 쿼드콥터 비행 질량의 6.7%)로 많은 새 다리와 비례적으로 유사하다.", "figure_refs": [2]}, {"type": "bullet", "text": "연장된 다리 길이, 발가락 길이, 발톱 크기는 송골매(Falco peregrinus) 사체 두 구로부터 질량 기준 등척 스케일링되었으며, 발톱은 등척 스케일링된 송골매 발톱의 형상/크기로 3D 프린팅되어 — 요철에 걸릴 만큼 날카롭지만 박힐 만큼 날카롭지는 않다.", "figure_refs": [2]}, {"type": "bullet", "text": "이 설계는 새 다리와 발을 점점 더 모사한 20회의 반복 끝에야 도달했으며, 더 전통적인 공학적 초기 반복들은 성능이 떨어졌다.", "figure_refs": [1]}, {"type": "bullet", "text": "DFM은 일부 발가락 굴곡 힘줄을 발목 둘레로 경로 잡아 (i) 무너지는 다리가 힘줄을 늘리며 충격 에너지를 흡수하고 (ii) 그 충격 에너지를 쥐는 힘으로 변환하여, 구동기 단독보다 더 큰 그립을 파지에 적용하게 한다. 이후 발목 래칫(TLM 유사물)이 자세를 수동적으로 잠그고 탄성 반발을 막는다.", "figure_refs": [2]}, {"type": "bullet", "text": "각 다리의 14자유도는 단 두 개의 모터로 제어된다: 고관절 서보모터가 다리를 지향시키고 무게중심 균형을 잡으며, 역구동 불가 발 모터가 스프링 에너지를 저장하고 힘줄 차동을 통해 모든 발가락을 구동하며 다리 강성을 제어하고 약 20초에 걸쳐 이륙을 위해 TLM을 해제한다.", "figure_refs": [2]}, {"type": "bullet", "text": "충격 시 다리가 무너지고, DFM이 파지력을 증폭하며, 기계적으로 작동되는 신속 해제가 저장된 스프링 에너지를 방출하고, TLM이 다리를 잠그기 전 50 ms 이내에 발가락이 표면에 순응한다.", "figure_refs": [2]}, {"type": "bullet", "text": "평면 횃대 착지 충분 모델은 선·각운동량과 발 정렬 오차, 다리 가동 범위에 한계를 두며, 예비 시험의 지배적 실패 모드는 발이 너무 앞이나 뒤로 미끄러지는 것으로, 횃대 중심 둘레의 각운동량으로 모델링된다.", "figure_refs": [3]}, {"type": "formula", "label": "식 (1) — 횃대 중심 둘레의 각운동량 (표면 미끄러짐 제약)", "latex": "H_{Lx} = -v\\,\\Big( m_{leg}\\big( l_{leg,com}\\sin(\\theta_{leg}-\\theta_v) + \\sin(\\theta_v)(-\\tfrac{d}{2}\\cos\\theta_{leg}) + \\cos(\\theta_v)(\\tfrac{d}{2}\\sin\\theta_{leg}) \\big) - m_{body}\\big( l_{body}\\sin(\\theta_{leg}-\\theta_v-\\theta_{bal}) - l_{leg,eq}\\sin(\\theta_{leg}-\\theta_v) - \\sin(\\theta_v)(-\\tfrac{d}{2}\\cos\\theta_{leg}) + \\cos(\\theta_v)(\\tfrac{d}{2}\\sin\\theta_{leg}) \\big) \\Big)", "description": "충격 시 횃대 중심 둘레 로봇의 각운동량으로, 속도 v, 다리 질량 m_leg, 몸체 질량 m_body, 다리 각도 theta_leg, 속도 각도 theta_v, 균형 각도 theta_bal, 횃대 직경 d, 몸체 길이 l_body, 연장 다리 길이 l_leg,eq, 무게중심 투영 l_leg,com의 함수이다. 너무 앞/뒤로 미끄러지는 것(주된 실패 모드)은 H_Lx의 경계 위반에 해당한다."}, {"type": "formula", "label": "중력 보정을 포함한 유효 각운동량", "latex": "H_{Lx,\\text{eff}} = H_{Lx} + H_{Lx,\\text{grav}}, \\qquad H_{Lx,\\text{grav}}\\big|_{\\theta_{leg}=45^\\circ} = 0.124\\ \\mathrm{kg\\,m^2/s}", "description": "다리가 무너지면서 중력은 다리 각도에 선형으로 비례하는 유효 운동량 항을 더한다(수직 착지에서 0). 45도 다리 각도에서 H_Lx,grav = 0.124 kg m^2/s가 H_Lx,eff를 허용 각운동량 구간 중심 근처에 놓으며, 데이터와 일치한 구간 폭은 0.04 kg m^2/s였다."}]}, "experiment": {"content": [{"type": "bullet", "text": "탄성 밴드 레일 장치가 발 충격 직전에 로봇을 공중으로 정밀하게 발사했으며(로터 미사용), 총 약 190회 시도에서 높은 신뢰성과 적은 마모를 보여 모델 가정을 정당화했다.", "figure_refs": [4]}, {"type": "bullet", "text": "전삼지형 대 대지형 발을 명목 10도 충격 속도 각도에서 다양한 속도로 비교했다: 한 횃대 구간에서는 차이가 없고 다른 구간에서는 약간의 오프셋이 있었으며, 가장 큰 임계값 차이도 확신할 기능적 관련성을 갖기엔 너무 작았다(상한 최소/최대 0.04/0.23 m/s, 하한 0.00/0.16 m/s).", "figure_refs": [4]}, {"type": "bullet", "text": "신속 해제 작동 타이밍은 핵심 하드웨어 파라미터이다: 너무 이르면 다리가 무너지기엔 너무 뻣뻣하고(착지 실패), 너무 늦으면 에너지를 덜 흡수하여 손상 가능성이 커진다.", "figure_refs": [4]}, {"type": "bullet", "text": "세 가지 균형 알고리즘을 시험했다 — 고정 다리 각도, 개루프, 폐루프. 고정 다리 각도 방식은 제어 조건에서 횃대 착지에 실패했고(로봇이 뒤로 넘어짐), 개루프와 폐루프는 거의 동일한 기구학으로 성공하여 능동 균형이 충분 영역을 넓힘을 보였다.", "figure_refs": [5]}, {"type": "bullet", "text": "발 정렬 오차, 다리 각도, 충격 각도가 함께 성공을 좌우한다: 너무 큰 정렬 오차는 접촉 전 발가락을 말아버리고(실패), 너무 큰 다리/충격 각도는 상한 각운동량 제약을 깬다.", "figure_refs": [6]}, {"type": "bullet", "text": "속도 크기와 방향 모두 충분 영역을 형성한다. 수직 낙하(초기 속도 0 m/s에서도)는 중력이 다리를 완전히 무너뜨리게 하는 반면, 얕은 접근 각도는 너무 높거나 낮은 속도에서 각운동량 제약을 위반한다.", "figure_refs": [6]}, {"type": "bullet", "text": "SNAG는 시험한 네 표면 모두에 착지했다 — 38 mm(발이 횃대 대부분을 감쌈), 64 mm(약 절반 감쌈), 165 mm(4분의 1 미만 감쌈) 참나무 직경과 64 mm 이끼 낀 오리나무 가지 — 그리고 각 다리의 독립적 수동 에너지 흡수로 경사진 가지를 수용했다.", "figure_refs": [6]}, {"type": "bullet", "text": "동일한 전삼지형 송골매 영감 하드웨어로, SNAG는 4.49 ± 0.40 m/s로 손으로 발사된 먹잇감 유사 물체(먹잇감 모형, 콩주머니, 테니스공)를 약 5 m/s의 발-물체 속도차로 잡았으며, 실외 비행 중에도 물체를 잡을 수 있었다.", "figure_refs": [7]}, {"type": "bullet", "text": "오리건 숲에서 SNAG는 거의 수평인 새 같은 착지 중 미송에 동적으로 횃대 착지했고(높은 발 오차에도 성공), 나무 표면에서 이륙·착지·휴식·복귀를 시연했으며, 환경 연구를 위해 온도와 습도를 기록했다.", "figure_refs": [8]}]}, "discussion": {"content": [{"type": "bullet", "text": "정형화된 착지 순서 — 다리 지향, 무너지는 다리가 에너지를 흡수하고 힘줄 차동으로 파지력을 수동 증폭, 발가락이 발가락 패드 마찰과 발톱 요철 힘으로 순응, 다리 자동 잠금, 몸체가 횃대 위에서 균형 — 는 미지의 복잡 기하와 질감(흙, 지의류, 이끼, 습기)에서의 견고한 횃대 착지에 충분하다."}, {"type": "bullet", "text": "SNAG는 새에 할당된 동일한 체중 예산인 체중 6.7% 내에서 이를 달성하며, 각 다리는 자체 무게의 10배를 지탱할 수 있다."}, {"type": "bullet", "text": "DFM은 탄성 다리 힘줄을 경로 잡아 늘림으로써 충격 에너지를 파지력으로 변환하고, 다리 무너짐이 추가 힘줄 힘을 위한 신속 해제를 기계적으로 작동시킨다. 신속 해제 타이밍이 결정적이며, 이는 새에서도 다리 근육/힘줄 장력 개시 타이밍이 똑같이 중요할 수 있음을 시사한다.", "figure_refs": [4]}, {"type": "bullet", "text": "SNAG는 ASIMO 같은 고전 보행 로봇처럼 모든 자유도를 독립 제어하는 대신, 수동 동역학 보행기처럼 다리를 저구동하여 단 두 모터와 희소 정보로 다리당 14자유도를 제어한다."}, {"type": "bullet", "text": "피드백 루프가 너무 느릴 때 수동 동역학이 저구동 적응을 이끈다: 더 높은 충격 속도는 다리를 더 빨리 무너뜨려 발가락이 더 빨리 감기고 파지 타이밍이 충격 속도에 수동적으로 적응한다."}, {"type": "bullet", "text": "SNAG는 발 가속도계로부터 중력 방향만 사용해 균형을 잡으며, 이는 동물이 횃대 착지에 희소한 상태 지식만 필요할 수 있음을 시사한다. 개루프와 폐루프 성능의 유사성은 큰 미끄러짐이 없으면 균형 행동이 대체로 정형화됨을 함의한다."}, {"type": "bullet", "text": "등척 스케일링 분석은 더 큰 SNAG 패러다임 로봇이 더 느린 이동 반응을 낳고 착지 시 각운동량이 길이의 5제곱(l^5)으로 증가함을 보이므로, 더 큰 로봇은 파지 충분 영역 내에 머물도록 덜 공격적인 기구학을 선택할 수 있다."}, {"type": "bullet", "text": "SNAG의 파지는 빠르다: 포획 시 약 10 ms, 수동 신속 해제 시 20 ms 미만, 횃대 착지 시 30–50 ms로 — 이전 96 ms 고속 기구보다 4배 이상 빠르며, 사랑앵무(19 ± 7 ms)와 먹잇감을 치는 맹금류(10–30 ms)에 필적한다."}, {"type": "bullet", "text": "두 흔한 발가락 배열을 모두 시험한 결과 작은 횃대 착지 성능 차이만 발견되어, 횃대 착지 자체가 수목 조류 발가락 다양성을 설명하는 진화적 선택압을 형성하지 않으며 로봇이 어느 배열로든 유사하게 횃대 착지할 수 있음을 시사한다.", "figure_refs": [4]}]}, "conclusion": {"content": [{"type": "bullet", "text": "SNAG는 새가 이륙·착지·파지하는 방식을 활용하면 충격 에너지를 수동적으로 파지력으로 변환하여 고속 충돌을 수용하며 복잡 표면에 동적으로 횃대 착지하고 불규칙 물체를 파지할 수 있는 로봇이 나옴을 보인다.", "figure_refs": [1]}, {"type": "bullet", "text": "저구동 파지 기구는 두 다리와 최소 구동으로 불규칙한 형상의 물체를 50밀리초 미만에 감싼다."}, {"type": "bullet", "text": "로봇을 나뭇가지를 향해 발사하여 수학적 충분 모델을 입증했고, 더 큰 등척 스케일링 동물과 로봇이 유사한 착지 성능을 달성하려면 질량 대비 불균형하게 큰 각운동량을 수용해야 함을 보였다."}, {"type": "bullet", "text": "폐루프 균형 제어는 횃대 착지에 충분한 파라미터 범위를 최대화하여 횃대 착지 충분 영역을 넓히는 중요한 역할을 한다."}, {"type": "bullet", "text": "충분 영역은 로봇 설계·제어의 새로운 패러다임을 제공한다: 고전적 파라미터(예: 총 손가락 힘) 최적화는 로봇의 목표 달성 가능성을 높이는 한에서만 중요하므로, 로봇은 목표 관련 충분 영역을 벗어날 가능성을 최소화하도록 행동해야 한다."}, {"type": "bullet", "text": "현대 조류 발가락 배열의 두드러진 차이는 큰 횃대 착지 성능 변화를 낳지 않아, 수목 횃대 착지가 흔한 새 발가락 위상 간 강한 선택압이 아님을 시사한다."}, {"type": "bullet", "text": "SNAG의 횃대 착지 기구는 발로 날아드는 물체를 신뢰성 있게 잡고 놓을 수도 있으므로, 동적 횃대 착지와 비행 중 먹잇감 포획에 모두 사용 가능한 다리와 발의 진화는 비교적 단순했을 수 있으며 공중 로봇에게도 도달 가능하다."}, {"type": "bullet", "text": "새 영감 설계는 SNAG를 환경 및 생물다양성 모니터링을 위한 저비용 이동 센서 패키지로 적합하게 만들며, 실제 숲 가지에 횃대 착지하여 미기후(온도와 습도)를 기록함으로써 입증되었다.", "figure_refs": [8]}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "SNAG의 균형은 새에 비해 초보적이다: 발 가속도계를 통해 중력 방향만 감지하며 새처럼 발 디딤을 조정할 수 없다.", "source_quote": "To accomplish this, SNAG uses an active hip joint to balance, but it cannot adjust its footing as birds do.", "source_section": "method"}, {"claim": "고충격 시험이 로봇을 손상시킬 위험이 있어 충분 모델의 선운동량 상한은 실험적으로 검증되지 않았다.", "source_quote": "Therefore, our model also incorporates an upper bound on the linear momentum, which we did not probe experimentally.", "source_section": "experiment"}, {"claim": "모델의 선운동량 상한 임계값은 로봇 파손을 피하기 위해 측정 대신 해석적으로(하한 임계값의 두 배) 설정되었다.", "source_quote": "The upper threshold is set to be twice the lower threshold. We did not experimentally test this limit to avoid damaging the robot.", "source_section": "method"}], "future_works": [{"claim": "향후 SNAG 설계는 새가 날개와 꼬리를 사용하는 방식과 유사하게 충분 영역을 키우는 공기역학적 힘을 생성하여 균형을 더욱 잘 잡을 수 있다.", "source_quote": "future designs (data file S8) may balance even better by generating aerodynamic forces that grow the sufficiency region similar to birds.", "source_section": "discussion"}, {"claim": "향후 현장 로봇은 느리고 센서가 많은 로봇 파지에서, 제한된 환경 정보 하에서 빠르고 충분히 정확한 세계와의 상호작용으로의 패러다임 전환이 필요할 것이다.", "source_quote": "Thus, future robots will need a paradigm shift from the common approaches in robotic grasping of variable surfaces that are relatively slow and require high-quality sensory information (67); for robots to work in \"real time\" in complex environments, we need ways to interact with the world at higher speeds with sufficient accuracy even when there is limited information about the environment.", "source_section": "discussion"}, {"claim": "풍부한 조류형 센서 모음의 센서 융합은 복잡 환경에서 횃대 착지 성능을 특히 견고하게 만들 수 있으며 향후 로봇에 기여할 수 있다.", "source_quote": "Sensor fusion of the exceptional avian sensor suite can then serve to make their perching performance particularly robust in complex environments, a strategy that may serve future robots.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["현재 공중 로봇은 불규칙 물체를 동적으로 파지하고 새가 외견상 쉽게 다루는 다양한 복잡 표면에 횃대 착지하는 능력이 제한적이다.", "이전 파지/횃대 착지 로봇은 입증된 신뢰성이 낮은 채 좁은 범위의 특수 표면용으로 개발되었고, 여러 새 영감 횃대 착지 기구는 성공적인 이착륙을 시연하지 못했으며, 어느 것도 횃대 착지 후 균형을 위한 자세 제어를 수행하지 못했다.", "가장 흔한 조류 발가락 배열(전삼지형 vs. 대지형)이 실제로 횃대 착지나 파지 성능에 영향을 주는지 알려져 있지 않은데, 새에서 이 변수를 분리한 실험 연구가 없기 때문이다.", "새 다리와 발이 동적 횃대 착지와 먹잇감 포획을 어떻게 달성하는지 연구하는 것은 생체 내(in vivo)에서 수행하기 어렵다."], "addressed_by_this_work": ["복잡한 자연 표면에 동적으로 횃대 착지하고 불규칙 물체를 잡는 생체모방 이족 파지기 SNAG를 개발하여, 저구동 발가락을 50 ms 이내에 감고 능동 고관절을 통해 접촉 후 균형을 잡는다.", "기구학적 착지 포락선을 하드웨어·행동·횃대 변수와 통합하는 다차원 횃대 착지 충분 영역을 정의하고 실험적으로 입증했으며(나뭇가지에서 약 190회 발사 시도), 폐루프 균형 제어가 이를 넓힘을 보였다.", "전삼지형과 대지형 발 설계를 다양한 속도에서 시험하여 미미한 횃대 착지 성능 차이만 발견했으며, 수목 횃대 착지가 발가락 위상 간 강한 선택압이 아님을 시사했다.", "로봇을 물리적 조류 다리 모델로 사용하여 생체 내에서 불가능한 방식으로 기구(DFM, TLM, 신속 해제 타이밍, 스케일링)를 탐구하고, 온보드 미기후 센싱과 함께 숲 횃대 착지를 시연했다."], "remaining_unresolved": ["충분 모델의 선운동량 상한은 (로봇 손상을 피하기 위해 해석적으로 설정되어) 여전히 실험적으로 검증되지 않았다.", "SNAG는 희소한 상태 정보(중력 방향)만으로 균형을 잡고 새처럼 발 디딤을 조정하거나 공기역학적 균형을 사용할 수 없어, 고도로 복잡한 환경에서의 견고성은 미해결로 남는다.", "등척 스케일링은 더 큰 SNAG 패러다임 로봇이 길이의 5제곱(l^5)으로 증가하는 각운동량과 더 느린 이동 반응을 수용해야 함을 함의하며, 이는 덜 공격적인 기구학으로 완화되지만 제거되지는 않는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Lift enhancement of a butterfly-like flapping wing vehicle by reinforcement learning algorithm</title>
+    <meta name="keywords" content="flapping wing vehicle, butterfly-like FWV, reinforcement learning, PPO, take-off lift enhancement, experimental platform, upstroke lift peak, forewing-hindwing interaction, unsteady aerodynamics">
+    <meta name="paper-authors" content="Min Xiong, Zhen Wei, Yunjie Yang, Qin Chen, Xi Yan Liu">
+    <meta name="paper-journal" content="Bioinspiration & Biomimetics, Vol. 18, No. 4, 046010, 2023 (DOI 10.1088/1748-3190/acd3cc)">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Lift enhancement of a butterfly-like flapping wing vehicle by reinforcement learning algorithm</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Min Xiong, Zhen Wei, Yunjie Yang, Qin Chen, Xi Yan Liu</div>
+            <div class="journal">Bioinspiration & Biomimetics, Vol. 18, No. 4, 046010, 2023 (DOI 10.1088/1748-3190/acd3cc)</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 완전 물리 실험 플랫폼에서 모델프리 온폴리시 액터-크리틱 <span class="eng">proximal policy optimization</span>(PPO) 알고리즘을 적용하여 실제 나비형 <span class="term">flapping wing vehicle</span>(FWV)의 이륙 양력을 향상시킨다. 50 g, 81 cm 날개폭의 비행체는 6성분 힘 센서가 있는 거치대에 장착되어 무선 급전되는 두 개의 서보로 구동되며, 그 날갯짓 운동은 진폭, 중간 위치, 하강타 비율, 주파수로 매개변수화된다. 단 300번의 학습 스텝 후 평균 공기역학적 양력이 0.044 N에서 0.861 N으로 상승하여, 어떠한 외부 보조나 기류 없이도 비행체의 이륙 요구를 충족하기에 충분했다. 학습된 운동 분석은 상승타에서 예상치 못한 강한 양력 피크를 드러냈는데, 저자들은 이를 수동 날개 비틀림의 탄성 방출과 앞날개-뒷날개 사이 간극의 개폐 — 기존 공기역학 방법으로는 쉽게 예측되지 않는 특성 — 로 실험적으로 추적한다.</div>
+            <div class="keywords"><span class="keyword-chip">flapping wing vehicle</span><span class="keyword-chip">butterfly-like FWV</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">PPO</span><span class="keyword-chip">take-off lift enhancement</span><span class="keyword-chip">experimental platform</span><span class="keyword-chip">upstroke lift peak</span><span class="keyword-chip">forewing-hindwing interaction</span><span class="keyword-chip">unsteady aerodynamics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">나비는 높은 비행 능력, 낮은 가로세로비 날개, 큰 날갯짓 진폭, 낮은 날갯짓 주파수 때문에 생체모방 항공기 연구자들의 관심을 끌어왔다. 여러 나비형 FWV(FESTO eMotion Butterflies, 베이항 대학교, Tanaka의 인공 나비)가 제작되었으나, 비정상 공력 생성과 날개 유연성에서 오는 강한 유체-고체 상호작용이 여전히 잘 이해되지 않아, 이 비행체들은 아직 살아 있는 나비처럼 날 수 없다. 저자들은 특히 머신러닝 기반 공력 최적화가 여전히 부족한 실제 비행체에 대해, 강화학습이 이륙 양력을 향상시키는 실현 가능한 경로라고 주장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 두 갈래에 걸친다. 실제 나비 비행 공기역학에 대한 관찰·실험 연구(선행 와류, 후류 포착, 이륙 힘 측정)와 날갯짓 운동의 머신러닝 기반 최적화이다. 기존 RL 연구는 주로 동역학 모델이나 시뮬레이션에서 날갯짓 운동학을 최적화했으나 — 에너지 최소화 호버링, 초파리 날개 최적화, 빠른 회피 및 뒤집기 기동, 날개 변형 제어, 자세 안정화 — 머신러닝을 이용한 실제 FWV 공력 최적화는 여전히 충분히 탐구되지 않았다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">나비형 FWV(탄소섬유-나일론 날개, 두 개의 마이크로 서보, 3D 프린팅 동체, STM32 마이크로컨트롤러가 있는 1.2 g 제어 회로), 무선 전원 공급, 무선 통신, ATI Nano17-Ti 6성분 힘 센서, NOKOV 모션캡처 시스템으로 구성된 완전한 물리 하드웨어 시스템이 구축되었다. 에이전트와 학습 환경을 갖춘 MATLAB 강화학습 프로그램은 모델프리 온폴리시 액터-크리틱 PPO 알고리즘을 사용하며, 날갯짓 운동은 진폭, 중간 위치, 하강타 비율, 주파수로 매개변수화되고 구간별 보상 함수가 더 높은 양력에 보상한다. 날개 관성력은 강체 모델로 추정되어 측정된 힘에서 빼서 공기역학적 양력을 얻는다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">물리 플랫폼을 300번의 PPO 학습 스텝(약 25시간) 동안 실행하여 보상을 0에서 약 2000으로, 주기당 평균 공기역학적 양력을 0.044 N에서 0.861 N으로 끌어올렸으며, 운동 매개변수는 (51도, -14도, 0.35, 1.7 Hz)에서 (73도, -12도, 0.3, 2 Hz)로 수렴했다. 학습된 고양력 운동은 하강타에서 기존의 양력 피크와 더불어 상승타에서 예상치 못한 강한 양력 피크를 생성했다. 선택된 학습 스텝(S297, S112, S255, S47)의 비교, 최대 각가속도에 대한 통계 분석, 앞날개-뒷날개 간극 실험이 상승타 피크가 언제 왜 나타나는지 특성화했다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 최적화 후 평균 양력이 약 15배 증가했고, 지배적인 새로운 발견이 나비 양력이 주로 하강타에서 생성된다는 전통적 견해와 모순되는 상승타의 강한 양력 피크임을 강조한다. 그들은 깃요소-운동량 추정으로 부가 질량력을 원인에서 배제하고, 대신 상승타 피크를 앞날개-뒷날개 간극의 수동 개폐와 날개 비틀림의 탄성 방출(빠른 회외)에 귀속하며, 잠자리 앞날개-뒷날개 상호작용과의 유사성을 끌어낸다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실제 나비형 FWV를 위한 통합 실험 플랫폼이 설계되어 모델프리 온폴리시 액터-크리틱 PPO 알고리즘으로 공력 성능을 최적화하는 데 사용되었다. 단 300번의 학습 스텝에서 평균 공기역학적 양력이 0.044 N에서 0.861 N으로 상승하여, 외부 보조 없이 약 50 g 비행체의 이륙을 지탱하기에 충분했다. 학습 결과의 면밀한 연구는 앞날개-뒷날개 간극의 수동 개폐와 날개 비틀림의 탄성 방출에 귀속되는 짧지만 강한 상승타 양력 피크를 밝혀, 전통적인 하강타 지배 견해를 넘어선 양력 생성의 새로운 가능성을 제공한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "나비는 생체모방 항공기 연구자들로부터 강한 관심을 끌어왔으며, FESTO의 'eMotion Butterflies'(50 cm 날개폭, 32 g, 1–2 Hz 날갯짓)는 나비형 FWV로 달성 가능한 뛰어난 성능을 시연했다."}, {"type": "bullet", "text": "베이항 대학교와 Tanaka 등도 공력, 받음각, 기류를 연구하기 위해 나비형 FWV와 인공 나비를 제작하여, 후속 나비형 FWV 설계의 기반을 제공했다."}, {"type": "bullet", "text": "생체모방 항공기 설계와 제어에 있어 날개 유연성에 따른 비정상 공력 생성과 강한 유체-고체 상호작용이 여전히 불명확하여, 나비형 FWV는 아직 실제 나비만큼 잘 날지 못하고 스스로 이륙할 수 없다."}, {"type": "bullet", "text": "생체모방 FWV는 우수한 은폐성, 낮은 소음, 높은 공력 효율을 제공하여 군사 탐지, 환경 모니터링, 구조 응용에 매력적이며, Nano Hummingbird, RoboBee, BatBot, DelFly 같은 돌파구에 동기를 부여한다."}, {"type": "bullet", "text": "나비는 높은 비행 능력과 독특한 낮은 가로세로비 날개, 큰 날갯짓 진폭, 낮은 날갯짓 주파수를 가진 곤충이며, 일부 종은 멈추지 않고 수천 킬로미터를 이동한다."}, {"type": "bullet", "text": "머신러닝 알고리즘의 부상과 함께 연구자들은 FWV 설계 문제를 해결하기 위해 학습 방법을 점점 더 많이 사용하지만, 대부분 유사성 고려나 수치 시뮬레이션에 기반하여 실제 FWV 설계와 제어에 직접 적용하기 어렵다."}, {"type": "bullet", "text": "머신러닝에 의한 실제 FWV의 공력 최적화가 여전히 부족하므로, 이 논문이 표명한 목표는 강화학습을 통해 실제 나비형 FWV의 공력 성능을 최적화하는 것이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "많은 연구자(Dudley; Tanaka와 Shimoyama; Srygley와 Thomas; Takahashi 등; Suzuki 등)가 나비 비행을 관찰·분석하여 선행 와류와 후류 포착의 역할을 밝히고 이륙 중 힘을 측정했다."}, {"type": "bullet", "text": "Berman과 Wang, 그리고 Rakotomamonjy 등은 동역학 모델에서 날갯짓 운동을 최적화하기 위해 강화학습을 사용하여 낮은 에너지 소비로 호버링 비행을 달성했다."}, {"type": "bullet", "text": "Motamed과 Yan은 물속에서 초파리 날개 모델의 운동을 강화학습으로 최적화하여 충분한 양력을 얻었다."}, {"type": "bullet", "text": "Deng, Fei, Tu(Purdue)는 RL을 사용해 시뮬레이션에서 비행 기동 제어를 최적화하고 이를 실제 모델로 전이하여, 공력 모델 없이도 빠른 회피와 360도 뒤집기 기동을 달성했다."}, {"type": "bullet", "text": "Xu 등은 강화학습을 사용해 날개 변형을 제어하고 공력 성능을 향상시켰으며, Han 등은 RL을 FWV 제어기(SARSA)와 결합하여 변화하는 기류 하에서 자세 응답을 개선하고 안정적 제어를 실현했다."}, {"type": "bullet", "text": "이러한 결과에도 불구하고 대부분의 연구는 유사성 고려나 수치 시뮬레이션에 기반하므로, 머신러닝에 기반한 실제 FWV의 공력 최적화 연구는 여전히 부족하며, 이것이 본 연구의 동기가 된다."}]}, "method": {"content": [{"type": "bullet", "text": "나비형 FWV는 81 cm 날개폭, 약 50 g 무게, 단일 날개 질량 8.4 g을 가지며, 날개는 탄소섬유 로드(1.5 mm와 1 mm)와 0.1 mm 빨간 나일론 천 표면을 사용하고, 앞날개 선행 가장자리가 뒷날개보다 단단하여 자연스러운 뒷날개 지연을 만든다.", "figure_refs": [1]}, {"type": "bullet", "text": "두 개의 Kingmax C507 마이크로 서보(7.4 V에서 약 0.22 Nm 토크)가 날개를 구동하고, 날갯짓 각도는 3382G-1 포텐셔미터로 읽으며, 무선 전원 공급(8.0 V에서 2.0 A)이 힘 측정을 방해할 케이블을 제거한다.", "figure_refs": [2]}, {"type": "bullet", "text": "공력은 ATI Nano17-Ti 6성분 힘 센서(Z축 범위 ±14.1 N, UDP로 7000 Hz)로 측정되며, 비행체와 센서는 지면 위 150 cm에서 3D 프린팅 커넥터로 결합된다."}, {"type": "bullet", "text": "MATLAB로 구축된 RL 프로그램은 에이전트와 학습 환경(날갯짓 운동 제어, 보상 및 평가 메커니즘, FWV, 힘 센서)으로 구성되며, 에이전트는 정책을 통해 현재 상태에서 행동을 선택하고 PPO는 보상, 행동, 상태로부터 정책을 갱신한다.", "figure_refs": [3]}, {"type": "formula", "label": "식 (1) — 구간별 보상 함수", "latex": "\\text{Reward} = \\begin{cases} -5\\,F_{lift}\\times(-5) & F_{lift} < 0\\,\\text{N} \\\\ 0 & F_{lift} = 0\\,\\text{N} \\\\ 2(F_{lift}-a)\\times 80 + b & F_1 \\le F_{lift} \\le F_2 \\\\ 2(F_{lift}-1)\\times 5 + 2560 & 1\\,\\text{N} \\le F_{lift} \\end{cases}", "description": "측정된 양력 $F_{lift}$에 형성된 보상으로, 양력 범위 $(F_1,F_2)$와 인자 $(a,b)$가 표로 제공되어 양력이 작든 크든 항상 적절한 보상이 생성되어 의사결정 실수를 피한다."}, {"type": "formula", "label": "식 (2) — 날갯짓 각도 운동", "latex": "\\varphi = k_1\\cos(2\\pi t^{*}) + k_2", "description": "수평면에 대한 날개 날갯짓 각도 $\\varphi$로, $k_1$은 날갯짓 진폭이고 $k_2$는 중간 위치이다."}, {"type": "formula", "label": "식 (3) — 하강타 비율 시간 왜곡", "latex": "t^{*} = \\frac{(p-0.5)}{(p-p^2)}t^2 + \\frac{(0.5-p^2)}{(p-p^2)}t,\\quad t\\in[0,1]", "description": "하강타 주기 비율 $p$로 매개변수화된 시간 변환으로, 코사인 운동을 비틀어 하강타와 상승타 지속시간이 달라질 수 있게 한다."}, {"type": "formula", "label": "식 (4) — 날갯짓 주파수", "latex": "f = \\frac{1}{nT}", "description": "정수 $n$과 고정된 서보 갱신 주기 $T$로 설정되는 날갯짓 주파수 $f$이며, 따라서 운동은 네 매개변수 $k_1$, $k_2$, $p$, $n$으로 변경된다."}, {"type": "bullet", "text": "학습 알고리즘은 날갯짓 진폭(50–100도), 중간 위치(-15–15도), 하강타 비율(0.3–0.7), 주파수(0.80–2 Hz)를 탐색하여, 각 운동을 비행체에 보내고 결과 힘을 측정한다.", "figure_refs": []}, {"type": "bullet", "text": "나비 날개가 크기 때문에 날개 관성력이 상당하다. 날개 변형이 무시할 만하다고 가정하여, 측정된 날갯짓 각도를 사용해 강체 날개 회전으로부터 관성력을 추정하고 총 양력에서 빼서 공기역학적 양력을 얻는다.", "figure_refs": [4]}, {"type": "formula", "label": "식 (5)–(7) — 날개 관성력과 토크", "latex": "\\begin{bmatrix} F_{\\tau}^{io} \\\\ F_{n}^{io} \\\\ M_{IO} \\end{bmatrix} = \\begin{bmatrix} mL\\alpha \\\\ mL\\omega^2 \\\\ J\\alpha \\end{bmatrix},\\quad F_{IZ}(t)=2\\big(F_{\\tau}^{io}\\cos\\theta + F_{n}^{io}\\sin\\theta\\big),\\quad M_Y = F_{IZ}\\,x", "description": "날개 질량 $m$, 관성 모멘트 $J$, 각가속도 $\\alpha$, 각속도 $\\omega$, 날개 질량중심에서 회전축까지의 거리 $L$, 실제 날개 각도 $\\theta$로부터의 강체 관성력 성분이며, $F_{IZ}$는 측정된 힘에서 제거되는 Z방향 관성력이다."}]}, "experiment": {"content": [{"type": "bullet", "text": "원하는 운동에 대한 어떠한 사전 가설 없이, 300 스텝의 에이전트 학습(25시간)이 보상을 0에서 약 2000으로 끌어올렸고, 주기당 평균 이륙 양력은 0.044 N에서 0.861 N으로 점진적으로 상승했다.", "figure_refs": [5]}, {"type": "bullet", "text": "에이전트는 날갯짓 진폭을 70–80도의 최적 범위로 증가시키고, 수평 아래의 중간 위치를 선택했으며, 더 작은 하강타 비율과 더 높은 주파수로 수렴하여, (51도, -14도, 0.35, 1.7 Hz)에서 (73도, -12도, 0.3, 2 Hz)로 이동했다.", "figure_refs": [5]}, {"type": "bullet", "text": "최대 평균 양력(0.861 N)은 50 g 비행체의 이륙을 지탱하기에 충분하며, 양력 곡선은 하강타의 기존 양력 피크와 함께 상승타의 예상치 못한 강한 양력 피크를 드러낸다.", "figure_refs": [6]}, {"type": "bullet", "text": "최대 및 최소 상승타 양력을 가진 학습 스텝(S297 대 S112)을 비교하면, S297 상승타 양력 피크는 8.0 N — S112의 약 여덟 배 — 에 도달하는 반면 하강타 양력은 거의 차이가 없어, 상승타 피크가 주요 차별 요인임을 보인다.", "figure_refs": [7]}, {"type": "bullet", "text": "상승타 양력 피크는 지속시간이 짧지만 날갯짓 주기에 걸친 평균 양력을 크게 증가시키기에 충분히 크다. 최대 각가속도와 평균 상승타 양력 사이에 유의한 양의 상관관계가 발견되었으며(0.7 N보다 큰 양력에 대해 65.0 rad/s^2 이상), 하강타에서는 명확한 상관관계가 없었다.", "figure_refs": [10]}, {"type": "bullet", "text": "통제 실험에서 앞날개-뒷날개 간극을 테이프로 붙였더니, 결과 양력 피크가 원래 분리된 날개보다 훨씬 작아져, 간극의 개폐가 높은 상승타 양력 피크의 중요한 원인임을 나타냈다.", "figure_refs": [11]}, {"type": "bullet", "text": "마커 점의 모션캡처(NOKOV Mars2H) 측정은 상승타 초기에 양력 피크에 도달할 때 부호 있는 앞날개-뒷날개 거리가 0에 가까움을 보였고, 앞날개 비틀림 각도가 0.4–0.6T 동안 -40도에서 0으로 빠르게 복귀하여 탄성 에너지 방출에 의한 빠른 회외(supination)를 나타냈다.", "figure_refs": [12]}]}, "discussion": {"content": [{"type": "bullet", "text": "강화학습은 평균 공기역학적 양력을 초기값 대비 약 15배 증가시켜, 기존 유체역학 방법으로 예측 불가능한 특정 날갯짓 조건에서 상승타에 상당한 양력이 생성될 수 있음을 보였다."}, {"type": "bullet", "text": "기존 연구는 실제 나비 날갯짓에서 양의 양력이 주로 하강타에서 오고 상승타는 음의 양력을 생성하는 경향이 있다고 보았으므로, 발견된 강한 상승타 양력 피크는 새롭고 놀라운 결과이다.", "figure_refs": [6]}, {"type": "bullet", "text": "부가 질량력이 피크를 설명하는지 검증하기 위해 깃요소-운동량 스트립을 적분하여 추정되었다.", "figure_refs": [8]}, {"type": "formula", "label": "식 (8)–(9) — 부가 질량력", "latex": "dF = \\frac{\\pi}{4}\\rho\\,\\bar{c}^2\\,\\alpha\\,r\\,dr,\\qquad F_{al}(t) = \\frac{\\pi}{2}\\rho\\cos\\theta\\int_{r_0}^{r_1}\\bar{c}^2\\,\\alpha\\,r\\,dr", "description": "시위 방향 요소 스트립에 작용하는 부가 질량력과 양력 방향의 적분 성분으로, 공기 밀도 $\\rho$, 등가 시위 $\\bar{c}$, 각가속도 $\\alpha$, 날개폭 길이 $r$, 날갯짓 각도 $\\theta$를 가지며, 계산된 값(<3.0 N, 날카로운 상승타 피크 없음)은 부가 질량이 높은 양력 피크의 원인일 수 없음을 보인다."}, {"type": "bullet", "text": "앞날개-뒷날개 간극 비교와 잠자리 상호작용 문헌은, 잠자리가 앞날개-뒷날개 상호작용에서 추가 공력을 생성하듯, 나비 FWV 간극의 수동 개폐가 상승타 양력 피크를 유발함을 시사한다.", "figure_refs": [11]}, {"type": "bullet", "text": "앞날개 비틀림이 0.4T에서 -40도에 도달한 후 0.4–0.6T 동안 0으로 빠르게 복귀하는 것은 저장된 탄성 위치 에너지를 상승타 시작의 빠른 회외로 방출하며, 양력 곡선 피크와 일치하여 높은 양력에 대한 두 번째 메커니즘을 제공한다.", "figure_refs": [12]}]}, "conclusion": {"content": [{"type": "bullet", "text": "정적 유체에서 이륙을 위한 공력 성능을 최적화하기 위해 완전 기능하는 나비형 FWV와 통합 실험 플랫폼이 성공적으로 설계·제작되었다."}, {"type": "bullet", "text": "복잡한 유체-고체 결합과 비정상 유동 문제를 다루기 위해 학습 환경에서 모델프리 온폴리시 액터-크리틱 PPO 알고리즘이 사용되었다."}, {"type": "bullet", "text": "단 300 스텝의 학습을 통해 평균 공기역학적 양력이 0.044 N에서 0.861 N으로 증가하여, 다른 보조나 기류 없이 약 50 g 비행체의 이륙 요구를 지탱했다."}, {"type": "bullet", "text": "학습 결과의 면밀한 연구는 상승타에서 단기적이지만 강한 높은 양력 피크를 드러내, 평균 양력에 대한 상승타 기여가 하강타를 초과하게 만들었다."}, {"type": "bullet", "text": "검증 및 비교 실험은 높은 상승타 양력 피크가 앞날개-뒷날개 간극의 수동 개폐와 관련되고 날개의 최대 각가속도와 양의 상관관계를 가짐을 보였다."}, {"type": "bullet", "text": "이 연구는 나비형 FWV 비행에 대한 이해를 갱신한다. 전통적으로 양력은 주로 하강타에 귀속되었으나, PPO 강화학습은 상승타에서 양력을 생성하는 또 다른 가능성을 드러낸다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "실험 플랫폼은 앞날개-뒷날개 간극 주변의 유동장이나 날개 변형을 직접 측정할 수 없어, 기저 유동 현상을 더 분석할 수 없었다.", "source_quote": "At present, the wing deformation and flow phenomenon around the gap have not been further analyzed due to the limitations of our experimental platform.", "source_section": "discussion"}, {"claim": "날개 관성력 추정은 날개 변형을 무시하는 강체 단순화에 의존하므로 오차를 유발할 수 있다.", "source_quote": "Rigid body simplification may introduce errors, but it is reasonable when there are no sensors in the learning environment that can give the real-time wing deformation measurement results.", "source_section": "method"}, {"claim": "물리 플랫폼에서 학습이 느리다. 300 스텝에 이미 25시간이 걸렸으므로, 전체 2000 스텝 실행은 167시간 수준을 요구할 것이다.", "source_quote": "It takes 25 h for the 300 steps, ideally the 2000 steps will take 167 h.", "source_section": "experiment"}], "future_works": [{"claim": "이 연구는 향후 날갯짓 비행체의 개발과 공력 최적화를 지원하기 위한 강화학습 경험과 방법론을 제공하는 것으로 자리매김된다.", "source_quote": "This work provides valuable reinforcement learning experience for the future development of FWVs.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["나비형 FWV는 복잡한 비정상 공기역학과 날개 유연성에서 오는 강한 유체-고체 상호작용 때문에 아직 실제 나비처럼 스스로 이륙할 수 없다.", "대부분의 기존 학습 연구가 유사성 고려나 수치 시뮬레이션에 기반하므로, 머신러닝에 기반한 (시뮬레이션이 아닌) 실제 FWV의 공력 최적화는 여전히 부족하다.", "전통적 공력 추정 방법은 이륙 양력을 최대화하는 최적 날갯짓 운동을 쉽게 예측하거나 발견할 수 없다."], "addressed_by_this_work": ["힘 센서와 모션캡처 시스템을 갖춘 통합 실제 하드웨어 실험 플랫폼이 구축되었고, 이륙 양력을 위한 날갯짓 운동을 최적화하기 위해 모델프리 온폴리시 액터-크리틱 PPO 알고리즘이 적용되었다.", "300번의 학습 스텝 후 평균 공기역학적 양력이 0.044 N에서 0.861 N으로 증가하여, 외부 보조나 기류 없이 50 g 비행체의 이륙 요구를 충족하기에 충분했다.", "강화학습은 상승타에서 강하고 이전에 보고되지 않은 양력 피크를 발견했으며, 통제 실험은 이를 수동 날개 비틀림 탄성 방출과 앞날개-뒷날개 간극의 개폐로 추적했다."], "remaining_unresolved": ["플랫폼이 유동 및 변형 감지를 결여하므로 앞날개-뒷날개 간극 주변의 유동 구조와 날개 변형은 특성화되지 않은 채 남아 있다.", "긴 물리 학습 시간이 탐색할 수 있는 학습 스텝과 운동 조합의 수를 제한한다.", "측정된 양력에서 관성력을 빼는 데 사용된 강체 가정은 여전히 근사이다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

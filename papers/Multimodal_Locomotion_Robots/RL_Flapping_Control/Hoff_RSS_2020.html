@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Data-driven modeling of a flapping bat robot with a single flexible wing surface</title>
+    <meta name="keywords" content="data-driven modeling, flapping wing aerial vehicle, bat robot, system identification, parameter estimation, long-term flight prediction, underactuated dynamics, quasi-steady aerodynamics">
+    <meta name="paper-authors" content="Jonathan Hoff, Seth Hutchinson">
+    <meta name="paper-journal" content="Robotics: Science and Systems (RSS) 2020, Corvallis, Oregon, USA, July 12-16, 2020">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Data-driven modeling of a flapping bat robot with a single flexible wing surface</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Jonathan Hoff, Seth Hutchinson</div>
+            <div class="journal">Robotics: Science and Systems (RSS) 2020, Corvallis, Oregon, USA, July 12-16, 2020</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 박쥐 로봇 B2를 위한 하이브리드 제일원리 + <span class="term">데이터 기반</span> 동역학 모델을 개발하는데, 이 로봇은 별개의 날개/꼬리 표면이 아니라 날개와 꼬리에 걸쳐 펼쳐진 단일 유연 실리콘 막을 독특하게 가진다. 기존의 물리 기반 2D 종방향 모델에서 출발하여, 저자들은 네 가지 구조적 항 — 날개-꼬리 결합 함수, 몸체 공기역학 평판, 비선형 꼬리각 사상, 스트립 이론 공기역학 — 을 추가한 뒤, 다수의 꼬리 구동기 구성에 걸친 장기(1초) 비행 경로 예측을 최대화하도록 로드셀 및 자유 비행 데이터에 대해 모델 매개변수를 최적화한다. 단 9회의 로드셀 시험과 소수의 1초 비행만을 사용하여, 최적화된 모델은 원본 대비 피치와 고도 예측을 극적으로 개선하며, 저자들은 이를 자유 비행 데이터를 사용한 박쥐 형태 로봇의 장기 비행 예측에 대한 최초의 검증으로 보고한다. 프로젝트 맥락에서 이 논문은 (RL 제어가 아닌) 데이터 기반 *모델링* 대응물로서 날갯짓 축에 위치한다: 심각하게 과소구동된 날갯짓 비행체의 정확하고 물리적으로 의미 있는 동역학 모델은 모델 기반 학습, 궤적 최적화, 상태 추정의 전제 조건 — 학습/RL 비행 제어기가 궁극적으로 의존하는 기반 — 이다.</div>
+            <div class="keywords"><span class="keyword-chip">data-driven modeling</span><span class="keyword-chip">flapping wing aerial vehicle</span><span class="keyword-chip">bat robot</span><span class="keyword-chip">system identification</span><span class="keyword-chip">parameter estimation</span><span class="keyword-chip">long-term flight prediction</span><span class="keyword-chip">underactuated dynamics</span><span class="keyword-chip">quasi-steady aerodynamics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">정확한 모델은 로봇공학에서 궤적 계획, 장기 예측, 제어, 상태 추정에 결정적이며, 특히 비정상 공기역학과 날개 유연성으로 고도로 과소구동된 날갯짓 시스템에 더욱 그러하다. 다수의 연구가 FWMAV(곤충 규모 비행체, 오니솝터, 로봇 벌새)를 모델링하지만, 능동 및 수동 관절을 가지며 날개와 꼬리에 걸쳐 펼쳐진 단일 유연 막을 가진 박쥐 형태 로봇을 다루는 연구는 극소수이다. 저자들은 박쥐 로봇 B2를 대상으로, 제일원리 추가와 데이터 기반 매개변수 최적화를 통해 기존 모델을 개선하여, 소수의 로드셀 시험과 1초 비행만으로 우수한 장기 예측을 달성한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 날갯짓 비행의 시스템 식별을 조사한다: 선형 최소제곱 또는 경사 기반 비선형 최적화로 가속도 데이터를 사용하는 시간 영역 방법, 1-스텝 대 장기(순방향 적분) 예측, 그리고 특정 작동점 근처에서 효과적인 선형 모델 계열. 순수 데이터 기반 접근은 미탐색 상태에 대해 새 데이터를 필요로 하는 반면, 데이터로 조정된 매개변수를 가진 물리 기반 모델은 적응성이 있고 더 적은 실험을 요구하며 설계 최적화를 가능하게 한다 — 본 논문이 채택하는 전략이다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">B2의 기존 2D 종방향 오일러-라그랑주 모델(피치, x/z 위치, 날갯짓, 회내/회외, 등배 꼬리각의 형상과 준정상 받음각 공기역학)에서 출발하여, 저자들은 네 가지 추가를 도입한다. 날개-꼬리 결합 함수는 단일 막 물리를 포착하기 위해 기준 회내각을 스케일된 꼬리각만큼 증강한다. 몸체 공기역학 평판은 높은 받음각에서 몸체에 평평하게 고정된 막으로부터의 항력을 추가한다. 비선형 꼬리각 사상은 음이 아닌 꼬리각에 대해 양의 오프셋을 추가하여 중립 위치 근처의 급격한 민감도를 해결한다. 마지막으로 스트립 이론(3개 스트립)이 공기역학적 힘을 계산한다. 모든 새 매개변수는 데이터 기반 최적화에 맡겨진다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">두 종류의 데이터가 수집된다: 6축 힘 센서에서 1000 Hz로 9개 날갯짓 주파수(2.5-7.8 Hz, 무풍)에 걸친 로드셀 힘 데이터, 그리고 8-카메라 Vicon 시스템이 100 Hz로 기록한 12개 꼬리 구성(q_DV -16~20도)의 43회 자유 비행 실험에 더해 탑재 IMU. IMU 방위(정확, 낮은 드리프트)와 Vicon 위치는 상호상관 시간 동기화 후 융합된다. 매개변수는 두 단계로 추정된다: 로드셀 데이터가 추력에 맞도록 회내 진폭을 조정한 뒤, fmincon(내부점법)이 여덟 개의 결정 변수를 최적화하여 비행 데이터에 대한 다단계 순방향 시뮬레이션 예측 오차를 최소화한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">최적화된 모델은 q_DV < 0, q_DV >= 0, 그리고 동적 꼬리 변경 비행에 걸쳐 원본 대비 장기 피치 및 고도 예측을 극적으로 개선한다. 날개-꼬리 결합 항은 필수적이다: 이것이 없으면 모델은 큰 양의 꼬리각에서 꼬리의 영향을 과대평가하고 고도를 너무 많이 얻는데, 위로 기운 꼬리가 날개를 양력을 줄이는 음의 기울기로 편향시키기 때문이다. 매개변수 변화(감소된 날개 코드와 꼬리 스팬, 따라서 감소된 면적/힘)는 물리적 설명을 가진다. 훈련 비행 수에 대한 절제 연구는 단 한 번의 1초 비행조차 극적인 개선을 주며, ~3회 시도 이후 수익 체감을 보인다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 기존 물리 기반 구조를 여러 추가 항으로 확장하고 로드셀 및 자유 비행 실험으로 매개변수를 최적화하여 박쥐 로봇의 정확한 모델을 구축하는 데이터 기반 방법론을 개발했다. 장기 예측 결과는 다양한 꼬리 구성에 걸친 모델의 정확도를 입증한다. 한계는 물리적 수정이 재훈련을 위해 새 데이터를 요구할 수 있다는 것이지만, 물리 정보 기반 구조와 추가 항 덕분에 우수한 장기 예측에는 소수의 비행 실험 — 단 한 번의 1초 비행조차 — 만이 필요하다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "정확한 모델은 궤적 계획, 장기 예측, 제어, 상태 추정에 결정적이며, 날갯짓 시스템의 동역학이 고도로 과소구동되어 있기 때문에 특히 중요하다.", "figure_refs": []}, {"type": "bullet", "text": "날갯짓 비행은 날갯짓과 날개 유연성에서 오는 비정상 공기역학 효과로 인해 모델링하기 어렵다; 비행 경로는 좋은 제어기조차 완전히 보상할 수 없는 초기 발사 조건에 의해 상당 부분 결정될 수 있다.", "figure_refs": []}, {"type": "bullet", "text": "기존 모델링 노력은 FWMAV — 곤충 규모 비행체, 새를 모방한 오니솝터, 로봇 벌새 — 에 집중하는 반면, 박쥐 형태 로봇을 모델링하는 연구는 훨씬 적다.", "figure_refs": []}, {"type": "bullet", "text": "생물 박쥐와 Bat Bot(B2)은 근본적으로 다르다: 별개의 날개와 꼬리를 갖는 대신 단일 막이 날개와 뒷다리에 걸쳐 펼쳐져 있으며, 능동 및 수동 관절을 모두 가진다.", "figure_refs": [1]}, {"type": "bullet", "text": "큰 상태 공간(날갯짓이 날갯짓당 최대 ~10도 피치와 ~2 cm 고도 변화를 더함)은 데이터 집약적 방법을 비현실적으로 만든다; 예를 들어 심층 신경망 FWMAV 모델은 30분의 비행 데이터를 요구했다.", "figure_refs": []}, {"type": "bullet", "text": "기여는 기존 B2 모델을 최적화하기 위해 로드셀과 자유 비행 데이터를 결합한 체계적 데이터 기반 절차에 더해, 날개-꼬리 결합 항을 포함한 구조적 추가로, 최소한의 짧은 비행으로부터 장기 예측을 달성한다.", "figure_refs": []}, {"type": "bullet", "text": "저자들이 아는 한, 이는 자유 비행 실험 데이터를 사용하여 박쥐 형태 로봇 모델의 장기 비행 예측을 검증한 최초의 연구이다.", "figure_refs": []}]}, "related_works": {"content": [{"type": "bullet", "text": "시간 영역 시스템 식별은 날갯짓 비행 커뮤니티에서 널리 쓰이며, 자유 비행이나 풍동에서 전진(x) 및 수직(z) 가속도 데이터를 수집하고 최소제곱(선형) 또는 경사 기반 최적화(비선형)로 매개변수를 추정한다.", "figure_refs": []}, {"type": "bullet", "text": "많은 식별 방법이 1-스텝 예측(예: 풍동 힘 적합, 가속도에 대한 최소제곱)으로, 장기 순방향 시뮬레이션 오차를 최소화하지 않는다.", "figure_refs": []}, {"type": "bullet", "text": "여러 연구가 자유 비행 데이터와 순방향 적분 모델 간의 예측 오차를 최소화하기 위해 경사 기반 최적화를 실행하여 식별을 정련한다.", "figure_refs": []}, {"type": "bullet", "text": "선형 모델 구조는 오니솝터와 FWMAV를 효과적으로 모델링하지만 각각 특정 작동점에서 가장 정확하고 그로부터 멀어지면 저하된다; 예를 들어 Rose 등은 오니솝터 강하에 선형 모델 계열을 사용했으나 새로운 기동에는 새 비행 데이터가 필요하다.", "figure_refs": []}, {"type": "bullet", "text": "순수 데이터 기반 접근의 단점은 상태 공간의 미탐색 영역에서 새 데이터가 필요하다는 것이다.", "figure_refs": []}, {"type": "bullet", "text": "데이터로 선택된 매개변수를 가진 물리 기반 모델(예: 테일시터용 매개변수 공기역학 모델, 비선형 최적화 FWMAV 식별)은 매개변수가 물리적 의미를 가지므로 물리적 변화에 적응 가능하며, 재조정에 적은 실험만을 요구한다.", "figure_refs": []}, {"type": "bullet", "text": "그러한 물리적으로 의미 있는 모델은 또한 미래 로봇 버전의 설계 최적화를 가능하게 하는데, 모델이 설계를 어떻게 개선할 수 있는지에 대한 통찰을 주기 때문이다.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "기준선은 궤적 최적화에서 이전에 검증된 기존 2D 종방향 B2 모델이다; B2의 날개는 평판으로, 두 뒷다리는 하나의 평판으로 모델링되며, 공기역학은 준정상이다(계수가 받음각의 대수 함수).", "figure_refs": [2]}, {"type": "formula", "label": "다물체 운동 방정식", "latex": "D(q)\\ddot{q} + C(q,\\dot{q})\\dot{q} + G(q) = Bu + \\Gamma(q,\\dot{q})", "description": "형상 q = [q_y, p_x, p_z, q_FL, q_PS, q_DV](피치, x/z 위치, 날갯짓, 회내/회외, 등배 꼬리각)를 가진 오일러-라그랑주 동역학; Gamma는 공기역학적 힘을 사상하고 B = [0; I]는 세 개의 구동기 입력을 형상 공간으로 사상한다."}, {"type": "formula", "label": "준정상 양력 및 항력 계수", "latex": "C_L = C_{L1}\\sin 2\\alpha, \\qquad C_D = C_{D0} + C_{D1}\\cos 2\\alpha", "description": "양력과 항력이 받음각 alpha에만 의존하는 Wang의 준정상 정식화; 상수 C_L1, C_D0, C_D1은 데이터 기반 최적화로 결정되며, 항력이 추력을 더하지 않도록 제약 C_D0 + C_D1 >= 0이 부과된다."}, {"type": "formula", "label": "날개-꼬리 결합 (증강된 기준 회내각)", "latex": "\\bar{q}^{r}_{PS}(t) = q^{r}_{PS}(t) + a_{coup}\\, q_{DV}(t)", "description": "단일 막 결합을 포착한다: 꼬리(등배) 운동이 음의 스케일 인자 a_coup만큼 날개 회내 기준을 편향시켜, 위로 기운 꼬리가 날개에 하향 회내 기울기를 준다. q_PS가 제어 입력으로 설정되므로 (q_PS를 직접이 아니라) 기준이 수정된다."}, {"type": "formula", "label": "비선형 꼬리각 사상", "latex": "\\bar{q}_{DV} = \\begin{cases} q_{DV} + c^{+}_{DV}, & q_{DV} \\ge 0 \\\\ q_{DV}, & q_{DV} < 0 \\end{cases}", "description": "음이 아닌 꼬리각에 대해 양의 상수 오프셋 c+_DV를 추가하여, 꼬리 막이 가장 팽팽하게 펼쳐지는 중립 0도 위치 근처에서 모델의 고도 과소추정을 보정한다; q_bar_DV가 공기역학적 힘 계산에 사용되는 반면 q_DV는 동역학에 남는다."}, {"type": "bullet", "text": "몸체 공기역학 평판(면적 A_b, x-오프셋 r_b ~ -3 cm)이 몸체에 평평하게 고정된 막 표면을 모델링하기 위해 추가되며, 이는 큰 받음각에서 추가 항력을 기여한다; A_b는 최적화 결정 변수이다.", "figure_refs": []}, {"type": "bullet", "text": "3개 스트립의 스트립 이론이 직사각형 날개를 근사하며, 1-100개 스트립을 훑어 3개가 날갯짓에 걸쳐 100개 스트립 대비 x/z 힘 오차를 1% 미만으로 유지함을 발견하여 선택되었다.", "figure_refs": []}, {"type": "bullet", "text": "네 가지 추가(결합 항, 몸체 평판, 꼬리 사상, 스트립 이론) 모두 강체성과 준정상 가정을 보상하기 위해 데이터 기반 최적화에 맡겨진 매개변수를 도입한다.", "figure_refs": []}]}, "experiment": {"content": [{"type": "bullet", "text": "로드셀 데이터: B2를 6축 JR3 힘-토크 센서(1000 Hz 표집) 위에서 무풍 2.5-7.8 Hz로 날갯짓하도록 구동했으며, 공칭(무날갯짓) 힘을 빼고 6차 50 Hz 버터워스 저역 통과 필터를 적용하여, 날갯짓 주파수 대 평균 순 x-추력의 9개 시험을 얻었다.", "figure_refs": []}, {"type": "bullet", "text": "자유 비행 데이터: UIUC IRL 경기장에서 8대의 Vicon T40 카메라(100 Hz)와 탑재 IMU로 기록된 43회 발사(~8 m/s, ~8.5 Hz)로, q_DV -16~20도의 12개 꼬리 구성을 각 ~1초씩 다룬다.", "figure_refs": [4]}, {"type": "bullet", "text": "IMU 방위는 정확하고 드리프트가 거의 없는 반면 Vicon 방위는 가끔 점프(진동 + 마커 가림)가 있어, IMU 방위와 Vicon 위치를 피치각의 상호상관으로 동기화하여 융합한다.", "figure_refs": [3]}, {"type": "formula", "label": "로드셀 추력 정합 비용", "latex": "J(a_{PS}) = \\sum_{i=1}^{N_l} \\frac{1}{|\\bar{F}^{i}_{x,exp}|}\\big(\\bar{F}^{i}_{x,sim} - \\bar{F}^{i}_{x,exp}\\big)^{2}", "description": "1단계 최적화는 시뮬레이션된 평균 x-방향 추력이 9개 시험에 걸친 로드셀 평균 추력과 일치하도록 회내각 기준 진폭 a_PS(0-45도 범위)를 조정하며, 각 주파수의 측정 힘으로 정규화한다."}, {"type": "formula", "label": "다단계 비행 예측 목적 함수", "latex": "J(P) = \\sum_{i=1}^{N_f}\\sum_{k=0}^{N-1} \\big\\lVert \\bar{x}^{i}_{sim}(t_k) - \\bar{x}^{i}_{exp}(t_k) \\big\\rVert^{2}", "description": "2단계 최적화는 전체 ~1초 궤적에 걸쳐 순방향 시뮬레이션(순방향 오일러, dt = 0.001초)된 질량 중심 상태 x_bar = [q_y, p_x, p_z 및 그 속도]와 실험값 간의 장기 오차를 최소화하여, 1-스텝 적합이 아닌 좋은 장기 예측을 제공한다."}, {"type": "bullet", "text": "여덟 개의 결정 변수 — 날개 코드, 꼬리 스팬, 몸체 평판 면적 A_b, C_L1, C_D1, C_D0, 꼬리 오프셋 c+_DV, 결합 인자 a_coup — 가 벡터 P로 묶여 최적화되며, 원본 모델 매개변수를 초기 추정값으로, fmincon의 내부점 알고리즘을 풀이기로 사용한다.", "figure_refs": []}, {"type": "bullet", "text": "꼬리각 범위에 걸친 13회 훈련 비행이 모델을 훈련하고; 나머지 30회 시험 비행이 이를 평가하는데, 초기 시뮬레이션 상태를 각 실험의 초기 상태와 기록된 구동기 기준(꼬리 변경 비행의 경우 0.1초 서보 지연 추가)으로 설정한다.", "figure_refs": []}]}, "discussion": {"content": [{"type": "bullet", "text": "최적화된 모델은 q_DV < 0, q_DV >= 0, 그리고 아래로 피치한 뒤 위로 피치하는 동적 비행에 대해 실제 피치각과 질량 중심 비행 경로에 밀접하게 일치하는 반면, 원본 모델은 꼬리의 영향을 과대평가했다.", "figure_refs": [5, 6, 7]}, {"type": "bullet", "text": "날개-꼬리 결합 항이 없으면, 최적화 후에도 모델은 큰 양의 q_DV에서 꼬리의 영향을 과대평가하고 고도를 너무 많이 얻는다.", "figure_refs": [6]}, {"type": "bullet", "text": "결합 메커니즘: 위로 기운 꼬리가 날개 기울기를 음으로 편향시켜, 더 적은 양력과 더 적은 고도 획득을 내는 중립 날개 받음각을 준다 — q_DV = 15 및 20도에서 가시적이다.", "figure_refs": [6]}, {"type": "bullet", "text": "최적화된 매개변수는 물리적 의미를 가진다: 감소된 날개 코드와 꼬리 스팬은 효과적으로 날개/꼬리 면적, 따라서 공기역학적 힘을 줄여, 피치 진동 진폭을 낮추어 비행 데이터에 더 잘 맞춘다.", "figure_refs": [5]}, {"type": "bullet", "text": "훈련 비행 수 대비 NRMSE 절제는 모든 시험 비행에 대해 명확한 개선을, 특히 q_DV = 0에서 가장 강하게 보이며, 단 한 번의 1초 비행조차 극적인 이득을 주고 미훈련 꼬리 구성으로 일반화한다.", "figure_refs": [8]}, {"type": "bullet", "text": "~3회 훈련 시도 이후 결정 변수의 상대 변화가 훨씬 작아져, 실용적 훈련 데이터 임계값(응용 의존적)을 나타낸다.", "figure_refs": [8]}, {"type": "bullet", "text": "더 큰 꼬리각(더 높은 받음각)은 여전히 예측하기 어려워 일부 궤적 종단 피치 편차가 있으나, 고도 예측은 정확하게 유지되며 전반적으로 이전 모델 대비 큰 개선이다.", "figure_refs": [6, 7]}]}, "conclusion": {"content": [{"type": "bullet", "text": "데이터 기반 방법론이 기존 물리 기반 구조를 추가 항으로 확장하고 로드셀 및 비행 시험으로 매개변수를 최적화하여 정확한 박쥐 로봇 모델을 구축한다.", "figure_refs": []}, {"type": "bullet", "text": "장기(1초) 예측 결과는 다양한 꼬리 구동기 구성에 걸친 모델의 정확도를 입증한다.", "figure_refs": []}, {"type": "bullet", "text": "이는 자유 비행 실험 데이터를 사용한 박쥐 형태 로봇의 장기 비행 예측에 대한 최초의 검증으로 보고된다.", "figure_refs": []}, {"type": "bullet", "text": "핵심 한계는 물리 시스템이 수정될 때 모델 재훈련에 새 데이터가 필요할 수 있다는 것이다.", "figure_refs": []}, {"type": "bullet", "text": "물리 정보 기반 모델 구조와 추가 항은 우수한 장기 예측에 소수의 비행 실험 — 단 한 번의 비행 시험조차 — 만이 필요함을 의미한다.", "figure_refs": []}, {"type": "bullet", "text": "매개변수가 물리적으로 의미 있기 때문에, 모델은 물리적 변화에 적응 가능하고 미래 로봇 버전의 설계 최적화를 지원할 수 있다.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "모델은 2D 종방향만 다루므로, 모든 비행은 최소한의 롤, 요, 횡방향(y) 운동으로 직선이어야 했고, 피치와 x/z 병진만 고려된다.", "source_quote": "The model in this paper is 2D and all flights in this study are straight with minimal roll, yaw, and y movement, so we consider only the pitch angle q_y, as well as translational coordinates p_x and p_z.", "source_section": "experiment"}, {"claim": "더 큰 꼬리각 q_DV의 비행은 예측하기 어려우며, 궤적 종단 피치가 실제에서 벗어나는데, 이는 시스템의 더 높은 받음각 때문일 가능성이 높다.", "source_quote": "While the prediction has a high level of accuracy, flights with larger q_DV positions are more difficult to predict... This is likely due to the higher angle of attack of the system.", "source_section": "experiment"}, {"claim": "물리 시스템에 수정이 가해질 때 모델 재훈련에 새 데이터가 필요할 수 있는데, 이는 데이터 기반 요소의 한계이다.", "source_quote": "One limitation of this method is that new data may be required to retrain the model when modifications are made to the physical system.", "source_section": "conclusion"}, {"claim": "꼬리각 사상은 중립 0도 위치에서 불연속을 도입하는데, 이는 평활화 없이 제어/계획에 직접 사용하기에는 비물리적이다.", "source_quote": "We note that though there is a discontinuity here, the model can be used for control and planning in the future by fitting a function to smooth the transition.", "source_section": "method"}], "future_works": [{"claim": "불연속적 꼬리각 사상은 매끄러운 적합 함수로 대체되어야 모델이 제어와 계획에 사용될 수 있다.", "source_quote": "We note that though there is a discontinuity here, the model can be used for control and planning in the future by fitting a function to smooth the transition.", "source_section": "method"}, {"claim": "물리적으로 의미 있는 매개변수가 로봇 설계를 어떻게 개선할 수 있는지(예: 양력, 추력, 효율, 기동성 최대화)에 대한 통찰을 제공하므로, 모델은 미래 로봇 버전의 설계 최적화를 지원할 수 있다.", "source_quote": "Another advantage is the ability to perform design optimization for development of future versions of the robot because the model can provide insight into how a robot's design can be improved.", "source_section": "related_works"}, {"claim": "기동성 및 효율 같은 비행 성능에 대한 날개-꼬리 결합 효과와, 그것이 미래 기계 설계에 미치는 함의를 연구할 필요가 있다.", "source_quote": "Future mechanical design of this robot is affected by the amount of coupling between these, and the effects this coupling has on flight performance such as agility and efficiency will need to be studied.", "source_section": "method"}], "motivation_resolution": {"motivating_problems": ["날갯짓 시스템은 고도로 과소구동되어 있고 날갯짓과 날개 유연성에서 오는 비정상 공기역학 효과를 보이므로, 정확한 모델은 궤적 계획, 장기 예측, 제어, 상태 추정에 결정적이지만 얻기 어렵다.", "박쥐 형태를 가진 로봇을 모델링하는 연구는 극소수인데, 이들은 근본적으로 다르다: 능동 및 수동 관절을 가지고 날개와 꼬리 모두에 걸쳐 펼쳐진 단일 유연 막을 가져, 날개와 꼬리 표면이 물리적으로 결합되어 있다.", "데이터 수집이 큰 상태 공간을 덮을 수 없어(날갯짓만으로 날갯짓당 ~10도 피치와 2 cm 고도를 더함), 현대의 데이터 집약적 방법(예: 30분의 비행 데이터를 요하는 심층 신경망)은 실현 불가능하다; 기존 B2 모델도 제한된 장기 예측만을 주었다."], "addressed_by_this_work": ["데이터로 매개변수를 조정하는 물리 기반 모델이 채택되어, 제일원리 구조와 데이터 기반 최적화를 결합하여 다수의 꼬리 구성에 대한 장기 예측을 달성한다.", "구조적 추가 — 날개-꼬리 결합 항, 몸체 공기역학 평판, 비선형 꼬리 사상 — 가 박쥐 형태의 단일 막 결합을 명시적으로 포착한다.", "물리적 지식이 모델에 내장되어 있어, 훈련에 소수의 로드셀 시험과 1초 비행(단 한 번의 비행조차)만이 필요하며, 모델은 훈련에 사용되지 않은 꼬리 구성으로 일반화한다."], "remaining_unresolved": ["모델은 2D 종방향에 머무른다; 완전한 3D 동역학(롤/요/횡방향)은 모델링되지 않는다.", "큰 꼬리각 / 높은 받음각 영역은 덜 정확하게 예측된다.", "로봇에 대한 물리적 수정은 여전히 재훈련을 위해 새 데이터를 요구할 수 있으며, 꼬리 사상 불연속은 제어 사용을 위해 평활화가 필요하다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

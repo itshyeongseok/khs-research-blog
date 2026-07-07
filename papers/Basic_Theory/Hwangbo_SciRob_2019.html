@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning Agile and Dynamic Motor Skills for Legged Robots</title>
+    <meta name="keywords" content="legged locomotion, actuator network, sim-to-real transfer, reinforcement learning, series elastic actuator, quadrupedal robot, curriculum learning, reality gap">
+    <meta name="paper-authors" content="Jemin Hwangbo, Joonho Lee, Alexey Dosovitskiy, Dario Bellicoso, Vassilios Tsounis, Vladlen Koltun, Marco Hutter">
+    <meta name="paper-journal" content="Science Robotics, Vol. 4, Issue 26, eaau5872 (2019) · arXiv:1901.08652 · DOI: 10.1126/scirobotics.aau5872">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning Agile and Dynamic Motor Skills for Legged Robots</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Jemin Hwangbo, Joonho Lee, Alexey Dosovitskiy, Dario Bellicoso, Vassilios Tsounis, Vladlen Koltun, Marco Hutter</div>
+            <div class="journal">Science Robotics, Vol. 4, Issue 26, eaau5872 (2019) · arXiv:1901.08652 · DOI: 10.1126/scirobotics.aau5872</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 실제 사족 로봇(<span class="term">ANYmal</span>)을 위한 신경망 제어 정책을 전적으로 시뮬레이션에서 학습시켜 하드웨어에 직접 배치하는 방법을 제시한다. 핵심 아이디어는 빠른 해석적 강체 모델과 학습된 <span class="term">actuator network</span>를 결합한 하이브리드 시뮬레이터이다. actuator network는 관절 위치 오차와 속도의 이력을 실현된 관절 토크로 매핑하도록 지도학습으로 학습된 작은 다층 퍼셉트론으로, 12개 <span class="term">series elastic actuators (SEAs)</span>의 달리 모델링할 수 없는 동역학을 포착한다. <span class="term">TRPO</span>에 곱셈형 <span class="term">curriculum</span>, dynamics 무작위화, 관측 잡음을 더해 학습된 제어기는 같은 로봇의 이전 최고 모델 기반 제어기를 능가한다: 명령 조건부 보행은 더 정확하고 토크를 23-36% 적게 쓰며, 고속 제어기는 ANYmal의 속도 기록을 25% 경신하고(~1.5 m/s 도달), 복구 제어기는 임의 구성에서 넘어진 로봇을 똑바로 뒤집는다 — 비슷한 복잡도의 사족 로봇에서 이전에 달성되지 않은 위업이다. 추론은 CPU 한 스레드에서 ~25 µs만 걸리며, actuator-net 접근은 광범위하게 수작업 튜닝된 해석적 actuator 모델이 실패하는(하드웨어에서 단 한 걸음도 떼지 못함) 곳에서 reality gap을 닫는다.</div>
+            <div class="keywords"><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">actuator network</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">series elastic actuator</span><span class="keyword-chip">quadrupedal robot</span><span class="keyword-chip">curriculum learning</span><span class="keyword-chip">reality gap</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 다리형 로봇이 독보적으로 유능하지만 제어가 극도로 어렵다고 주장하며, 모듈식 및 궤적 최적화 제어기와 그 무거운 수작업 튜닝·근사 비용을 개관한다. 강화학습을 유망한 자동화 대안으로 규정하되, reality gap — 주로 복잡한 actuator의 모델링 불가능한 동역학 — 에 가로막힌다고 본다. 논문의 핵심 기여는 해석적 강체 모델과 학습된 actuator network를 결합한 하이브리드 시뮬레이터로, 빠르고 정확한 학습과 SEA 구동 ANYmal 로봇으로의 직접 전이를 가능하게 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Science Robotics는 관련 연구를 서론에 통합하므로, 이 절은 이전 제어 패러다임과 sim-to-real 전략에 대한 논문의 위치를 정리한다. 모듈식 설계, 궤적 최적화, 시뮬레이션 전용 RL을 대비하고, actuator-net 접근을 system-identification 진영과 무작위화-견고성 진영 양쪽에 견주며, 해석적 actuator 모델링이 논문이 제거하는 병목인 이유를 강조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 방법은 네 단계로 이뤄진다: 강체 파라미터 식별(견고성을 위한 무작위화 포함), 실제 관절 데이터에 대한 지도학습으로 actuator network 학습, 결과 하이브리드 시뮬레이터에서 TRPO와 커리큘럼으로 제어 정책 학습, 그리고 하드웨어에 직접 배치. 제어 정책은 현재 관측과 관절 상태 이력을 관절 위치 목표로 매핑하는 작은 MLP이며, 위치 목표는 고정된 낮은 PD 게인으로 토크로 변환된다. actuator net은 빠른 강체 시뮬레이션 내부에서 실현 토크를 공급한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 세 학습 제어기를 실제 ANYmal에 배치한다: 명령 조건부 보행, 고속 보행, 넘어짐 복구. 학습 정책은 추적 정확도·토크·전력에서 기존 최고 모델 기반 제어기를 이기고, 새 속도 기록을 세우며, 임의의 넘어진 자세에서 안정적으로 복구한다. ablation은 (이상적 또는 해석적 모델이 아닌) 학습된 actuator net이 전이를 가능하게 하는 것임을 확인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토론은 학습 접근을 엔지니어링 제어기와 대비하며, 모든 튜닝이 시뮬레이션에서 일어나고, 정책이 런타임에 계산적으로 저렴하며 특이 구성에서 자유롭고, 학습된 actuator 동역학과 확률적 모델링이 reality gap을 줄이는 것임을 강조한다. 또한 방법의 남은 비용을 솔직히 밝힌다: 과제별 비용 함수 설계, 독립 actuator 가정, 과제 간 일반화의 부재.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 시뮬레이션 몇 시간에 학습된 제어기가 수년에 걸쳐 설계·튜닝된 기존 최고 모델 기반 제어기를 능가하여 더 빠르고 정밀하며 효율적으로 작동했고, 복구 제어기가 비슷한 사족에서 이전에 실현되지 않은 동적 뒤집기를 달성했다고 밝힌다. 저자들은 이 연구를 포괄적이고 다재다능한 다리형 보행 제어기를 향한 한 걸음으로 규정한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "다리형 로봇은 접촉 지점을 선택하고 다리 길이에 맞먹는 장애물을 넘을 수 있어 큰 잠재력을 갖지만, 명시할 수 없고 시변하는 접촉을 가진 고차원 비평활 시스템이라 제어가 매우 어렵다."}, {"type": "bullet", "text": "지배적 접근인 모듈식 제어기 설계는 제어를 분리된 하위 모듈(예: 템플릿 동역학 발판 계획, 궤적 생성, PID 추적)로 분해하지만, 제한된 모델링 상세도가 작은 유효 작동 영역과 기동마다 수개월의 수작업 튜닝을 강요한다."}, {"type": "bullet", "text": "궤적 최적화 접근(계획 + 추적)은 더 자동화되어 있지만 접촉에 대한 근사가 필요하고 런타임에 계산 비용이 크며, 두 모듈이 서로 적응하지 않아 현재 최고의 모듈식 제어기보다 성능이 떨어진다."}, {"type": "bullet", "text": "<span class=\"term\">Reinforcement learning</span>은 경험으로부터 제어기를 직접 학습하고 센서에서 저수준 신호까지 end-to-end로 최적화할 수 있지만, 보통 수 주에서 수개월의 실시간 상호작용이 필요하고 학습 중 혼란스럽게 행동할 수 있어, 물리적 다리형 시스템에 직접 적용하는 경우는 드물다."}, {"type": "bullet", "text": "시뮬레이션 학습 정책의 전이는 <span class=\"term\">reality gap</span>에 의해 방해받는다. 이는 시뮬레이션 충실도 향상(system identification)이나 무작위화를 통한 제어기 견고화로 메울 수 있으며, 실제로는 둘을 결합한다."}, {"type": "bullet", "text": "가장 가까운 이전 연구 Tan 등(Minitaur)은 사족 sim-to-real을 달성했지만 결정적으로 정확한 해석적 actuator 모델에 의존했는데, 이는 직접 구동 actuator에는 가능하지만 더 큰 로봇에 쓰이는 SEA, 서보, 유압에는 그렇지 않다."}, {"type": "bullet", "text": "핵심 통찰은 고전 관절형 강체 및 접촉 모델을, 실시간보다 ~1000배 빠르게 도는 하이브리드 시뮬레이터 안에서 학습된 <span class=\"term\">actuator net</span>(자기 지도학습으로 물리 시스템에서 학습)과 결합하여, 단일 CPU/단일 GPU PC에서 11시간 미만의 학습을 가능하게 하는 것이다.", "figure_refs": [1]}, {"type": "bullet", "text": "Minitaur보다 발자국 대비 다리가 더 길고(더 동적이며 덜 안정적) SEA 12개를 가진 ANYmal에 적용하여, 이 방법은 더 정확하고 에너지 효율적인 명령 추종, 25% 속도 기록, 그리고 넘어짐으로부터의 동적 복구를 산출한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "모듈식 제어기(Kalakrishnan 등, Bellicoso 등)는 인상적인 험지 및 동적 보행 결과를 달성했고 여전히 최첨단이지만, 템플릿 동역학, 분리된 하위 모듈, 광범위한 모듈별 수작업 튜닝에 의존한다."}, {"type": "bullet", "text": "접촉을 평활화하거나 사전 명시하는 궤적 최적화 방법(Neunert 등, Farshidian 등, Posa 등, Carius 등)은 동작 생성을 자동화하지만 근사와 런타임 연산을 요구하며 여전히 최고 모듈식 제어기보다 성능이 떨어진다."}, {"type": "bullet", "text": "시뮬레이션 RL은 애니메이션 캐릭터의 완전 3D 보행을 산출했지만(Levine & Koltun, Schulman 등, Heess 등, Peng 등), 그러한 정책이 물리 시스템에서 작동할 수 있는지는 불분명했다."}, {"type": "bullet", "text": "reality gap 메우기는 충실도 향상 / <span class=\"term\">system identification</span>(번거롭고 때로 불가능)과 무작위화를 통한 견고성 — 확률적 정책, dynamics 무작위화, 관측 잡음, 외란(성능을 저해할 수 있음) — 으로 나뉘며, 보통 함께 사용된다."}, {"type": "bullet", "text": "Tan 등은 정확한 해석적 actuator 모델에 dynamics 무작위화를 더해 Minitaur에서 사족 sim-to-real을 성공적으로 시연했지만, 그 모델링 경로는 SEA로 확장되지 않는다."}, {"type": "bullet", "text": "Gehring 등은 거의 백 개의 파라미터로 해석적 SEA 모델링을 시도했지만, 저자들은 이 모델이 고성능 보행 제어기 학습에 충분히 정확하지 않음을 보여, 학습된 actuator net을 동기화한다."}]}, "method": {"content": [{"type": "bullet", "text": "학습 루프는 빠른 자체 강체 접촉 솔버(엄밀한 Coulomb 마찰 접촉, 사족에 대해 ~90만 스텝/초)와 actuator net을 번갈아 한다. 전체 하이브리드 시뮬레이터는 ~50만 스텝/초로 실시간보다 약 1000배 빠르게 돈다.", "figure_refs": [1, 5]}, {"type": "bullet", "text": "링크 관성 속성은 CAD로부터 최대 ~20% 예상 오차로 추정되므로, 링크 질량(U(-15,15)%), CoM 위치(U(-2,2) cm), 관절 위치(U(-2,2) cm)가 확률적으로 샘플링된 30개 ANYmal 모델에 걸쳐 학습하여 정책을 견고화한다 — dynamics/기구학 무작위화의 한 형태이다."}, {"type": "bullet", "text": "<span class=\"term\">actuator network</span>는 관절 위치 오차와 속도의 이력을 실현 관절 토크로 매핑하도록 자기 지도학습으로 학습되어, 해석적으로 모델링하기 거의 불가능한 actuator·제어기·지연·컴플라이언스 동역학을 포착한다. 12개 actuator는 독립적이라고 가정되어 하나의 공유 네트워크로 모델링된다.", "figure_refs": [5]}, {"type": "bullet", "text": "학습 데이터(400 Hz에서 100만 샘플 이상, 12개 actuator로부터 병렬로 4분 미만에 수집)는 진폭 5-10 cm, 주파수 1-25 Hz를 아우르고 수동 외란을 가한 사인파 발 궤적 제어기에서 왔다. ~90%는 학습, ~10%는 검증에 사용되었다."}, {"type": "bullet", "text": "actuator net은 <span class=\"term\">softsign</span> 활성화를 사용하는 32유닛 은닉층 3개의 MLP이다(매끄럽고 유계이며 빠르기 때문에 tanh보다 선택됨: 12개 관절 전체에 31.6 µs 대 12.2 µs). 토크를 ~0.74 N·m RMS로 예측하는데, 이는 0.2 N·m 측정 분해능에 가깝고 이상적 모델의 3.55 N·m 오차보다 훨씬 우수하다.", "figure_refs": [6]}, {"type": "bullet", "text": "제어 문제는, 최근 관측의 튜플에 조건화된 확률적 정책 하에서 무한 지평에 걸친 기대 할인 보상 합을 최대화하는 것으로 이산 시간에서 제기된다.", "figure_refs": []}, {"type": "formula", "label": "RL 목적함수 (식 1) — 할인 수익", "latex": "\\pi^{*} = \\arg\\max_{\\pi} \\; \\mathbb{E}_{\\tau(\\pi)} \\left[ \\sum_{t=0}^{\\infty} \\gamma^{t} r_{t} \\right]", "description": "정책은 할인 인자 $\\gamma \\in (0,1)$와 정책 $\\pi$ 하의 궤적 분포 $\\tau(\\pi)$로 기대 할인 보상 합을 최대화하도록 최적화된다. 할인은 과제별로 튜닝되었다(보행은 $\\gamma=0.9988$, 반감기 5.77 s; 복구는 $\\gamma=0.993$)."}, {"type": "bullet", "text": "시간 스텝 $k$에서의 관측은 튜플 $o_k = \\langle \\phi_g, r_z, v, \\omega, \\phi, \\dot{\\phi}, \\Theta, a_{k-1}, C \\rangle$이다: IMU의 중력 방향 단위 벡터, 기저 높이/선속도/각속도, 관절 위치와 속도, 희소 샘플링된 관절 상태 이력 $\\Theta$($t-0.01$ s와 $t-0.02$ s), 이전 행동, 명령 — 모두 실제 로봇에서 관측 가능하도록 선택되었다. 관절 상태 이력은 접촉 검출을 가능하게 하므로 필수적이다."}, {"type": "bullet", "text": "정책은 토크가 아니라 저임피던스 관절 위치 목표를 출력하며, 이는 고정 게인 $k_p=50$ N·m/rad, $k_d=0.1$ N·m/rad/s와 영(zero) 목표 속도로 기준 토크로 변환된다. 이는 학습 속도를 높이고 정책을 기립 제어기로 시작하게 한다. 정책은 상태 인덱스 기반이라 시간 인덱스 PD 제어기의 한계를 피한다.", "figure_refs": []}, {"type": "formula", "label": "위치 정책으로부터의 기준 토크 (PD 변환)", "latex": "\\tau^{*} = k_p (\\phi^{*} - \\phi) + k_d (0 - \\dot{\\phi}), \\quad k_p = 50\\ \\mathrm{N\\,m/rad},\\ k_d = 0.1\\ \\mathrm{N\\,m/rad/s}", "description": "MLP 정책은 관절 위치 목표 $\\phi^{*}$를 내보내고 저게인 PD 법칙이 이를 명령(기준) 토크로 변환한다. $k_p$는 공칭 토크 범위($\\pm 30$ N·m)를 공칭 동작 범위($\\pm 0.6$ rad)로 나눈 값 근처로 설정되어 토크와 위치 출력의 스케일이 비슷해지고, $k_d$는 하드웨어 진동을 억제할 만큼 충분히 높다."}, {"type": "bullet", "text": "학습은 기본 파라미터와 빠른 맞춤 구현의 <span class=\"term\">Trust Region Policy Optimization (TRPO)</span>를 사용하여 ~4시간 동안 ~2.5억 상태 전이를 처리한다. 평균 성능이 300 반복 내에 임계값을 넘어 개선되지 않으면 세션이 종료된다."}, {"type": "bullet", "text": "<span class=\"term\">curriculum</span>은 초기 비용 지형을 형성하여 정책이 먼저 보행에 끌리고 나중에 다듬도록 한다: 과제 목적을 제외한 모든 비용 항이 $k_0$에서 1로 단조 진행하는 커리큘럼 인자로 곱해진다."}, {"type": "formula", "label": "곱셈형 커리큘럼 인자 업데이트", "latex": "k_{c,j+1} \\leftarrow (k_{c,j})^{k_d}, \\quad k_{c,0} = k_0 = 0.3,\\ k_d = 0.997", "description": "커리큘럼 인자 $k_{c}\\in(0,1)$(0=시작, 1=완전 난이도)는 각 RL 반복 $j$마다 $k_d$ 거듭제곱되어, 1로 수렴하는 단조 증가 수열을 만든다. $k_0$는 정책이 초기에 정지로 붕괴하는 것을 막고 $k_d$는 완전 난이도에 얼마나 빨리 도달하는지를 제어한다. (주의: 이 $k_d$는 커리큘럼 진행률로, 위의 PD 속도 게인과는 다르다.)"}, {"type": "bullet", "text": "제어 정책 MLP는 tanh 비선형성을 가진 은닉층 2개(256, 128유닛)를 갖는다. tanh/softsign 같은 유계 활성화는 ReLU 같은 무계 활성화보다 하드웨어에서 덜 공격적이고 더 견고한 궤적을 산출하는데, ReLU는 방문하지 않은 상태에서 매우 큰 크기의 행동을 출력할 수 있다."}]}, "experiment": {"content": [{"type": "bullet", "text": "명령 조건부 보행은 전후/좌우 속도와 요(yaw) 속도 명령을 따른다. 30초간의 무작위 명령에서 평균 선속도 오차 0.143 m/s, 요 속도 오차 0.174 rad/s를 달성했고, 외부 밀기 하에서 단 한 번의 실패 없이 5분간 견고하게 작동했다.", "figure_refs": [2]}, {"type": "bullet", "text": "기존 최고 ANYmal 제어기(Bellicoso 등) 대비, 학습 정책은 1.5-2.5배(동적 측면 보행 대비)에서 5-7배(플라잉 트롯 대비) 더 정확했고, 토크를 23-36% 적게 썼으며, 10-15° 더 곧은 무릎 자세로 걸었다. 모델 기반 제어기의 추적 오차는 선속도에서 ~95%, 요 속도에서 ~60% 더 높았다."}, {"type": "bullet", "text": "학습 정책은 지시받지 않고도 플라잉 트롯 보행을 발견하여 사족 동물에서 보이는 보행을 반영했고, 하드웨어에서 시뮬레이션 속도에 근접했다(평균 속도 오차 2.2%, 시뮬레이션보다 1.1%만 높음)."}, {"type": "bullet", "text": "고속 제어기는 시뮬레이션에서 1.58 m/s, 하드웨어에서 1.5 m/s(명령 1.6 m/s)에 도달하여 최대 토크(40 N·m)와 최대 관절 속도(12 rad/s)를 사용했다 — 이전 1.2 m/s 기록 대비 25% 향상 — 특유의 긴 비행 구간 보행과 함께였다.", "figure_refs": [3]}, {"type": "bullet", "text": "복구 제어기는 시험한 아홉 개 무작위 구성 모두(거의 거꾸로인 자세와 자기 안착 자세 포함)에서 3초 미만에 ANYmal을 똑바로 뒤집었다. 이는 비슷한 사족에서 이전에 달성되지 않은 동적 다중 접촉 행동이며, 100% 성공에는 관절 속도 제약 완화가 필요했다.", "figure_refs": [4]}, {"type": "bullet", "text": "ablation: 이상적 actuator 모델이나 일주일간 수작업 튜닝된 해석적 actuator 모델로 학습한 정책은 하드웨어에서 단 한 걸음도 떼지 못했고(격렬한 사지 떨림), 학습된 actuator net이 reality gap을 건너는 데 필수적임을 직접 입증했다.", "figure_refs": [6]}, {"type": "bullet", "text": "배치 시 견고성: 모든 정책은 수정 없이 실제 로봇에서 3개월 이상 작동했고, +2.0 kg 적재량과 원래보다 3배 뻣뻣한 구동 스프링 같은 하드웨어 변화를 견뎠다. 추론 비용은 <25 µs(CPU 코어 하나의 ~0.1-0.25%)였다."}]}, "discussion": {"content": [{"type": "bullet", "text": "기동마다 수개월의 설계가 필요한 엔지니어링 제어기와 달리, 시뮬레이션-학습 틀은 어떤 강체 시스템에도 적용되며 새 과제에는 과제 기술(비용 함수, 초기 상태 분포, 무작위화)만 필요로 한다."}, {"type": "bullet", "text": "학습된 actuator 동역학은 reality gap을 크게 줄이는 한편 확률적 모델링은 정책을 보수적으로 유지한다. 복구 과제는 바로 첫 하드웨어 시도에서 성공했고 결과는 실험 둘째 날에 얻어졌다."}, {"type": "bullet", "text": "이 접근은 거의 모든 계산을 학습으로(데스크톱 몇 시간) 옮기고 <25 µs 온보드 추론을 필요로 하는데, 이는 흔히 두 자릿수 더 많은 온보드 연산과 외부 기기를 요구하는 이전 제어기와 대비된다."}, {"type": "bullet", "text": "관절 수준 정책 네트워크는 어떤 로봇 구성에서도 평가될 수 있어, 많은 이전 방법을 괴롭히던 특이 구성 수치 문제와 임시방편 분기를 피한다."}, {"type": "bullet", "text": "이 방법은 여전히 인간 전문성을 필요로 한다: 비용 함수와 초기 상태 분포를 과제마다 설계·튜닝해야 한다(보행에 ~이틀). 다만 모든 튜닝이 시뮬레이션에서 이뤄진다. 대신 해석적 actuator 모델을 구축하려면 최소 3주와 더 많은 튜닝이 든다."}, {"type": "bullet", "text": "한계: 단일 학습 네트워크는 일반화되지 않는 단일 측면 행동을 산출하고(계층적 정책이 해법으로 제안됨), 독립 actuator 가정은 공유 어큐뮬레이터 유압 같은 결합 구동에는 실패할 수 있다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "시뮬레이션에서 몇 시간 만에 학습된 제어기가, 같은 로봇에서 수년에 걸쳐 설계·튜닝된 기존 최고 모델 기반 제어기를 능가했다."}, {"type": "bullet", "text": "학습된 보행 정책은 더 적은 에너지·토크·연산을 쓰면서 더 빠르고 더 높은 정밀도로 작동했다."}, {"type": "bullet", "text": "복구 제어기는 다수의 명시되지 않은 환경 접촉을 동반한 동적 뒤집기를 보이는데, 이는 어떤 기존 최적화 방식으로도 비슷한 복잡도의 실제 사족에서 달성되지 않은 행동이다."}, {"type": "bullet", "text": "이 접근은 알려진 단순한 환경에 근본적으로 국한되지 않으며, 회복력 있고 다재다능한 다리형 로봇을 향한다."}, {"type": "bullet", "text": "저자들은 그 결과를 포괄적 보행 제어기를 향한 한 걸음으로 위치시키며, 계층적 정책과 더 풍부한 환경을 자연스러운 다음 단계로 본다."}, {"type": "bullet", "text": "RL 입문 독자에게 이 논문은 학습된 actuator network가 actuator 측 reality gap을 닫을 수 있다는 정전적 시연으로, dynamics 무작위화의 다리형 로보틱스 대응물이자 현대 Isaac Lab sim-to-real 보행 파이프라인의 직접적 선조이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "한 세션에서 학습된 단일 네트워크는 여러 과제에 걸쳐 일반화되지 않는 단일 측면(single-faceted) 행동을 산출한다.", "source_quote": "A single neural network trained in one session manifests single-faceted behaviors that do not generalize across multiple tasks.", "source_section": "discussion"}, {"claim": "이 방법은 여전히 각 새 과제마다 비용 함수와 초기 상태 분포를 설계·튜닝하는 인간 전문성을 요구한다(보행 정책의 경우 약 이틀).", "source_quote": "A cost function and an initial state distribution have to be designed and tuned for each task. For a person with good understanding on both the task and RL, this process takes about two days for the locomotion policies presented in this work.", "source_section": "discussion"}, {"claim": "actuator-net 접근은 각 actuator의 동역학이 독립적이라고 가정하는데, 단일 어큐뮬레이터를 공유하는 유압 actuator 같은 결합 구동에는 성립하지 않을 수 있다.", "source_quote": "Learning actuators independently might not result in a sufficient accuracy for these systems.", "source_section": "discussion"}], "future_works": [{"claim": "여러 과제에 걸쳐 일반화되는 행동을 가능하게 하기 위해 정책 네트워크에 계층적 구조를 도입한다.", "source_quote": "Introducing hierarchical structure in the policy network can remedy this and is a promising avenue for future work", "source_section": "discussion"}, {"claim": "미지의 복잡한(단순하지 않은) 환경에서 작동하는 포괄적 보행 제어기로 접근을 확장한다.", "source_quote": "We see the results presented in this paper as a step towards comprehensive locomotion controllers for resilient and versatile legged robots.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["동적이고 민첩한 동물 같은 기동은, 설계가 고되고 기동마다 수개월의 튜닝이 필요하며 접촉이 많은 동역학에 대한 현재 최적화의 한계에 부딪히는 수작업 모듈식 또는 궤적 최적화 제어기로는 재현할 수 없다.", "강화학습은 제어기 설계를 자동화할 수 있지만 보통 물리 로봇과의 금지적으로 길고 위험한 상호작용을 필요로 하여, 대부분 시뮬레이션에 국한되어 왔다.", "시뮬레이션 학습 정책을 하드웨어로 전이하는 것은 reality gap에 의해, 특히 해석적으로 모델링하기 극도로 어려운 복잡한 actuator(SEAs)의 동역학에 의해 가로막힌다.", "사족 로봇에 대한 이전 sim-to-real 성공(Tan 등, Minitaur)은 직접 구동 actuator에는 존재하지만 더 큰 다리형 시스템에 쓰이는 SEA에는 없는 정확한 해석적 actuator 모델에 의존했다."], "addressed_by_this_work": ["학습은 전적으로 빠른 하이브리드 시뮬레이터(~50만 스텝/초, ~실시간 1000배)에서 이뤄지므로, 정책은 위험하거나 긴 하드웨어 상호작용 없이 데스크톱에서 몇 시간 만에 학습된다.", "실제 데이터에 대한 자기 지도학습으로 학습된 actuator network가 복잡한 SEA + 소프트웨어 동역학을 모델링하여, 해석적 모델이 실패하는 reality gap의 지배적 부분을 닫는다.", "동역학/기구학 무작위화, 관측 잡음, 커리큘럼이 정책을 견고하고 전이 가능하게 만들어, 정확도·에너지·토크·연산에서 기존 최고 모델 기반 제어기를 능가하는 직접 배치를 산출한다.", "넘어짐 복구 과제 — 명시되지 않은 다수 접촉을 동반한 동적 뒤집기 — 가 풀려, 이전 최적화 방식으로는 불가능했던 행동을 입증한다."], "remaining_unresolved": ["각 정책은 과제 특화적이다. 과제 간 일반화에는 아직 실현되지 않은 계층적 정책이 필요하다.", "과제별 비용 함수와 초기 상태 설계는 여전히 인간 RL 전문성을 요구한다(보행 정책당 ~이틀).", "actuator net 이면의 독립 actuator 가정은 공유 어큐뮬레이터 유압 같은 결합 구동 유형에는 무너질 수 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

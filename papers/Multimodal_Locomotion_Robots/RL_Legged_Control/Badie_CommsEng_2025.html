@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Bioinspired morphology and task curricula for learning locomotion in bipedal muscle-actuated systems</title>
+    <meta name="keywords" content="reinforcement learning, musculoskeletal simulation, curriculum learning, morphological development, bipedal locomotion, embodied intelligence, muscle-actuated control, MPO, exploration">
+    <meta name="paper-authors" content="Nadine Badie, Firas Al-Hafez, Pierre Schumacher, Daniel F. B. Haeufle, Jan Peters, Syn Schmitt">
+    <meta name="paper-journal" content="Communications Engineering, Vol. 4, 2025, Art. 115 · DOI: 10.1038/s44172-025-00443-0">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Bioinspired morphology and task curricula for learning locomotion in bipedal muscle-actuated systems</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">Nadine Badie, Firas Al-Hafez, Pierre Schumacher, Daniel F. B. Haeufle, Jan Peters, Syn Schmitt</div>
+            <div class="journal">Communications Engineering, Vol. 4, 2025, Art. 115 · DOI: 10.1038/s44172-025-00443-0</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 <span class="term">bioinspired double curriculum</span>을 제안하여, 강화학습으로 과구동(over-actuated) 근육 구동 이족 휴머노이드에서 보행을 학습하는 어려움에 대처한다. 이는 3단계 과제 커리큘럼(균형, 보행, 달리기)을, 신체 성장을 모방하는 최대 3단계의 형태(morphology) 커리큘럼(4세, 12세, 성인)과 결합하며, <span class="term">embodied intelligence</span>를 활용하여 모델의 형태 자체가 탐색을 강화하도록 한다. SCONE/HyFyDy 근골격 시뮬레이터에서 MPO 알고리즘을 사용하여, 개체발생적(ontogenetically)으로 스케일링된 double curriculum(OntoCurr)은 서기, 보행, 달리기를 위한 통합 정책을 학습하며, 비커리큘럼 베이스라인, 과제 전용 커리큘럼, 균등 스케일링 커리큘럼, 그리고 확립된 DEP-RL 탐색 방법을 능가한다. 학습된 걸음걸이는 최대 130 N까지의 섭동에 강건하고, 미경험 속도와 지형(틈새, 계단, 허들)에 적응하며, 인간 운동학을 닮았는데, 이 모든 것이 보상 조정, 시연(demonstration), 또는 특화된 근육 구조 정보 없이 이루어진다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">musculoskeletal simulation</span><span class="keyword-chip">curriculum learning</span><span class="keyword-chip">morphological development</span><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">embodied intelligence</span><span class="keyword-chip">muscle-actuated control</span><span class="keyword-chip">MPO</span><span class="keyword-chip">exploration</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 인간이 운동 기술 학습과 형태 발달의 혼합을 통해 보행을 습득하는 반면, RL은 과구동과 복잡한 동역학 때문에 근육 구동 휴머노이드에서 어려움을 겪는다고 주장한다. 탐색 및 커리큘럼 학습 전략을 검토한 후, 복잡한 근육 구동 RL 보행을 위한 형태 발달의 미탐구된 사용을 식별하고, embodied(형태적) 지능에 기반한 bioinspired double curriculum을 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론에서 개관된 관련 문헌은 근육 구동 RL을 위한 탐색 전략과 커리큘럼 학습 방법을 다룬다. 시연 기반 및 노이즈 기반 탐색을 자기 조직화 DEP-RL과 대조하고, 환경 기반 커리큘럼을 과제 기반 커리큘럼과 구별하며, 선행 형태적 연구가 단순한 과제만을 대상으로 하였음을 지적한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법은 3D HyFyDy H1622 근골격 모델(다리당 11개 근육, Hunt-Crossley 발 접촉)을 사용하여 SCONE 시뮬레이터에서 Maximum a Posteriori Policy Optimisation(MPO)으로 정책을 학습한다. 성인 모델은 인체측정학적으로 4세 및 12세 형태로 축소되고(개체발생적 Onto4y 대 균등 Uni4y), 균형과 걸음걸이를 위한 과제별 지수(exponential) 보상 함수를 가지며, 동역학적 유사성을 보존하기 위해 Hof의 법칙으로 목표 속도가 스케일링된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 장난감(toy) 탐색 연구, 열 개 시드에 걸친 네 조건의 전체 벤치마킹, 스케줄 ablation, DEP-RL 비교, 정량적 섭동 강건성 연구, 그리고 인간 걸음걸이 비교를 포괄한다. 개체발생적 double curriculum(OntoCurr)은 균형, 보행, 달리기를 학습하는 유일한 전략으로, 강건하고 인간 유사한 상태를 유지하면서 높은 보상과 가장 낮은 속도 오차로 수렴한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토론은 결합된 형태-및-과제 커리큘럼의 성공을 형태적 지능이 탐색을 구조화하고 유도한다는 증거로 해석하며, 계산 복잡도를 줄이면서 DEP-RL을 능가한다. Onto4y 모델에서 가벼운 다리와 낮은 회전 관성의 역할, 스케줄링의 중요성, 그리고 잔여 인간 걸음걸이 불일치 뒤의 형태적 및 최적성 요인을 설명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 자신들의 bioinspired double curriculum이 과제, 근골격 모델, RL 알고리즘과 독립적이며, embodied intelligence를 활용함으로써 복잡한 알고리즘, 탐색 기교, 모방 시연, 또는 광범위한 보상 설계의 필요를 제거한다고 결론짓는다. 그 결과는 단순한 아키텍처로 자연에 가깝고 강건한 걸음걸이의 효율적인 학습이며, 간소화되고 적응 가능한 해법과 보조 응용을 위한 기반을 제공한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "인간은 학습과 적응의 정교한 혼합을 통해 보행 및 달리기 같은 복잡한 운동 기술을 숙달하는데, 이 능력은 로봇 시스템, 특히 근육 구동 시스템에서 여전히 비할 데 없는 수준이다."}, {"type": "bullet", "text": "이를 근골격 휴머노이드에서 재현하는 것은 어려운데, 근육은 수축만 할 수 있고(주동근-길항근 구성을 요함), 짧은 연축(twitch)은 적절한 관절 운동을 생성하지 못할 수 있으며, 시스템은 자유도보다 많은 근육을 가진 과구동 상태이기 때문이다."}, {"type": "bullet", "text": "인간의 보행은 형태 발달(물리적 구조)과 운동 기술 발달 모두에 의해 추동되며, 대부분의 기술은 신체 성장의 형성기 동안 습득된다."}, {"type": "bullet", "text": "기존 전략은 모방 학습(데이터 다소비), 노이즈 기반 또는 컬러드 노이즈(colored-noise) 탐색, 카운트 기반 탐색, 심층 다중 헤드 탐색, 또는 DEP 기반 자기 조직화를 통해 탐색을 강화하지만, 그러한 방법들은 흔히 여러 복잡한 과제를 숙달하기 위한 구조화된 진행을 결여한다.", "figure_refs": [1]}, {"type": "bullet", "text": "커리큘럼 학습은 인간 학습 단계에서 영감을 받아 과제 복잡도를 체계적으로 증가시키지만, 근육 구동 시스템을 위한 선행 과제 커리큘럼은 자연에 가까운 2D 걸음걸이에 도달하기 위해 광범위한 신경역학적 영감을 받은 보상 조정을 요구하였다."}, {"type": "bullet", "text": "다루어진 핵심 공백은 형태 발달이 최적 제어를 통해 단순한 과제에만 적용되어 복잡한 근육 구동 RL 보행을 위한 사용이 미탐구로 남았다는 것이다; 저자들은 embodied intelligence(물리적 구조와 학습 사이의 관계)를 활용하는 bioinspired double curriculum으로 이를 채운다.", "figure_refs": [1]}, {"type": "bullet", "text": "세 가지 기여가 명시된다: (1) 성인 모델을 더 어린 형태로 스케일링하고 운동학적 작업공간(workspace) 커버리지를 분석하여 향상된 탐색을 보임; (2) 통합 정책에서 직립 서기, 보행, 달리기를 효율적으로 학습하는 bioinspired double curriculum; 그리고 (3) 섭동과 변화하는 속도 하에서 학습된 걸음걸이의 체계적 강건성 평가로, 단순한 아키텍처와 보상 성형(reward shaping) 없이 SOTA를 달성함."}]}, "related_works": {"content": [{"type": "bullet", "text": "모방 학습은 인간 시연을 사용하여 제어기를 전형적인 운동 패턴으로 유도하지만, 광범위한 데이터를 요하며 모든 환경에 적합하지 않을 수 있다."}, {"type": "bullet", "text": "시연이 필요 없는 기법에는 제로 평균(zero-mean) 및 시간 상관/컬러드 노이즈 탐색, 덜 방문한 상태를 선호하는 카운트 기반 탐색, 그리고 행동 공간 노이즈 대비 효율을 개선하는 파라메트릭 노이즈 방법이 포함된다."}, {"type": "bullet", "text": "Differential extrinsic plasticity(DEP)는 자기 조직화를 활용하여 근육 길이 속도 사이의 상관관계를 최대화하며, 보행 학습에서 전통적 노이즈 기반 방법을 능가하는 더 효과적인 탐색을 제공한다; DEP-RL은 선택된 근육 구동 베이스라인이다."}, {"type": "bullet", "text": "다중 헤드 가치 함수와 recurrent 아키텍처를 갖춘 심층 탐색 전략은 행동 선택을 다양화하지만 복잡성을 더한다."}, {"type": "bullet", "text": "커리큘럼 학습은 환경 기반과 과제 기반 커리큘럼으로 나뉜다; 선행 연구는 이들을 별도로 사용한 반면, 본 연구는 광범위한 움직임을 학습하는 근골격 시스템을 위해 둘을 결합한다."}, {"type": "bullet", "text": "Weng 등은 근육 구동 시스템을 위해 자연에서 영감을 받은 과제 커리큘럼(걸음걸이를 정제하기 전에 서기와 발 내딛기)을 사용하였으나, 자연에 가까운 2D 걸음걸이를 달성하는 데는 광범위한 보상 조정이 필요하였다; 선행 형태 발달 연구는 최적 제어를 사용하여 단순한 과제에만 적용되었다."}]}, "method": {"content": [{"type": "bullet", "text": "문제는 상태 공간, 행동 공간, 전이 커널, 보상, 할인 계수, 초기 상태 분포를 가진 Markov Decision Process로 구성되며, 파라메트릭 정책을 사용한다."}, {"type": "bullet", "text": "정책은 고전적 RL을 상대 엔트로피(KL) 제약으로 확장하는 MPO로 학습되며, 이는 선행 보행 연구에서의 강건한 정책 학습 때문에 선택되었다."}, {"type": "formula", "label": "Eq. (1) — MPO 제약 목적함수", "latex": "\\max_{\\mu,\\pi} \\; \\mathbb{E}_{\\mu_\\pi(s)}\\, \\mathbb{E}_{q(a\\mid s)}\\big[Q_q(s,a)\\big] \\quad \\text{s.t.} \\quad \\mathbb{E}_{\\mu_\\pi(s)}\\, \\mathrm{KL}\\big(q(a\\mid s),\\, \\pi(a\\mid s,\\theta_i)\\big) < \\epsilon", "description": "MPO는 보조 분포 $q(a\\mid s)$ 하의 기대 행동 가치를, $q$와 파라메트릭 정책 $\\pi$ 사이의 KL-divergence 제약 $\\epsilon$에 종속시켜 최대화하며, 닫힌 형식의 변분 분포와 지도학습 MAP 정책 갱신을 산출한다."}, {"type": "bullet", "text": "(DOF당 다수의 단관절 및 이관절 근육-건 단위를 가진) 과구동 영역은 RL에 문제가 되므로, DEP 탐색 기법은 DEP 제어 행렬과 시간 지연을 통해 근육 길이 속도 사이의 상관관계를 최대화한다.", "figure_refs": []}, {"type": "formula", "label": "Eq. (5) — DEP 탐색 제어", "latex": "\\tau = \\frac{1}{T-\\Delta t}\\, C\\, \\dot{l}", "description": "DEP-RL은 시간 지연 $\\Delta t$를 가지고 근섬유 속도 $\\dot{l}$에 작용하는 DEP 제어 행렬 $C$로부터 탐색 토크 $\\tau$를 생성하여, 구조화된 근육 동시 활성화를 장려한다."}, {"type": "bullet", "text": "환경은 통합 3D HyFyDy H1622 모델을 갖춘 SCONE 시뮬레이터이다: 머리-몸통 분절, 골반, 그리고 다리당 대퇴/하퇴/발로 구성되며, 다리당 11개 근육이 고관절, 무릎, 발목을 제어하고, 마찰 원뿔(friction cone)을 갖춘 Hunt-Crossley 접촉 모델을 사용하는 세 개의 구형 발 접촉점을 가진다.", "figure_refs": [3]}, {"type": "bullet", "text": "형태 커리큘럼을 위해 성인 모델은 4세 및 12세로 축소된다: 개체발생적 모델은 인체측정 데이터로부터 분절을 비례적으로 스케일링하고(Onto4y는 비례적으로 더 큰 몸통과 더 작은 다리를 가짐), 균등 모델은 단일 키 기반 비율을 적용한다; 둘 다 총 질량은 보존하지만 분절 비율과 질량 분포가 다르며, 일관된 모멘트-각도 거동을 위해 근육 파라미터가 조정된다."}, {"type": "bullet", "text": "보상 함수는 과제별로 다르다: 균형은 네 가지 측도(전방 x-속도, 수직 y-속도, 측방 z-위치, 몸통 z-방향)를 사용하고 걸음걸이는 두 가지(전방 속도와 측방 위치)를 사용하며, 목표 속도는 0 m/s(균형), 약 1.2 m/s(보행), 최대 3.4 m/s(달리기)로 동역학적 유사성을 보존하기 위해 모델별로 스케일링된다."}, {"type": "formula", "label": "Eq. (6) — 지수 성능 보상", "latex": "R = e^{-k\\,(a^{*}-a)^{2}}", "description": "각 성능 측도는 보상되는 변수 $a$가 그 원하는 값 $a^{*}$에 근접함을 보상하며, 여기서 $k$는 편차에 대한 민감도를 제어한다; 전방 보상은 측방 보상(c=0.5)에 대해 가중되어(c=3.5) 총 최대 보상이 균형 과제와 일치하도록 한다."}, {"type": "bullet", "text": "학습은 1x10^6의 버퍼, 배치 크기 256, 2개 은닉층(256 유닛, ReLU) 네트워크, actor/critic에 대해 3x10^-4 및 dual 변수에 대해 1x10^-2의 학습률을 사용하며, 20개의 병렬 및 10개의 순차 프로세스를 가진다; 6x10^7 스텝은 64개 CPU 코어를 갖춘 NVIDIA RTX A6000에서 약 13시간이 걸린다."}]}, "experiment": {"content": [{"type": "bullet", "text": "백색 노이즈 근육 활성화를 갖춘 장난감 단일 다리 실험은 개체발생적 4세(Onto4y)가 가장 큰 발 질량 중심 공간과 속도 범위(최고 탐색)를 커버함을 보이며, 그 뒤를 Uni4y, 그다음 성인이 잇는데, 이는 Onto4y의 더 무거운 몸통이지만 가장 가벼운 다리, 따라서 더 낮은 회전 관성에 기인한다.", "figure_refs": [2]}, {"type": "bullet", "text": "네 조건(NonCurr, AdultCurr, UniCurr, OntoCurr)을 열 개 시드에 걸쳐 벤치마킹할 때, NonCurr은 일관되게 낮게 유지된다; 세 커리큘럼 모두 균형 동안 상승하지만 과제 전환에서 급격히 떨어지며, OntoCurr만이 달리기 단계 동안 회복하고 성인 형태로 전환한 후 약 3000 부근의 보상으로 수렴한다(모두 6x10^7 스텝 동안 학습됨).", "figure_refs": [3]}, {"type": "bullet", "text": "균형(0 m/s), 보행(1.2 m/s), 달리기(2.4 m/s)에 대한 속도 오차 체크포인트 전반에 걸쳐, OntoCurr은 대부분의 체크포인트에서 가장 작은 오차를 달성하며, UniCurr이 2위이고 둘 다 AdultCurr 및 NonCurr보다 훨씬 낮다; 최종 체크포인트에서는 UniCurr이 균형에서 OntoCurr을 약간 능가한다.", "figure_refs": [3]}, {"type": "bullet", "text": "스케줄 ablation(2-4-8, 3-6-12, 4-8-16, 그리고 12세를 추가한 2-4-8-12 스케줄)은 결과가 스케줄 선택에 강건함을 보인다; 더 긴 스케줄은 UniCurr이 결국 학습하게 하는 반면, 12세를 추가하는 것은 효율이나 최종 보상 이점을 주지 않아 제외되었다.", "figure_refs": [4]}, {"type": "bullet", "text": "커리큘럼 없는 DEP-RL(모든 속도를 직접 목표로 하는 세 개 시드)과 비교할 때, DEP-RL은 비효과적인 과제 학습을 나타내는 상대적으로 낮은 보상을 달성하며, 무작위 형태 변형(OntoRand/UniRand) 또한 뾰족하고 낮은 보상을 산출한다.", "figure_refs": [4]}, {"type": "bullet", "text": "강건성 테스트는 매 4초마다 1초 동안 교대하는 섭동 힘을 가한다: 균형에서 불안정화 x축 중앙값 힘은 조건 전반에 걸쳐 유사하지만(~35 N), OntoCurr은 비이상치(non-outlier) 최댓값 60 N(x)과 55 N(z)을 견딘다; 보행에서는 최대 130 N(x)과 100 N(z)을 견디고, 달리기에서는 100 N(x)과 95 N(z)을 견딘다.", "figure_refs": [5]}, {"type": "bullet", "text": "에피소드당 단일 속도 학습에도 불구하고, 에이전트는 점진적 및 급격히 변화하는 속도에 적응하며 평지에서만 학습되었음에도 미경험 지형(틈새, 계단, 허들)을 통과한다; 걸음걸이 운동학은 인간의 고관절/무릎/발목 각도를 닮았으나, 강성이고 발가락이 없는 발과 뻣뻣한 무릎 패턴 때문에 GRF는 (인간의 이중 봉우리와 달리) 단일 봉우리이다.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "결합된 형태 및 과제 커리큘럼은 과구동 근골격 시스템에서의 RL 탐색 과제를 성공적으로 다루어, 통합 정책 내에서 변화하는 속도와 섭동에 적응 가능한 강건한 걸음걸이와 직립 서기를 가능하게 한다."}, {"type": "bullet", "text": "NonCurr과 AdultCurr은 직립 서기만 습득한다; AdultCurr은 심지어 가장 높은 균형 보상에 도달하는데, 이는 성인 형태가 더 적은 탐색으로 정지 행동을 자연스럽게 선호하기 때문이며, 이는 그것의 더 낮은 작업공간 커버리지로 나타난다."}, {"type": "bullet", "text": "더 넓은 속도 범위를 습득하는 데는 두 커리큘럼이 함께 필요하였으며, Onto4y의 가장 가벼운 다리와 더 낮은 회전 관성이 가장 우수한 공간 및 속도 커버리지를 제공하고 무거운 몸통을 안정화하는 데 도움이 되었다."}, {"type": "bullet", "text": "UniCurr은 스케줄링의 중요성을 부각한다: 처음에는 실패하였으나, 더 무거운 다리의 Uni4y에 더 많은 스텝을 준 연장된 스케줄 하에서만 학습하였고, 12세 형태를 추가하는 것은 보상을 개선하지 않았다."}, {"type": "bullet", "text": "OntoCurr은 구조화된 탐색을 강제함으로써 DEP-RL을 능가한다: 4세 형태가 초기에 최적화를 유도하고, 커리큘럼을 결합하는 것이 조기 수렴을 방지하기 위해 해 공간(solution space)을 동적으로 재형성하는 한편, 탐색 부담을 제어기에서 형태로 이동시켜 계산 복잡도를 줄인다."}, {"type": "bullet", "text": "잔여 인간 걸음걸이 불일치(단일 봉우리 GRF, 뻣뻣한 초기 지지 무릎)는 형태적 단순화(Hunt-Crossley 접촉, 강성이고 발가락 없는 발, 관절 한계 센서 부재), 명시적 에너지 효율 최적성의 결여, 그리고 단 두 형태 단계에 대한 의존에서 비롯된다; 최적 형태 관계는 미해결 문제로 남는다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "bioinspired double curriculum은 과제, 근골격 모델, RL 알고리즘과 독립적임이 보여지며, 이는 광범위한 다용도성을 시사한다."}, {"type": "bullet", "text": "embodied(형태적) 지능을 활용함으로써, 이 접근법은 복잡한 알고리즘, 정교한 탐색 기법, 모방 학습 시연, 또는 광범위한 보상 설계의 필요를 제거한다."}, {"type": "bullet", "text": "이는 표준 2층 아키텍처를 사용하여 통합 정책 내에서 자연에 가깝고 강건한 걸음걸이와 직립 서기의 효율적인 학습을 가능하게 한다."}, {"type": "bullet", "text": "학습된 걸음걸이는 학습 중 보지 못한 강건성 테스트로 일반화되어, 최대 130 N까지의 섭동 힘을 견디고 변화하는 속도와 도전적인 지형에 적응한다."}, {"type": "bullet", "text": "생성된 걸음걸이는 모델의 해부학적 단순화에도 불구하고 인간 보행과 고무적인 유사성을 가진 대칭적이고 주기적인 패턴을 보인다."}, {"type": "bullet", "text": "본 연구는 자동화된 스케줄 적응, 관절 한계 토크 페널티, 그리고 보조 장치 응용을 위한 더 풍부한 해부학적 세부를 포함하는 향후 개선의 견고한 기반을 제공한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "모델의 강성 발은 발가락 관절이 결여되어, 중간 지지 이후 조기 하중 해제, 누락된 밀어내기(push-off), 그리고 인간의 이중 봉우리 프로파일이 아닌 단일 봉우리 GRF를 생성한다.", "source_quote": "The absence leads to a premature unloading after mid-stance, eliminating a distinct push-off phase and resulting in a single-peaked GRF profile.", "source_section": "discussion"}, {"claim": "에이전트의 강건성, 특히 균형에서의 강건성은 인간 수준에 완전히 미치지 못하는데, 이는 직립 서기를 엄격히 강제하는 희소(sparse) 보상 구조에 기인한다.", "source_quote": "While our agent's robustness may not fully match human levels, especially in balance, this could be attributed to the sparse reward structure, strictly enforcing upright standing.", "source_section": "discussion"}, {"claim": "각 단계에 대한 최적 커리큘럼 스케줄을 결정하는 것은 미해결의 실증적 과제로 남는다.", "source_quote": "Finding the optimal schedule is an ongoing empirical challenge.", "source_section": "discussion"}], "future_works": [{"claim": "커리큘럼 스케줄을 동적으로 적응시키기 위한 자동화된 접근법(예: 보상 기반 커리큘럼 학습, 입자 필터링, 가치 함수 방법)을 탐구한다.", "source_quote": "future work could explore automated approaches to adapt schedules dynamically.", "source_section": "discussion"}, {"claim": "초기 지지 무릎 굴곡을 억제하는 뻣뻣한 무릎 패턴을 피하기 위해 관절 한계 토크에 대한 페널티를 도입한다.", "source_quote": "This could be avoided in the future by introducing a penalty for joint limit torques.", "source_section": "discussion"}, {"claim": "걸음걸이 동역학을 개선하고 형태적 지능을 강화하기 위해 모델 파라미터를 정제하고 더 많은 해부학적 세부를 통합한다.", "source_quote": "Refining the model parameters and incorporating more anatomical detail might improve overall gait dynamics by reinforcing the morphological intelligence", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["근골격 휴머노이드에서 RL로 인간 수준의 운동 기술 습득을 재현하는 것은 복잡한 제어 동역학과 과구동(자유도보다 많은 근육, 주동근-길항근 협응 필요) 때문에 어렵다.", "DEP-RL, 노이즈 기반 탐색, 모방 학습 같은 기존 탐색 방법은 여러 복잡한 과제를 숙달하는 데 필요한 구조화된 진행을 결여한다.", "형태 발달이 최적 제어를 통해 단순한 과제에 적용되긴 하였으나, RL에서 복잡한 근육 구동 보행으로의 적용은 미탐구로 남아 있다."], "addressed_by_this_work": ["탐색을 강화하고 통합 정책 내에서 서기, 보행, 달리기를 학습하기 위해 embodied/형태적 지능을 활용하는, 형태 및 과제 커리큘럼을 결합한 bioinspired double curriculum을 도입한다.", "개체발생적으로 성장하는 형태(4세에서 성인)가 탐색을 구조화하며, 보상 조정, 시연, 또는 복잡한 아키텍처 없이 DEP-RL 및 노이즈 기반 방법을 능가함을 보인다.", "이 프레임워크가 기저 RL 알고리즘 및 근골격 모델에 불가지론적(agnostic)이며 표준 2층 네트워크로 최첨단 보행에 도달함을 입증한다."], "remaining_unresolved": ["주어진 과제에 대한 최적 형태와 커리큘럼 스케줄은 여전히 미해결 문제이다.", "걸음걸이 자연스러움(예: 이중 봉우리 GRF)과 균형 강건성은 형태적 단순화와 희소 보상에 의해 제한된 채로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

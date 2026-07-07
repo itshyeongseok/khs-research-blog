@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Wing Kinematics-Based Flight Control Strategy in Insect-Inspired Flight Systems: Deep Reinforcement Learning Gives Solutions and Inspires Controller Design in Flapping MAVs</title>
+    <meta name="keywords" content="deep reinforcement learning, insect flight, stabilization control, flight dynamics, unsteady aerodynamics, wing kinematics, Soft Actor-Critic, flapping-wing MAV, bumblebee hovering">
+    <meta name="paper-authors" content="Yujing Xue, Xuefei Cai, Ru Xu, Hao Liu">
+    <meta name="paper-journal" content="Biomimetics, 2023, Vol. 8, No. 3, Article 295 · DOI: 10.3390/biomimetics8030295">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Wing Kinematics-Based Flight Control Strategy in Insect-Inspired Flight Systems: Deep Reinforcement Learning Gives Solutions and Inspires Controller Design in Flapping MAVs</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Yujing Xue, Xuefei Cai, Ru Xu, Hao Liu</div>
+            <div class="journal">Biomimetics, 2023, Vol. 8, No. 3, Article 295 · DOI: 10.3390/biomimetics8030295</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 기존의 선형 비례-미분(PD) 제어기가 실패하는, 큰 6자유도 외란 하의 호박벌 호버링을 안정화하기 위해 <span class="term">심층 강화 학습</span>(DRL)으로 최적화된 <span class="term">날개 운동학 기반 비행 제어기</span>를 개발한다. CFD 데이터 기반 공기역학 모델(CDAM)을 6자유도 비행 동역학 모델과 결합하여 고충실도 OpenAI Gym 환경을 구축함으로써, 학습된 정책이 현실적이고 비선형적이며 결합된 날갯짓 동역학에 대해 훈련될 수 있게 한다. 제어 문제는 12차원 상태(몸체 각위치/각속도 및 병진 위치/속도)와 대칭/비대칭 스트로크 진폭 및 평균 위치각/페더링각 변조의 4차원 행동 공간을 가진 마르코프 결정 과정으로 정식화된다. 자동 엔트로피 조정을 갖춘 오프-폴리시 소프트 액터-크리틱(SAC) 알고리즘이 정책을 훈련한다. 벤치마크 시험은 DRL 제어기가 큰 각속도 및 속도 외란 후 자세와 위치를 복원하여, PD 기준선 대비 평균 위치 변위를 40% 줄이고 회전 보정 시간을 50% 줄임을 보인다. 프로젝트 맥락에서 이는 모델 프리 RL이 선형 제어가 요구하는 고유값/근궤적 매개변수 튜닝 없이 고도로 결합되고 비선형적이며 과소구동된 날갯짓 비행 시스템을 제어할 수 있음을 강하게 입증하는 — 학습된 RL 보행으로의 가교로 목표하는 (날갯짓 x RL) 축에 직접 놓인 사례이다.</div>
+            <div class="keywords"><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">insect flight</span><span class="keyword-chip">stabilization control</span><span class="keyword-chip">flight dynamics</span><span class="keyword-chip">unsteady aerodynamics</span><span class="keyword-chip">wing kinematics</span><span class="keyword-chip">Soft Actor-Critic</span><span class="keyword-chip">flapping-wing MAV</span><span class="keyword-chip">bumblebee hovering</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">날갯짓 곤충은 몇 번의 날갯짓 내에서 날개 운동학을 지속적으로 조정함으로써 돌풍과 난류 하에서 뛰어난 안정성과 기동성을 달성한다. 기존의 곤충 영감 비행 제어는 1자유도 또는 종방향 3자유도 제어, 심지어 완전한 6자유도 호버링에 작동하는 선형 PD 전략에 의존하지만, 비결합 가정, 큰 외란 하 선형 주기 평균 모델의 붕괴, 시간이 많이 드는 매개변수 결정이라는 문제를 겪는다. 비행 동물은 강화 학습과 유사한 시행착오 과정을 통해 제어 기술을 발전시키므로, 저자들은 큰 6자유도 외란 하 호박벌 호버링을 안정화하기 위해 SAC로 고충실도 OpenAI Gym 환경에서 훈련된 날개 운동학 기반 DRL 제어기를 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 두 갈래의 연구에 자신을 위치시킨다: 곤충 비행의 선형 제어와 공중 비행체의 강화 학습 제어이다. 선형 PD 및 고유 분석 방법은 호버링 곤충에 대한 수동/능동 안정화를 확립하지만 비결합 및 작은 외란 가정에 의존한다. 동시에 현대 RL 알고리즘(PPO, DDPG, A3C, TRPO, TD3, SAC)이 연속 제어 및 로봇 과제를 해결해 왔으며, 특히 SAC는 최대 엔트로피 탐색과 오프-폴리시 표본 효율성을 제공하여 여기서 선택된 골격이 된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">호박벌 Bombus terrestris의 날개-몸체 모델이 실험적 운동학(날갯짓 주파수 136 Hz, 스트로크 진폭 139.36도, 몸체 각도 45도)으로부터 구축된다. 제어 환경은 CFD 정보 기반 준정상 공기역학 모델(CDAM)을 확장된 동역학 방정식에서 유도된 6자유도 비행 동역학 모델과 결합하여, 네 개의 결합된 강체/날개 방정식을 적분함으로써 세 개의 날개 운동학 입력(위치각, 고도각, 페더링각)이 몸체 운동을 구동하게 한다. 제어 문제는 12차원 상태와 대칭/비대칭 스트로크 진폭 및 평균 위치각/페더링각 변화의 4차원 행동을 가진 MDP로 제시되며, 이는 피치/롤/요 토크와 수직/횡방향 힘으로 사상된다. 정책은 최대 엔트로피 목적 하에서 오프-폴리시 SAC로 자동 온도 조정과 소프트 갱신 목표 가치 신경망을 사용하여 훈련된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">보상은 안정성 오차(자세, 각속도, 위치, 속도)와 제어 비용(행동 크기 및 행동 변화율)을 결합한 음의 비용이며, 무차원화된 항들이 기여를 균등화하기 위해 O(100)-O(10^4)에 걸쳐 스케일된다. 훈련은 5000 스텝(각 50 스트로크)의 100개 에피소드로 진행되며, 학습 곡선은 마지막 에피소드들에서 상승하여 안정화된다. 벤치마크 시험은 모든 몸체 축을 따라 큰 각속도 및 속도 외란을 가한다; DRL 제어기는 자세와 위치를 평형으로 복원하며, 최대 변위 d_max와 보정 시간 t_c를 사용하여 Cai & Liu PD 제어기와 정량 비교된다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">학습된 날개 운동학 명령의 분석은 물리적 메커니즘을 드러낸다: 대칭 변화는 종방향 피치/수직/전진 응답을 지배하는 반면, 비대칭 변화는 롤/요 회전 및 횡방향 응답을 지배한다. 롤과 요 운동 간, 그리고 수평 속도와 피치 간의 강한 결합은 앞전 와류 공기역학과 주기 평균 힘 비대칭으로 설명된다. DRL 제어기가 비결합/고유 분석 없이 이 결합을 다룰 수 있는 능력은 선형 전략 대비 그 이점과 날갯짓 MAV 제어기 설계 단순화에 대한 가능성을 입증한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 OpenAI Gym 환경에서 CFD 데이터 기반 공기역학 모델과 6자유도 비행 동역학 모델을 결합한 통합 시뮬레이션 프레임워크를 구축하고, 독특한 날개 운동학 기반 비행 제어기를 SAC로 최적화했다. 제어기는 큰 외란 하 완전한 6자유도 안정화를 위해 과소구동 조건(4차원 행동)에서 성공하여, 빠른 자세 안정화와 더 느린 위치 안정화를 달성한다. 이는 변위 감소와 회전 복원 시간에서 선형 PD 제어를 능가하고 사전 분해 없이 결합된 비선형 동역학을 다루어, 생체 영감 날갯짓 MAV를 위한 효율적인 자율 제어기 설계 경로를 제공한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "날갯짓 곤충은 여러 번의 날갯짓 스트로크 내에서 지속적인 날개 운동학 조정을 통해 큰 편차를 복원하며, 돌풍과 난류 하에서 뛰어난 안정성을 보인다.", "figure_refs": []}, {"type": "bullet", "text": "곤충 비행 제어 시스템은 몸체 동역학 운동 방정식을 비정상 공기역학을 위한 나비에-스토크스 방정식과 결합하는 고도로 통합된 폐루프 시스템이다.", "figure_refs": []}, {"type": "bullet", "text": "선형 PD 제어기는 CFD 데이터 기반 공기역학 모델을 통해 작은 외란과 큰 외란 모두에서 1자유도 제어, 3자유도 종방향 제어, 심지어 완전한 6자유도 호버링 제어에 대한 실현 가능성을 입증했다.", "figure_refs": []}, {"type": "bullet", "text": "전통적 전략은 핵심적 한계를 가진다: 종방향/횡방향 방정식이 비결합되고(6자유도 결합을 무시), 선형 주기 평균 가정이 큰 외란 하에서 붕괴하며, 정밀한 제어 매개변수가 고유값/고유벡터 분석과 라플라스/근궤적 최적화를 요구한다.", "figure_refs": []}, {"type": "bullet", "text": "비행 동물은 강화 학습과 일치하는 시행착오적 진화 과정을 통해 제어 기술을 발전시키며, 이는 비선형 연속 행동-상태 공중 제어를 위한 DRL 제어기를 동기화한다.", "figure_refs": []}, {"type": "bullet", "text": "기존 DRL 비행 연구로는 Bohn 등(고정익 UAV의 PPO 자세 제어)과 Fei 등(날갯짓 MAV의 DDPG 목표 지향 기동)이 있다; Haarnoja 등은 하이퍼파라미터 튜닝 없이 강력한 성능을 내는 자동 온도 조정 SAC를 개발했다.", "figure_refs": []}, {"type": "bullet", "text": "제안된 접근법은 OpenAI Gym 환경에서 CFD 데이터 기반 공기역학 모델과 6자유도 비행 동역학 모델을 결합하고, 자동 엔트로피 조정을 더한 오프-폴리시 SAC로 4차원 행동 정책을 최적화한다.", "figure_refs": []}]}, "related_works": {"content": [{"type": "bullet", "text": "강체 날갯짓 공기역학 분석은 호버링 비행이 대부분의 비행 곤충에서 본질적으로 불안정하여, 날개 운동학 변조를 통한 병진 및 회전 편차의 능동 감각 기반 보정을 요구함을 보고한다.", "figure_refs": []}, {"type": "bullet", "text": "Zhang & Liu는 호박벌 호버링 안정화를 위한 3축 PD 모델을 제안했고; Cai & Liu는 이를 네 개의 날개 운동학 매개변수를 조정하는 6자유도 PD 전략으로 확장하여, 피치와 롤을 통해 x/y 위치를 간접 제어했다.", "figure_refs": []}, {"type": "bullet", "text": "Yao & Yeo는 제어된 곤충 호버링과 전진 비행/사이드슬립 기동을 위한 단순화된 동역학 모델을 개발했으나, 여전히 비결합된 종방향/횡방향 분해에 의존했다.", "figure_refs": []}, {"type": "bullet", "text": "Bohn 등은 온-폴리시 PPO로 고정익 UAV 자세 제어를 달성하여, 비행 자세 과제에 대한 DRL의 실현 가능성을 입증했다.", "figure_refs": []}, {"type": "bullet", "text": "Fei 등은 오픈소스 날갯짓 동역학 시뮬레이션인 Flappy Hummingbird를 제시하고, 오프-폴리시 DDPG를 사용하여 날갯짓 MAV의 목표 지향 기동을 달성했다.", "figure_refs": []}, {"type": "bullet", "text": "다양한 최신 RL 알고리즘(TRPO, PPO, A3C, DDPG, TD3)이 게임에서 로봇까지 적용되었으며, Haarnoja 등의 SAC는 우수한 점근 성능과 표본 효율성을 위한 자동 경사 기반 온도 조정을 제공한다.", "figure_refs": []}, {"type": "bullet", "text": "Cai & Liu의 CFD 데이터 기반 공기역학 모델(CDAM)과 6자유도 비행 동역학 모델은 여기서 재사용되는 시뮬레이션 골격을 이루며, 시간이 많이 드는 CFD의 대안으로 빠른 공기역학 예측을 제공한다.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "호박벌 모델(몸체 질량 391 mg, 몸체 길이 21 mm, 날개 길이 15.2 mm, 평균 코드 4.1 mm)은 스트로크 평면에 대한 위치각 phi, 고도각 theta, 페더링각 alpha의 푸리에 급수 운동학 기술을 사용한다.", "figure_refs": [1]}, {"type": "bullet", "text": "CFD 데이터 기반 공기역학 모델(CDAM)은 날갯짓 날개에 대한 CFD 정보 기반 준정상 블레이드 요소 모델을 움직이는 몸체에 대한 단순화된 준정상 근사와 결합하여, 완전한 CFD 대비 빠른 힘/토크 예측을 가능하게 한다.", "figure_refs": []}, {"type": "bullet", "text": "6자유도 비행 동역학 모델은 결합된 강체 및 날개 동역학 방정식(식 1-4)으로 유도된다; 이를 적분하면 세 개의 날개 운동학 입력 phi, theta, alpha로부터 호박벌 운동이 풀린다.", "figure_refs": []}, {"type": "formula", "label": "상태 공간 (12차원 MDP 관측)", "latex": "s_t = [\\psi,\\ \\chi,\\ \\rho,\\ \\dot{\\psi},\\ \\dot{\\chi},\\ \\dot{\\rho},\\ x,\\ y,\\ z,\\ \\dot{x},\\ \\dot{y},\\ \\dot{z}]^{T}", "description": "12차원 상태는 요/피치/롤 자세(psi, chi, rho), 그 각속도, 그리고 몸체 병진 위치와 속도를 관측하여, 호박벌 안정화를 연속 제어 마르코프 결정 과정으로 구성한다."}, {"type": "formula", "label": "행동 공간 (4차원 날개 운동학 제어)", "latex": "a_t = [\\Delta\\phi,\\ \\Delta\\bar{\\varphi},\\ \\Delta\\phi_{RL},\\ \\Delta\\bar{\\alpha}_{RL}]^{T}", "description": "4차원 행동은 대칭 스트로크 진폭, 대칭 평균 위치각, 비대칭 스트로크 진폭(우 vs 좌), 비대칭 평균 페더링각의 연속 조작을 제공하며 — 이는 피치/롤/요 토크와 수직/횡방향 힘으로 사상된다."}, {"type": "bullet", "text": "행동 변수는 물리적 효과로 사상된다: 대칭 스트로크 진폭은 피치 토크와 수직 힘을 생성하고; 대칭 평균 위치각은 피치 토크를 생성하며; 비대칭 스트로크 진폭과 평균 페더링각은 요 및 롤 토크와 횡방향 힘을 유발한다.", "figure_refs": [2]}, {"type": "formula", "label": "SAC 소프트 벨만 Q값 (최대 엔트로피 목적)", "latex": "Q(s_t, a_t) = r(s_t, a_t) + \\gamma\\, \\mathbb{E}_{s_{t+1},\\,a_{t+1}}\\big[Q(s_{t+1}, a_{t+1}) - \\alpha \\log \\pi(a_{t+1}\\,|\\,s_{t+1})\\big]", "description": "오프-폴리시 SAC 골격은 보상에 온도 alpha로 스케일된 엔트로피 항을 더하여 탐색을 장려한다; gamma는 할인 인자, pi는 정책이다. 정책은 지수화된 소프트 Q 함수에 대한 KL 발산을 최소화하여 갱신된다."}, {"type": "formula", "label": "자동 온도 목적 함수", "latex": "J(\\alpha) = \\mathbb{E}_{a_t \\sim \\pi_t}\\big[-\\alpha \\log \\pi_t(a_t\\,|\\,s_t) - \\alpha\\, \\mathcal{H}_0\\big]", "description": "온도 매개변수 alpha는 매 스텝 이 목적을 최소화하여 학습되며(H_0는 원하는 최소 기대 엔트로피), 과제별 하이퍼파라미터 튜닝을 제거하고 차선의 고정 온도가 야기할 저조한 성능을 회피한다."}, {"type": "bullet", "text": "SAC의 세 가지 핵심 구성요소가 활용된다: 분리된 액터/크리틱 신경망, 천이 [s_t, a_t, r, s_{t+1}]를 저장하는 리플레이 버퍼를 통한 오프-폴리시 데이터 재사용, 안정성과 탐색을 위한 엔트로피 최대화; 소프트 갱신 theta <- tau*theta + (1-tau)*theta가 목표 가치 신경망을 유지한다.", "figure_refs": [3]}, {"type": "bullet", "text": "제어는 각 날갯짓 스트로크 시작에 한 번 갱신되며(호박벌이 스트로크당 근육을 한 번 활성화하는 것에 맞춤), 매끄러운 계단 함수가 연속 스트로크 사이에 0.1T의 전환을 제공한다.", "figure_refs": []}]}, "experiment": {"content": [{"type": "formula", "label": "보상 함수 (음의 가중 비용)", "latex": "\\text{Reward} = -\\big(\\lambda_p e_p^{2} + \\lambda_v e_v^{2} + \\lambda_R e_R^{2} + \\lambda_\\omega e_\\omega^{2} + \\lambda_a a_t^{2} + \\lambda_{\\dot{a}} \\dot{a}_t^{2}\\big)", "description": "보상은 위치 오차 e_p, 속도 오차 e_v, 자세 오차 e_R, 각속도 오차 e_omega에 더해 행동 비용 a_t와 행동 변화율 비용 a-dot을 벌하여, 안정적인 날개 운동학과 평형 호버링을 강제한다."}, {"type": "formula", "label": "보상 스케일링 비율", "latex": "\\lambda_p : \\lambda_v : \\lambda_R : \\lambda_\\omega : \\lambda_a : \\lambda_{\\dot{a}} = 10^{2} : 10^{4} : 10^{2} : 10^{4} : 10^{2} : 10^{2}", "description": "무차원 보상 항들이 크기 면에서 O(100)-O(10^4)에 걸치므로, 이 스케일링 가중치들이 각 항의 상대 기여를 균형 잡아 자세, 위치, 속도, 제어 오차가 동시에 최소화되도록 한다."}, {"type": "bullet", "text": "훈련은 100개 에피소드를 사용한다; 각 에피소드는 초기 상태를 무작위로 교란한 뒤 5000 스텝(50 날갯짓 스트로크)을 탐색하며, 수렴은 오차 허용범위 |r-0| < 0.5(초기 보상의 5%)로 정의된다.", "figure_refs": [4]}, {"type": "bullet", "text": "학습 곡선은 초기에 무작위적이고 느리게 증가하는 듯 보이다가, 이후 빠르게 상승하여 마지막 에피소드들에서 안정화된다 — 이는 SAC가 탐색 무작위성을 장려하고 리플레이 버퍼 데이터를 재사용하는 성공적 DRL 실행의 전형이다.", "figure_refs": [4]}, {"type": "bullet", "text": "트림된 호버링 상태는 외란 없이 100 스트로크 동안 평형을 유지하며, 대칭 날갯짓으로 인한 약간의 몸체 진동만 있어, 외란 시험 전 기준 환경이 안정적임을 확인한다.", "figure_refs": [5]}, {"type": "bullet", "text": "롤(x), 피치(y), 요(z) 몸체 축을 따른 큰 각속도 외란은 여러 번의 날개 운동학 제어 스트로크를 통해 목표 자세 [rho, chi, psi] = [0, 45, 0]도와 목표 위치로 복원된다.", "figure_refs": [7]}, {"type": "bullet", "text": "최대 롤/피치/요 자세 변위는 제어기 간에 비슷하지만(DRL 28+/-17도 vs PD 26+/-16도), DRL은 PD 대비 평균 위치 변위 d_max를 40% 줄인다.", "figure_refs": []}, {"type": "bullet", "text": "DRL은 병진 편차에 대해 약간 더 많은 보정 시간을 대가로, 50% 더 빠른 회전 안정화(19.5+/-3.5 날갯짓 vs PD 37.3+/-9.7 날갯짓)를 달성한다.", "figure_refs": []}, {"type": "bullet", "text": "수평, 횡방향, 수직 속도 외란에 걸친 정량적 d_max 및 t_c 표는 변위 감소와 회전 복원 시간에서 DRL 제어기의 우위를 확인한다.", "figure_refs": [8]}]}, "discussion": {"content": [{"type": "bullet", "text": "훈련된 정책은 각 스트로크 주기 시작에 행동을 적용하며, 대칭 및 비대칭 위치각/페더링각 변화가 공기역학적 힘/토크 생성 및 그 결과 물리적 비행 응답과 강하게 상관된다.", "figure_refs": [9, 10]}, {"type": "bullet", "text": "x/z 방향 속도 외란과 y축 둘레의 각속도 외란은 위치각 진폭/평균의 대칭 변화를 유발하여, 피치와 전진/후진/수직 운동을 지배하는 피치 토크 T_y와 수직/수평 힘을 생성한다.", "figure_refs": [9]}, {"type": "bullet", "text": "y 방향 속도 외란과 x/z 축 둘레의 각속도 외란은 비대칭 스트로크 진폭과 평균 페더링각 변화를 유발하여, 회전 및 측방 보정을 위한 롤/요 토크와 횡방향 힘을 생성한다.", "figure_refs": [10]}, {"type": "bullet", "text": "강한 롤-요 결합은 횡방향 병진 속도가 좌/우 상대 날개 속도와 앞전 와류 축방향 속도를 변화시켜 비대칭 양력과 롤 모멘트를 생성하기 때문에 나타난다.", "figure_refs": [7]}, {"type": "bullet", "text": "수평 속도 외란은 하향/상향 스트로크에 걸친 변화된 공기역학적 항력을 통해 상당한 피치 편차와 수직 운동을 유발하여, 질량 중심 둘레에 주기 평균 수평 힘과 피치 모멘트를 만든다.", "figure_refs": [6]}, {"type": "bullet", "text": "종방향/횡방향 방정식을 분리하기 위해 고유값/고유벡터 분석을 사용하는 선형 전략과 달리, DRL 제어기는 사전 분해 없이 본질적으로 결합된 비선형 시스템을 다루는데, 이는 큰 외란 하에서 측방 운동이 종방향 운동에 측정 가능하게 영향을 주기 때문이다.", "figure_refs": []}, {"type": "bullet", "text": "DRL 전략은 라플라스 변환과 근궤적 방법을 통한 정밀 제어 매개변수 결정의 필요를 제거하여, 곤충 영감 날갯짓 MAV에 대한 빠른 정책 달성과 단순화된 구동기 기반 제작의 가능성을 보인다.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "큰 외란 하 호박벌 호버링 안정화를 위해 DRL로 최적화된 생체 영감 비행 제어기를 갖춘 통합 시뮬레이션 프레임워크가 개발되었다.", "figure_refs": []}, {"type": "bullet", "text": "고충실도 OpenAI Gym 환경이 CFD 데이터 기반 공기역학 모델과 6자유도 비행 동역학 모델을 결합하여 빠른 공기역학 예측을 제공하고 다양한 비행 조건을 모사한다.", "figure_refs": []}, {"type": "bullet", "text": "SAC로 최적화된 날개 운동학 제어기는 완전한 6자유도 외란 하 안정화를 위해 과소구동 조건(행동 공간 4)에서 성공한다.", "figure_refs": []}, {"type": "bullet", "text": "요/피치/롤 자세 안정화에는 빠른 제어가 얻어지는 반면, 몸체 위치 안정화(수평/횡방향/수직)는 더 많은 날갯짓 주기를 요한다.", "figure_refs": []}, {"type": "bullet", "text": "더 나은 변위 감소와 복원 시간은 전통적 선형 전략 대비 심층 강화 학습의 우위를 입증한다.", "figure_refs": []}, {"type": "bullet", "text": "DRL 제어기는 사전 분해 없이 고도로 결합된 비선형 시스템에서 비행 제어를 가능하게 하고 정밀 매개변수 구현 없이 빠른 제어 정책을 달성한다.", "figure_refs": []}, {"type": "bullet", "text": "6자유도 날개 운동학 기반 DRL 전략은 생체 영감 날갯짓 마이크로 항공기를 위한 효율적인 자율 제어기 설계로 제안된다.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "위치(병진) 안정화는 자세 안정화보다 느리며, DRL 제어기는 병진 편차에 대해 PD 기준선보다 약간 더 많은 보정 시간을 요구한다.", "source_quote": "Fast control after large perturbations could be obtained in body attitude stabilization of yaw, pitch, and roll angles while it takes more wing-beat cycles for body position stabilization of horizontal, lateral, and vertical motions.", "source_section": "experiment"}, {"claim": "행동 공간은 강한 경계(예: 20% 스트로크 진폭 상승, 날개 겹침을 피하기 위한 20도 각도 편차)를 가진 네 개의 날개 운동학 매개변수로 제한되어, 달성 가능한 제어 권한을 제약한다.", "source_quote": "Considering the realistic morphology and kinematics of insects, we set the limitations of the action space, such as the maximum rising in stroke amplitude for 20% or the maximum deviation in mean positional and feathering angle for 20 to avoid overlapping of two wings.", "source_section": "method"}, {"claim": "본 연구는 전적으로 호버링 중인 단일 호박벌 형태에 대한 시뮬레이션 기반이며; 물리적 날갯짓 MAV 하드웨어 검증은 수행되지 않았다.", "source_quote": "we have developed an integrated simulation framework with a bio-inspired flight intelligence controller optimized by deep reinforcement learning (DRL) tasked with achieving bumblebee hovering stabilization under large perturbations.", "source_section": "conclusion"}, {"claim": "O(100)-O(10^4)에 걸친 보상 스케일링 매개변수는 수작업으로 균형 잡아야 했으며; 추가적인 매개변수별 정밀 조정은 훈련 성능을 향상시키지 못하여, 보상 설계의 민감성이나 제한된 조정 가능성을 시사한다.", "source_quote": "Through a variety of training verification, we found that further precise adjustment for each parameter may not enhance the training performance largely, which demonstrates the current scaling-based parameters in the reward design are rational for learning achievement.", "source_section": "experiment"}], "future_works": [{"claim": "6자유도 4-날개 운동학 기반 DRL 제어 전략은 구동기 기반 제작을 단순화하고 실제 곤충 영감 날갯짓 MAV의 자율 제어기 설계에 영감을 주는 것을 목표로 한다.", "source_quote": "Therefore, the 6-DoF four-wing kinematics-based DRL control strategy will further simplify the actuator-based fabrication and inspire the autonomous controller design for insect-inspired flapping-wing MAVs.", "source_section": "discussion"}, {"claim": "DRL 제어기는 생체 영감 날갯짓 마이크로 항공기를 위한 자율 제어기 설계로 자리매김되며, 이는 시뮬레이션 호박벌을 넘어 MAV 플랫폼으로의 이전을 함의한다.", "source_quote": "This 6-DoF wing kinematics-based DRL control strategy may provide an efficient autonomous controller design for bioinspired flapping-wing micro air vehicles.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["기존 선형 PD 제어기는 곤충 영감 비행 시스템에 널리 사용되지만 6자유도 비선형 제어 전략 하의 큰 외란을 다루지 못하며, 일반적으로 종방향과 횡방향 방정식을 분리하여 강한 축간 결합을 무시한다.", "정밀 PD 제어 매개변수 결정은 시간이 많이 드는 고유값/고유벡터 분석, 라플라스 변환, 근궤적 방법에 더해 각 과제 전 규정된 구현을 요구한다.", "날갯짓 비행 시스템은 고도로 결합되고 비선형적이어서, 날개 운동학 변조가 공기역학적 힘과 토크로 비선형적으로 사상되는 큰 외란에는 선형 주기 평균 가정이 성립하지 않는다."], "addressed_by_this_work": ["DRL(SAC) 제어기가 큰 외란 하 완전한 6자유도 호박벌 호버링을 안정화하여, 비결합 선형 제어가 무시하는 축간 결합을 포착한다.", "RL은 규정된 데이터베이스나 정밀 매개변수 결정 요구 없이 탐색을 통해 제어 정책을 학습하여, 고유값/근궤적 튜닝 부담을 제거한다.", "결합된 CFD 데이터 기반 공기역학 + 6자유도 비행 동역학 모델에 대한 훈련은 제어기가 사전 해석적 분해 없이 비선형의 고도로 결합된 시스템을 다루도록 한다."], "remaining_unresolved": ["병진(위치) 안정화는 여전히 회전 안정화보다 느리며 완전히 최적화되지 않았다.", "이 접근법은 호버링 중인 단일 호박벌 형태에 대해 시뮬레이션에서만 검증되었으며; 실제 MAV 하드웨어로의 이전은 향후 연구이다.", "행동 권한이 보수적 한계를 가진 네 개의 날개 운동학 매개변수로 제한되어, 더 넓은 기동 계열과 더 큰 제어 권한은 탐색되지 않은 채로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

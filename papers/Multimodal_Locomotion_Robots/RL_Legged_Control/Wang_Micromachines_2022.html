@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Hybrid Bipedal Locomotion Based on Reinforcement Learning and Heuristics</title>
+    <meta name="keywords" content="legged locomotion, reinforcement learning, humanoid robot, hybrid control, heuristic swing control, ground reaction force, curriculum learning, domain randomization, sim-to-real transfer">
+    <meta name="paper-authors" content="Zhicheng Wang, Wandi Wei, Anhuan Xie, Yifeng Zhang, Jun Wu, Qiuguo Zhu">
+    <meta name="paper-journal" content="Micromachines, Vol. 13, No. 10, 2022, Art. 1688 · DOI: 10.3390/mi13101688">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Hybrid Bipedal Locomotion Based on Reinforcement Learning and Heuristics</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Zhicheng Wang, Wandi Wei, Anhuan Xie, Yifeng Zhang, Jun Wu, Qiuguo Zhu</div>
+            <div class="journal">Micromachines, Vol. 13, No. 10, 2022, Art. 1688 · DOI: 10.3390/mi13101688</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 보행을 위상(phase)별로 분할하는 충돌 없는(conflict-free) <span class="term">hybrid bipedal locomotion controller</span>를 제안한다: model-free <span class="term">reinforcement learning</span> 정책이 지면 반력(GRF) 명령을 출력하여 지지(stance) 다리를 제어하는 한편, 저비용 <span class="term">heuristic</span> capture-point 정책이 유각(swing) 다리를 제어한다. 학습을 안정화하기 위해 저자들은 점진적 domain randomization을 갖춘 2단계 병렬 커리큘럼을 도입하며, sim-to-real 격차를 메우기 위해 실제 로봇에 heuristic 기반 정규화 피드백 루프를 추가한다. 이 방법은 RaiSim 시뮬레이션과 1.4 m, 45 kg의 Wukong-IV 휴머노이드에서 검증되며, 최대 0.6 m/s까지의 속도 명령을 추종한다. 사전 정보가 없는(prior-free) end-to-end 베이스라인 대비, 하이브리드 접근법은 더 높은 성공률, 더 빠른 수렴, 그리고 약 60% 더 낮은 속도 추종 오차를 달성한다. 정책이 GRF 명령을 생성하므로, 서로 다른 관절 구성을 가진 이족 보행 로봇에 쉽게 이식될 수 있다고 주장된다.</div>
+            <div class="keywords"><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">humanoid robot</span><span class="keyword-chip">hybrid control</span><span class="keyword-chip">heuristic swing control</span><span class="keyword-chip">ground reaction force</span><span class="keyword-chip">curriculum learning</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">sim-to-real transfer</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 민첩한 이족 보행의 동기를 제시하고 model-based, heuristic, learning-based 제어를 대조하면서, 순수 end-to-end 및 합산/잔차(summation/residual) 하이브리드가 학습된 구성요소와 model-based 구성요소 사이의 충돌을 야기한다고 주장한다. 대신 지지 제어는 학습되고 유각 제어는 heuristic인 위상 분할 하이브리드를 제안하며, 세 가지 기여를 열거한다: 하이브리드 정책, 점진적 domain randomization을 갖춘 병렬 커리큘럼, 그리고 실제 로봇에서의 heuristic 정규화 피드백.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">(서론에 엮인) 문헌 검토는 model-based 및 heuristic 제어기, end-to-end DRL 보행의 부상, 지각 강화 및 적응 프레임워크, 그리고 학습된 신호와 model-based 신호를 결합하는 잔차 하이브리드를 개관한다. 가장 가까운 선행 연구(학습된 유각과 model-based 지지를 갖춘 선형 정책 보행)를 위치시키고, 저자들이 그 역할 할당을 뒤집은 이유를 설명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법은 Wukong-IV 휴머노이드에서의 3분기(three-branch) 제어 프레임워크를 중심으로 한다: 학습 기반 지지 분기는 33차원 관측과 6차원 GRF 행동에 대해 PPO로 학습되어 GRF 명령을 출력하고, heuristic 유각 분기는 capture-point에서 영감을 받은 선형 정책과 cosine 보간 궤적을 통해 발 디딤(foothold)을 계획하며, 실제 로봇 전용 보조 분기는 heuristic 정규화 피드백을 적용한다. 학습은 점진적 domain randomization을 갖춘 2단계 병렬 커리큘럼, 적응적 관측 정규화, 그리고 균형, 명령 추종, 걸음걸이 조절 항으로 구성된 Gaussian-kernel 보상을 사용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 시뮬레이션과 실제 Wukong-IV 모두에서 하이브리드 방법을 사전 정보가 없는 end-to-end 베이스라인 및 커리큘럼 1단계 없는 ablation과 비교한다. 하이브리드 정책은 더 높은 평균 보상을 얻고, 현저히 낮은 오차로 보폭-속도 참조를 추종하며, 규칙적인 주기적 걸음걸이를 생성하고, 측방 밀침으로부터 회복하며, 보조 피드백 루프가 활성일 때만 실제 로봇으로 전이된다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토론은 결과를 학습과 heuristic이 협력하여 안정적이고 효율적인 학습으로 회복력 있는 이족 보행을 생성한다는 증거로 해석한 후, 명시적 한계를 진술한다. 시뮬레이션 결과가 지나치게 이상화되어 실제 로봇 성능이 저하되며, 제어기가 시각이 없고(blind) 평지에 제한됨을 지적한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 제안된 하이브리드 보행 정책이 학습된 지지 제어와 heuristic 유각 제어를 결합하여 회복력 있는 이족 보행을 달성하며, 보조 피드백과 함께 시뮬레이션과 실제 Wukong-IV에서 검증되었다고 결론짓는다. 비교 가능한 방법들 대비 우수한 보상과 추종 정확도를 보고하고, 이 접근법을 강건하고 적응적인 보행 제어기로 가는 안정적이고 효율적인 경로로 규정한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "다족 로봇은 거칠고 위험한 지형을 위해 개발되며, 동적 보행 제어는 강건하고 민첩한 다족 로봇의 필수적인 부분이다."}, {"type": "bullet", "text": "model-based 방법(예: 축소된 선형 도립진자 모델, 최적화 기반 제어)은 정밀하고 예측적이지만 단순화된 모델에 기반하기 때문에 작동점에서 멀어지면 정확도와 성능을 잃는다."}, {"type": "bullet", "text": "심층 강화학습은 신생 model-free 기술로서 보행에 대한 잠재력이 입증되었으며, 여기에는 실제 로봇에서 검증된 최초의 학습 기반 걸음걸이와 주기적 전환 보상을 사용한 더 어려운 이족 보행 과제가 포함된다."}, {"type": "bullet", "text": "합산/잔차 하이브리드에서 NN 정책은 저비용 model-based 제어기(중추 패턴 생성기, 걸음걸이 라이브러리, heuristic 참조) 위에서 잔차를 학습하지만, 흔한 문제는 학습된 정책과 다른 구성요소가 충돌하여 한쪽이 다른 쪽을 덮어쓰고 둘이 서로 상쇄하여 평범한 성능을 내는 것이다."}, {"type": "bullet", "text": "저자들은 분리된 제어기가 해당 위상 동안에만 활성화되어야 한다고 주장한다: 지지 다리는 지면 반력을 통해 작용하며 지형 불확실성에 직면하고(학습 기반 토크 제어에 적합), 반면 결정론적인 유각 다리는 heuristic으로 처리될 수 있다."}, {"type": "bullet", "text": "정책이 GRF 명령을 생성하므로, 제안된 충돌 없는 하이브리드는 계산적으로 효율적이고, 경량(반복적 수치 해석기 없음)이며, 서로 다른 관절 구성을 가진 이족 보행 로봇에 이식하기 쉽다고 주장된다."}, {"type": "bullet", "text": "세 가지 기여가 명시된다: (1) 지지(학습)와 유각(heuristic)을 분할하는 효율적인 하이브리드 정책; (2) 조기 발산을 방지하기 위한 2단계 점진적 domain randomization을 갖춘 병렬 커리큘럼; 그리고 (3) 시뮬레이션 불일치에 저항하고 안정화를 돕기 위해 실제 로봇에서의 heuristic 기반 정규화 피드백 루프이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "heuristic 방법은 초기 탐구에서 널리 채택되었다: Raibert의 호핑 제어기(이족 및 사족으로 확장됨)와 이족 보행 과제에서의 Pratt의 Virtual Actuator Control 및 Virtual Model Control이 있다."}, {"type": "bullet", "text": "Haarnoja와 Tan은 실제 로봇에서 학습 기반 걸음걸이를 처음 사용하여 end-to-end 실현 가능성을 검증하였으며, 이후 연구는 유사한 프레임워크 내에서 속보(trotting) 및 낙상 복구 같은 별도의 기술을 학습하였다."}, {"type": "bullet", "text": "더 어려운 이족 보행을 위해 Hurst는 평면과 계단에서 강건한 보행을 달성하는 주기적 전환 보상을 제안하였고, Yang은 운동 기술들을 다중 모드 정책으로 결합하기 위한 위상 지시자 유도 전환 메커니즘을 설계하였다."}, {"type": "bullet", "text": "다중 전문가 학습 아키텍처는 적응적 행동을 위해 게이팅 네트워크를 통해 여러 네트워크를 융합하며, 한편 지각 감지(높이 지도 스캐닝)와 잠재 인코더는 학습된 정책을 강화한다."}, {"type": "bullet", "text": "ANYmal은 privilege learning과 잠재 인코더를 사용하여 도전적인 지형을 정복하였으며, Kumar 등의 Rapid Motor Adaptation은 사전 정의된 참조나 궤적 생성기 없이 사족 보행을 위한 잠재 공간 식별을 가능하게 하였다."}, {"type": "bullet", "text": "가장 유사한 방법(Krishna의 선형 정책 보행)은 단순한 NN 정책으로 유각 다리를 제어하고 model-based 제어기로 지지 다리를 제어한다; 저자들은 반대 관점을 취하여, 강건성과 학습 효율을 개선하기 위해 (지면 불확실성에 직면하는) 지지 제어를 학습하는 한편 결정론적 유각은 heuristic으로 처리한다."}]}, "method": {"content": [{"type": "bullet", "text": "플랫폼은 팀이 직접 제작한 Wukong-IV 성인 크기 휴머노이드이다: 키 1.4 m, 45 kg, 전동 모터 관절, 다리당 6 DoF 및 팔당 4 DoF; 시뮬레이션은 Intel Xeon Gold 6242R / NVIDIA RTX 3090 워크스테이션에서 학습된 PyTorch 정책과 함께 RaiSim을 사용한다.", "figure_refs": [1]}, {"type": "bullet", "text": "제어 프레임워크는 세 분기를 갖는다: (Jacobian을 통해 관절 토크로 매핑되는) 기대 GRF를 출력하는 중간 학습 기반 지지 분기, 상부 heuristic 유각 분기(시계 구동 발 배치, cosine 보간, 역기구학, 저수준 PD), 그리고 물리적 배치 중에만 활성화되는 하부 보조 분기.", "figure_refs": [2]}, {"type": "bullet", "text": "지지 정책 관측은 33차원 정규화된 고유수용성(proprioceptive) 벡터이고, 행동은 6차원 기대 GRF(X/Y/Z의 힘과 토크)이며, 정책이 더 단순한 단일 영역을 탐색하도록 좌측 지지에서 측방 힘 성분을 0에 대해 미러링한다."}, {"type": "bullet", "text": "보상은 균형(자세, 미끄러짐), 명령 추종(속도, 높이), 걸음걸이 조절 항으로 구성되며, 각각은 Gaussian kernel에 의해 음의 오차에서 양의 보상으로 변환되고, 낙상에 대한 큰 페널티가 추가된다.", "figure_refs": []}, {"type": "formula", "label": "Eq. (8),(10) — Gaussian-kernel 보상과 총 보상", "latex": "F_{\\alpha,\\beta}(x) = \\alpha\\, e^{-\\beta x^{2}}, \\qquad R_{\\mathrm{sum}} = R_{\\mathrm{track}} + R_{\\mathrm{pose}} + R_{\\mathrm{height}} + R_{\\mathrm{gait}} + R_{\\mathrm{slip}} + R_{\\mathrm{fall}}", "description": "각 추종/안정성 항은 (조정 가능한 가중치 $\\alpha$와 선명도(sharpness) $\\beta$를 가진) Gaussian kernel $F_{\\alpha,\\beta}$를 통과하여 오차를 유계 양의 보상으로 매핑하며, 총 보상은 여섯 항을 합산한다."}, {"type": "bullet", "text": "정책은 surrogate loss, importance sampling, AdamW를 사용하는 PPO로 학습된 2개 은닉층 MLP(256 노드, tanh)이다; experience replay는 사용되지 않으며, 데이터는 폐기되기 전에 단 한 번만 학습된다."}, {"type": "bullet", "text": "적응적 정규화는 관측 저장소로부터 매 epoch마다 관측 평균과 분산을 갱신하여 설계자가 과제를 변경할 때 정규화를 재조정할 필요가 없도록 한다; 무작위화에 의한 손상을 피하기 위해 두 번째 커리큘럼 단계에서 파라미터가 동결된다."}, {"type": "bullet", "text": "2단계 병렬 커리큘럼은 다수의 무작위화된 환경에 걸쳐 학습한다: 1단계는 보상이 속도 추종 임계값을 넘을 때까지 원시 관측을 갖춘 이상적 환경을 사용하고, 2단계는 연장된 에피소드와 함께 잡음 센서 및 몸통 힘 섭동을 추가한다; 목표 속도는 연속적으로가 아니라 이산 집합에서 추출된다.", "figure_refs": [3]}, {"type": "formula", "label": "Eq. (15) — 이산 목표 속도 분포", "latex": "P(v^{*}=i) = \\frac{i}{2} + 0.1, \\quad i \\in \\{0.0,\\,0.2,\\,0.4,\\,0.6\\}", "description": "각 환경 리셋 시 목표 속도는 이산 집합에서 표집되는데, 저자들은 이것이 매 타임스텝마다 연속적인 무작위 목표를 생성하는 것보다 더 효과적임을 발견하였다."}, {"type": "bullet", "text": "heuristic 유각 제어기는 capture-point에서 영감을 받은 선형 정책으로부터 다음 발 디딤을 계획한 후, 데카르트 공간에서의 cosine(삼각함수) 보간으로 공중 발 위치를 생성하고 기하학적 역기구학을 통해 관절 명령으로 변환한다.", "figure_refs": [4]}, {"type": "formula", "label": "Eq. (16),(17) — heuristic 발 배치와 유각 궤적", "latex": "e_t = \\delta e + k_1 v_t + k_2 v_t^{*}, \\qquad p_w(\\phi_t) = \\begin{cases} A_1 \\cos 2\\pi\\phi_t + B_1, & 0.0 \\le \\phi_t < 0.5 \\\\ A_2 \\cos 2\\pi\\phi_t + B_2, & 0.5 \\le \\phi_t < 1.0 \\end{cases}", "description": "엉덩이(hip)에 상대적인 보폭 변위 $e_t$는 조정 가능한 게인 $k_1,k_2$를 가진 현재 속도와 목표 속도의 선형 함수이다; 유각 발의 수직 궤적 $p_w(\\phi_t)$는 0에서 1로 증가하는 걸음걸이 위상 $\\phi$에 대한 구간별 cosine이다."}, {"type": "formula", "label": "Eq. (22),(23) — 저수준 지지 및 유각 토크", "latex": "\\tau_{\\mathrm{stance}} = J_{\\mathrm{stance}}^{T}(-a_t), \\qquad \\tau_{\\mathrm{swing}} = K_p(q_t^{*}-q_t) + K_d(\\dot{q}_t^{*}-\\dot{q}_t)", "description": "지지 토크는 정책의 기대 GRF 행동 $a_t$를 force Jacobian을 통해 매핑하며, 유각 토크는 관절 위치 및 속도 목표를 추종하는 PD 법칙이다."}, {"type": "bullet", "text": "동역학 무작위화(링크의 질량, 관성, 질량 중심 위치)는 병렬 환경이 구축될 때 고정되어 모든 학습 단계 동안 지속된다; 실제 로봇에서는 heuristic 기반 피드백 루프가 부유 기저(floating-base) 상태 오차를 사용하여 저수준 제어기를 보상하여 안정화를 돕는다."}]}, "experiment": {"content": [{"type": "bullet", "text": "시뮬레이션에서 제안된 하이브리드 방법은 학습 단계 전반에 걸쳐 end-to-end 베이스라인과 커리큘럼 없는 ablation 모두보다 더 높은 평균 보상을 얻는다; 초기 단계는 커리큘럼이 보상 수준에 따라 전환되고 2단계 외란이 실패를 야기하기 때문에 큰 분산을 보인다.", "figure_refs": [5]}, {"type": "bullet", "text": "커리큘럼 1단계 없는 ablation은 높은 낙상 위험과 함께 약하게 수행되는데, 이는 지나치게 도전적인 초기 환경이 빈번한 실패, 유효 데이터의 부족, 그리고 균형이 학습되기 전의 조기 수렴을 야기하기 때문이다.", "figure_refs": [5]}, {"type": "bullet", "text": "40초 보폭-속도 참조에서 하이브리드 정책은 약 2 km/h까지 훨씬 낮은 오차로 추종한다: 하이브리드 정책의 평균 제곱 오차는 2.232x10^-3인 데 비해 end-to-end 베이스라인은 1.282x10^-2이다(속도 과제에서 대략 60% 적은 추종 오차).", "figure_refs": [6]}, {"type": "bullet", "text": "동일한 하이브리드 정책은 5 kg 더 무겁고 5 kg 더 가벼운 몸통을 가진 로봇 모델에서 테스트되었다; 하중 변동 하에서 더 큰 진동과 더 느린 응답에도 불구하고, 질량/관성 불일치에 저항하며 넘어지지 않고 추종을 완료한다.", "figure_refs": [6]}, {"type": "bullet", "text": "X-속도 추종 오차의 위상 평면(phase-plane) 그림은 하이브리드 정책이 원점을 향해 나선형으로 수렴(안정)함을 보이는 반면, end-to-end 베이스라인은 더 무작위적인 패턴으로 오프셋 영역으로 수렴하여 더 큰 오차와 더 낮은 안정성을 나타낸다; 하이브리드 걸음걸이는 안정적인 접촉과 함께 2.1 Hz에서 규칙적인 반면 베이스라인의 접촉은 뾰족하고 불규칙하다.", "figure_refs": [7, 8]}, {"type": "bullet", "text": "0.6 m/s로 보행하는 동안 0.5초 동안 가해진 14 N의 측방 밀침 하에서, 하이브리드 제어기는 학습된 정책이 몸통 자세를 유지하는 가운데 두 번의 heuristic 보폭을 통해 균형을 회복하는 반면, end-to-end 베이스라인은 넘어진다; 안전을 위해 베이스라인은 실제 로봇으로 전이되지 않았다.", "figure_refs": [9]}, {"type": "bullet", "text": "실제 Wukong-IV에서 하이브리드 정책은 보조 피드백 루프가 있을 때만 균형을 유지하고 제자리 걸음을 한다; 그것이 없으면 로봇은 격렬하게 진동하다가 곧 실패하며, 정책을 비활성화하면(피드백만으로는) 로봇이 즉시 넘어지는데, 이는 피드백이 정책을 덮어쓰는 것이 아니라 보조함을 확인한다.", "figure_refs": [10, 11]}]}, "discussion": {"content": [{"type": "bullet", "text": "하이브리드 구조는 학습과 heuristic이 협력하여 보행 과제를 완수하게 하며, 시뮬레이션에서 최대 0.6 m/s까지의 속도 명령을 추종한다."}, {"type": "bullet", "text": "이 프레임워크는 유사한 방법들보다 더 높은 보상과 더 나은 균형 유지 및 명령 추종 정확도를 산출하여, 적응성과 강건성을 갖춘 보행 제어기를 학습하는 안정적이고 효율적인 방법을 입증한다."}, {"type": "bullet", "text": "첫 번째 한계는 실제 로봇 성능이 시뮬레이션 대비 저하된다는 것으로, 이는 시뮬레이션과 소프트웨어 해법이 지나치게 이상화되어 큰 현실 격차(reality gap)를 만들기 때문일 가능성이 가장 높다."}, {"type": "bullet", "text": "보조 피드백 루프가 있어도 정책은 sim-to-real 격차를 완전히 메울 수 없으므로, 더 정확한 식별과 다족 로봇 동역학에 결부된 더 표적화된 domain randomization이 필요하다."}, {"type": "bullet", "text": "두 번째 한계는 보행이 시각이 없고 평지에서만 작동한다는 것이다; 고유수용성 제어에만 의존하는 것은 고도로 비선형적인 휴머노이드가 복잡한 지형에 직면하는 데 도움이 되지 않는다."}, {"type": "bullet", "text": "저자들은 지각 정보를 사용하여 계단과 울퉁불퉁한 표면 같은 더 도전적인 지형으로의 향후 적응을 권장한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 연구는 제안된 3분기 구조 내에서 학습과 heuristic이 협력하여 회복력 있는 이족 보행을 달성하는 하이브리드 보행 정책을 제시한다."}, {"type": "bullet", "text": "시뮬레이션에서 정책은 최대 0.6 m/s까지의 속도 명령을 추종하며, 보조 피드백 루프가 활성화될 때 Wukong-IV로의 sim-to-real 전이가 가능하다."}, {"type": "bullet", "text": "하이브리드 프레임워크는 균형 유지와 명령 추종 정확도에서 유사한 방법들보다 더 높은 보상과 더 나은 성능을 산출한다."}, {"type": "bullet", "text": "과제를 학습 기반 지지 제어와 heuristic 유각 제어로 분할하는 것은 합산/잔차 하이브리드를 괴롭히는 충돌을 피하고 탐색 공간을 좁혀, 학습 효율을 개선한다."}, {"type": "bullet", "text": "지지 정책이 GRF 명령을 출력하므로, 제어기는 경량(반복적 해석기 없음)이며 서로 다른 관절 구성을 가진 이족 보행 로봇에 이식 가능하다."}, {"type": "bullet", "text": "따라서 이 접근법은 적응성과 강건성을 갖춘 보행 제어기를 학습하기 위한 안정적이고 효율적인 방법으로 입증되며, 지형 인식 확장은 향후 과제로 남긴다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "실제 로봇 성능은 시뮬레이션 대비 저하되며, 보조 피드백 루프가 있어도 sim-to-real 격차가 완전히 메워지지 않는다.", "source_quote": "Firstly, the performance of policies on a real robot is degraded compared with it in the simulation.", "source_section": "discussion"}, {"claim": "제안된 보행은 시각이 없고 평지에서만 작동하는데, 이는 고유수용성 전용 제어가 복잡한 지형에 적합하지 않기 때문이다.", "source_quote": "Secondly, the proposed locomotion is still a blind one and just works on flat ground.", "source_section": "discussion"}], "future_works": [{"claim": "실제 로봇 성능을 개선하기 위해 더 정확한 시스템 식별을 수행하고 다족 로봇 동역학과 결합된 더 표적화된 domain randomization을 연구한다.", "source_quote": "In order to improve the performance of real robots, more accurate identification work should be done, and detailed research on more oriented domain randomization combined with the dynamics of legged robots will be demanded in the future.", "source_section": "discussion"}, {"claim": "지각 정보를 사용하여 제어기를 계단과 울퉁불퉁한 표면 같은 더 도전적인 지형으로 확장한다.", "source_quote": "Future work is also recommended to adapt to more challenging terrain such as stairs and uneven surfaces with perceptual information.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["model-based 제어기는 수렴을 보장하지만 작동점에서 멀어지면 정확도와 성능을 잃는 단순화된 모델에 의존한다.", "end-to-end DRL과 합산/잔차 하이브리드 방식은 학습된 정책과 model-based 구성요소가 서로 상쇄하는 충돌을 겪어 평범한 성능을 산출한다.", "초기 학습 단계에서의 격렬한 domain randomization은 정책 발산을 야기할 수 있으며, 큰 센서 무작위화는 학습을 늦춘다."], "addressed_by_this_work": ["활성화 위상에 따라 model-free 학습을 지지 제어에, heuristic을 유각 제어에 할당하는 충돌 없는 하이브리드 정책을 제안하여, 제어 가능하고 조절된 걸음걸이를 생성한다.", "초기 단계 정책 발산을 방지하기 위해 점진적 domain randomization을 갖춘 2단계 병렬 커리큘럼을 도입한다.", "무거운 센서 무작위화에 대한 의존을 줄이고 sim-to-real 안정화를 돕기 위해 실제 로봇에 heuristic 기반 정규화 피드백 루프를 추가한다."], "remaining_unresolved": ["실제 로봇 성능은 시뮬레이션 대비 저하된 채로 남는다; sim-to-real 격차가 완전히 닫히지 않는다.", "보행은 시각이 없고 평지에 제한되며 지형 지각이 결여되어 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

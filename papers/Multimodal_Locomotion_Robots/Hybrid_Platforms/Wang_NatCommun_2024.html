@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Multimodal locomotion ultra-thin soft robots for exploration of narrow spaces</title>
+    <meta name="keywords" content="soft robotics, multimodal locomotion, cross-domain locomotion, dielectric elastomer actuator (DEA), thin soft robot, tuneable Poisson's ratio tensioning, electrostatic adhesion, narrow-space inspection, terrestrial-aerial transition, robot collaboration">
+    <meta name="paper-authors" content="Xi Wang, Siqian Li, Jung-Che Chang, Jing Liu, Dragos Axinte, Xin Dong">
+    <meta name="paper-journal" content="Nature Communications (2024) 15:6296. DOI 10.1038/s41467-024-50598-1.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Multimodal locomotion ultra-thin soft robots for exploration of narrow spaces</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Xi Wang, Siqian Li, Jung-Che Chang, Jing Liu, Dragos Axinte, Xin Dong</div>
+            <div class="journal">Nature Communications (2024) 15:6296. DOI 10.1038/s41467-024-50598-1.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 건축 환경 내 좁고 접근이 어려운 공간을 점검하기 위해 영역 간(cross-domain) 다중 모드 이동을 수행하는 박형 소프트 로봇(Thin Soft Robots, TS-Robots, 두께 1.7 mm) 계열을 제시한다. 설계는 이중 작동 샌드위치 구조의 박형 소프트 유전성 탄성체 작동기(TS-DEA, 1.2 mm)와 조절 가능한 푸아송비 인장 메커니즘, 그리고 정전 접착 패드를 결합하여 두 가지 보행(직선형과 파동형), 높은 출력 힘(자중의 약 41배), 경쟁력 있는 속도를 제공한다. 단일 TS-Robot은 고체와 액체 영역 안과 영역 간을 기어가고, 오르고, 조향하고, 헤엄치고, 착지할 수 있으며, 공진 주파수는 화학적 방식이 아니라 인장 메커니즘 강성을 바꾸는 기계적 방식으로 조절된다. 여러 TS-Robot이 결합하여 표면 간 전환을 하거나 매니퓰레이터로 작동하며, 드론과 융합된 TS-Robot(Flying-TS-Robot)은 지상-공중 영역 간 배달을 달성하여 드론과 협업하는 최초의 소형 로봇이라고 주장한다.</div>
+            <div class="keywords"><span class="keyword-chip">soft robotics</span><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">cross-domain locomotion</span><span class="keyword-chip">dielectric elastomer actuator (DEA)</span><span class="keyword-chip">thin soft robot</span><span class="keyword-chip">tuneable Poisson's ratio tensioning</span><span class="keyword-chip">electrostatic adhesion</span><span class="keyword-chip">narrow-space inspection</span><span class="keyword-chip">terrestrial-aerial transition</span><span class="keyword-chip">robot collaboration</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">안전이 중요한 건축 환경은 고체, 액체, 심지어 공중 영역에 걸쳐 근밀리미터 및 서브밀리미터 간극을 가진 이동 경로를 통한 주기적 점검을 요구하는데, 기존의 단일 모드 로봇은 이를 통과할 수 없다. 자기 작동은 강자성체가 많은 환경에 배치하기 어렵기 때문에, 저자들은 유전성 탄성체 작동기와 정전 접착으로 눈을 돌린다. 본 논문은 1.2 mm 박형 소프트 DEA에 정전 접착 패드를 더해 만든 초박형 박형 소프트 로봇(TS-Robots)을 제안하며, 이들은 영역을 가로질러 기고, 오르고, 조향하고, 헤엄치고, 착지하며, 매니퓰레이터로 결합되고, 심지어 지상-공중 배달을 위해 드론과 협업한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 절은 밀리미터 규모 공간에 진입할 수 없는 거시 규모 이동 로봇(휴머노이드, 바퀴/궤도, 사족)과 공압, DEA, 형상기억합금, 열반응성 고분자, 외부 자기장으로 구동되는 소형 벌레형·곤충형 로봇을 대비한다. 표면 부착 전략(건식 접착, 진공, 정전 접착)을 검토하며 정전 접착이 가볍고 얇은 로봇에 적합하다고 지적하고, DEA가 다중 모드 이동에 필요한 유연성, 큰 변형, 출력 밀도를 제공한다고 자리매김한다. 최신 기술 비교표에 대비하여 TS-Robots는 복합 건축 환경에 독특하게 적합하고 드론과 협업할 수 있는 최초의 소형 로봇으로 규정된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">TS-Robot은 변위와 힘을 생성하는 박형 소프트 DEA(TS-DEA)와 표면에 로봇을 고정하는 정전 접착 패드(EA-Pads)를 결합한다. TS-DEA는 두 층을 동기화하면 면내 직선 운동을, 차동시키면 면외 굽힘을 주는 이중 작동 샌드위치를 사용하며, 재진입형 조절 가능 푸아송비 인장 메커니즘이 비등방 운동을 설정하고 그 강성을 통해 공진 주파수를 정한다. 해석적 힘 평형 및 굽힘 모멘트 모델이 운동을 입력 전압과 관련짓고, 세 가지 로봇 계열(Type-A/B/C, 저전압 변형 포함)이 서로 다른 보행과 속도를 위해 제작된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">특성화는 각 로봇 계열의 변위, 블로킹 힘(작동기 자중의 약 48배까지), 공진 거동을 정량화하여 인장 메커니즘이 주파수를 기계적으로 조절함을 확인한다(Type-C-I 51 Hz, Type-C-II 67 Hz). 이동 시연에는 2 mm 간극 기기/오르기, 1.2 mm 발전기 공극 점검, 장애물 터널 조향, 그리고 완전한 고체-액체-고체 전환을 동반한 오일 내 약 45.5 mm/s 파동형 헤엄이 포함된다. 결합된 로봇은 표면 간 전환을 하고 회로를 복구하며, Flying-TS-Robot은 드론을 낮은 터널로 기어 통과시킨 뒤 도랑 위를 날아 3 mm 간극으로 편지를 배달한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 두 가지 난제를 제시한다: 외부 자기장 없이 직선형과 파동형 보행을 모두 갖춘 박형 로봇이 필요한 다영역 좁은 공간 이동(Ch1), 그리고 높은 적재/자중비와 강성으로 여러 로봇이 협력해야 하는 작업(Ch2). TS-DEA 구조는 고체와 액체 영역에 걸쳐 직선형과 굽힘형 보행으로 서브밀리미터 두께를 가능케 하여 Ch1을 해결하고, 로봇 결합과 드론 협업이 Ch2를 해결한다. 인장 메커니즘 강성을 통한 새로운 기계적 공진 주파수 조절법이 부각되며, 단층 DEA의 힘-진폭 한계가 명시된 한계점이다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">TS-Robots는 박형 프로파일의 영역 간 다중 모드 이동(기기, 오르기, 조향, 헤엄, 착지)과 고체-액체 영역 간 전환을 달성하며, 결합 및 드론 협업 변형은 이를 표면 전환, 조작, 공중 영역으로 확장한다. 본 연구는 드론과 협업할 수 있는 최초의 소형 로봇임을 주장하며, 기계적 공진 주파수 조절을 DEA 성능 향상을 위한 폭넓게 적용 가능한 새로운 방법으로 제시한다. 저자들은 산업 플랜트와 토목 구조물의 좁은 공간 점검·유지보수 및 위험 환경의 보안 조사에서의 응용을 전망한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "안전이 중요한 건축 환경(발전소, 교량, 가스터빈 엔진)은 주기적 점검이 필요하지만, 그 이동 경로에는 고체, 액체, 심지어 공중 영역에 걸친 근밀리미터 및 서브밀리미터 간극 등 접근이 어려운 공간이 존재한다."}, {"type": "bullet", "text": "기존 로봇(휴머노이드, 바퀴/궤도, 사족)은 거시 규모의 장애물을 다루고, 소형 벌레형·곤충형 로봇은 좁은 공간에 접근하지만, 각각은 보통 하나의 장애물 유형에 대해 단일 이동 모드로 설계된다."}, {"type": "bullet", "text": "고가치 자산 점검과 같은 실제 응용은 여러 장애물 유형과 여러 영역에 걸친 공간을 전진할 수 있는 <span class=\"term\">다중 모드 이동(multimodal locomotion)</span>을 갖춘 로봇을 요구하는데, 이는 여전히 난제로 남아 있다."}, {"type": "bullet", "text": "일부 다중 모드 소형 로봇이 사용하는 자기장 작동은 환경 규모가 크고 강철·배관 등 강자성체 간섭이 있어 건축 환경에 배치하기 어렵다."}, {"type": "bullet", "text": "유전성 탄성체 작동기(DEA)는 높은 출력 밀도, 유연성, 견고성 덕분에 박형 이동 로봇에 매력적이며, 기존 DEA 로봇은 단일 영역 내에서 하나 또는 여러 보행을 수행한다."}, {"type": "bullet", "text": "건축 환경 이동은 경사진/수직 표면에 대한 가역적 부착도 요구하는데, 정전 접착은 박형 로봇의 소형화에 가장 적합한 접근법이다."}, {"type": "bullet", "text": "본 논문은 고체와 액체 영역에서 다중 모드 이동을 수행하고 영역 간 전환을 하는 <span class=\"term\">박형 소프트 로봇(TS-Robots)</span>을 제안하며, 이는 박형 소프트 DEA(TS-DEA, 1.2 mm)와 정전 접착 패드(EA-Pads)로 만들어지고 대칭 및 비대칭 형태로 조립 가능하다."}, {"type": "bullet", "text": "TS-Robot은 운반체/매니퓰레이터로 결합될 수 있고 다른 로봇(예: 드론)을 운반할 수 있어 운반체와 탑승체 모두에 추가 이동 모드를 부여한다. 시연에는 기기, 오르기, 조향, 헤엄, 착지, 수동 비행, 복합 조작이 포함된다. 프로젝트 관련성: 이는 단일 플랫폼 공중+지상 다중 모드 이동의 직접적 사례이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "거시 규모 이동은 문을 열고 계단을 오를 수 있는 휴머노이드, 바퀴/궤도, 사족 로봇이 담당하지만, 이들은 밀리미터 규모의 좁은 공간에 진입할 수 없다."}, {"type": "bullet", "text": "좁은 공간 접근은 공압, DEA, 형상기억합금, 열민감성 고분자, 외부 자기장으로 구동되는 소형 벌레형·곤충형 로봇이 다룬다."}, {"type": "bullet", "text": "대부분의 소형 자기 로봇은 인체 내부의 의료 수술이나 약물 전달을 위해 만들어졌으며, 고체-액체 전환을 동반한 다중 모드 이동을 수행하는 것은 소수에 불과하다."}, {"type": "bullet", "text": "초소형 로봇의 표면 부착 전략에는 생체 모방 건식 접착, 진공, 정전 접착이 있으며, 마지막 것이 가볍고 얇은 로봇에 가장 적합하다."}, {"type": "bullet", "text": "정전 또는 압전 작동을 사용하는 곤충 규모 로봇은 평탄면에서 빠른 이동을 달성하지만, DEA는 다중 모드 이동을 가능케 하는 높은 유연성, 큰 변형, 높은 출력 밀도를 제공한다."}, {"type": "bullet", "text": "최신 소형 로봇들(논문 Table 1)과 비교할 때, TS-Robots는 서브밀리미터 간극 접근이 필요한 복합 건축 환경에 더 적합하며, 드론과 협업할 수 있는 최초의 소형 로봇으로 자리매김된다."}]}, "method": {"content": [{"type": "bullet", "text": "TS-Robot은 두 하위 시스템을 가진다: 변위/힘을 생성하는 박형 소프트 DEA(TS-DEA), 그리고 기판 표면에 로봇을 고정하는 다수의 정전 접착 패드(EA-Pads)."}, {"type": "bullet", "text": "TS-DEA는 이중 작동 샌드위치를 사용한다: 두 작동 층(전극 사이의 유연 탄성체)이 그 사이의 압축성 인장 메커니즘을 구동하며, 두 층을 동기화하면 면내 직선 압축/신장을, 차동시키면 면외 굽힘을 만든다."}, {"type": "bullet", "text": "음 또는 영 푸아송비의 재진입형 인장 메커니즘이 작동 층을 늘리는 골격 역할을 하며, 대각 스트럿 각도로 푸아송비와 X/Y 변위비를 조절하여 비등방 운동을 가능케 한다."}, {"type": "formula", "label": "Eq.1", "latex": "v = -\\,\\frac{\\sin\\theta\\; x_i}{\\cos\\theta\\; y_i}", "description": "대각 스트럿 각도 theta와 셀 폭/길이 x_i, y_i의 함수로서 재진입형 인장 셀의 푸아송비 v; theta를 조절하면 v를 설정한다(예: 0 또는 -1)."}, {"type": "bullet", "text": "인장 메커니즘의 강성을 기계적으로 변경하면 빠른 작동을 위해 TS-DEA 공진 주파수가 조절되는데, 이는 최신 레시피 기반 방법보다 더 빠르고 덜 화학적인 대안이다."}, {"type": "bullet", "text": "해석적 모델은 작동 층 응력, 전압 유도 신장 힘, 인장 메커니즘 신장 힘을 평형시켜 직선 운동을 입력 전압과 관련짓는다."}, {"type": "formula", "label": "Eq.2", "latex": "A\\,\\big(\\sigma_1(\\Delta)+\\sigma_2(\\Delta)\\big) = \\big(F_{M1}(U,\\Delta)+F_{M2}(U,\\Delta)\\big) + F_{Re}(\\Delta)", "description": "변위 Delta에서의 면내 직선 운동에 대한 힘 평형: 작동 층 응력(면적 A)이 전압 유도 신장 힘과 인장 메커니즘 힘 F_Re의 합과 같다; U는 입력 전압이다."}, {"type": "bullet", "text": "굽힘 운동은 한 층을 작동시켜 얻으며, 그 모델은 두 층의 힘과 응력의 비대칭으로부터 인장 메커니즘 두께로 스케일링된 굽힘 모멘트를 산출한다."}, {"type": "formula", "label": "Eq.4", "latex": "M_{Re}(u) = \\Big(\\big(F_{M2}(U,u)-F_{M1}(U,u)\\big) + A\\big(\\sigma_1(u)-\\sigma_2(u)\\big)\\Big)\\frac{t_T}{2}", "description": "팁 변형 u에서의 굽힘 모멘트 M_Re; 두 작동 층의 전압 유도 힘과 응력의 차동으로부터 인장 메커니즘 두께의 절반 t_T로 스케일링된다."}, {"type": "bullet", "text": "EA-Pads는 확립된 정전 접착을 사용하여 고체 영역 이동 중 기판과의 인력을 생성한다; Type-A/B 로봇에는 VHB 탄성체를 사용한다(1-5 Hz에서 높은 전계 강도, 큰 변형/힘)."}, {"type": "bullet", "text": "세 가지 로봇 계열이 제작된다: Type-A(영 푸아송 TS-DEA + EA-Pad 2개, 일방향 신장/굽힘); Type-B(음 푸아송 v=-1 TS-DEA + EA-Pad 4개, 양방향 조향); Type-C(빠른 작동을 위한 방향성 마찰 발을 가진 영 푸아송 실리콘 기반 TS-DEA), 저전압 220 V L-Type-C 변형 포함.", "figure_refs": [1]}]}, "experiment": {"content": [{"type": "bullet", "text": "Type-A TS-DEA: 최대 변위 2.39 mm(6.0% 변형, 100 V/um), 최대 정적 블로킹 힘 0.57 N(자중의 48배, 두 작동 층의 291배); VHB 점탄성으로 20 Hz 이상에서 변위가 0.1 mm 미만으로 떨어져 Type-A 시연은 1-5 Hz에서 수행된다.", "figure_refs": [2]}, {"type": "bullet", "text": "Type-A 굽힘: 5 kV에서 최대 정적 굽힘 4 mm(몸체 길이의 10%), 블로킹 힘 17.5 mN(최대 토크 0.7 mNm), 12 Hz에서 14 mm 진폭으로 공진(몸체 길이의 35%, 정적의 약 4배).", "figure_refs": [2]}, {"type": "bullet", "text": "Type-B TS-DEA(v=-1): X/Y 변위 0.65/0.67 mm(동일한 X-Y 운동의 음 푸아송 예측과 일치), 블로킹 힘 0.51 N(X) 및 0.52 N(Y), 작동기 자중의 약 43-44배.", "figure_refs": [2]}, {"type": "bullet", "text": "Type-C 실리콘 DEA: 최대 정적 변위 0.9 mm, 블로킹 힘 0.038 N(Type-C-I) 및 0.081 N(Type-C-II); 공진 주파수가 인장 강성으로 조절됨 — Type-C-I 51 Hz, Type-C-II 67 Hz — 화학적이 아닌 기계적 주파수 조절을 확인한다.", "figure_refs": [2]}, {"type": "bullet", "text": "기기/오르기(Type-A): 수평 및 수직 PET 위 2 mm 높이 간극을 통과; 4 Hz에서 최대 속도 수평 2.3 mm/s(3.5% BL/s), 수직 1.7 mm/s(2.8% BL/s); 보행은 전/후방 EA-Pad 접착과 DEA 신장/수축을 교대한다.", "figure_refs": [3]}, {"type": "bullet", "text": "산업 시연: 두께 0.8 mm의 C-Type-A TS-Robot이 기존 도구로는 접근 불가한 Rolls-Royce AE2100 2.5 MW 발전기 모형의 1.2 mm 회전자-고정자 공극을 점검한다.", "figure_refs": [3]}, {"type": "bullet", "text": "고속/저전압 변형: Type-C-II는 67 Hz에서 43.1 mm/s(1.16 BL/s, 13.06 BT/s)에 도달; 220 V L-Type-C는 86 Hz에서 12.4 mm/s에 도달하고 3 g(자중의 2.5배)을 운반한다."}, {"type": "bullet", "text": "조향(Type-B): 장애물이 있는 200 mm x 150 mm, 2 mm 높이 터널을 기고 조향하며, EA-Pad와 X-Y 신장 DEA의 시너지로 350 mm 경로를 1140 s에 주파한다.", "figure_refs": [4]}, {"type": "bullet", "text": "헤엄/영역 간(Type-A): 파동형 거머리 유사 보행(후방 EA-Pad를 꼬리로 사용)이 12 Hz에서 실리콘 오일 내를 약 45.5 mm/s(0.7 BL/s)로 헤엄친다 — 지상 속도의 약 20배; 고체-액체-고체 전환(기기 -> 헤엄 -> 착지 -> 기기)을 시연했다.", "figure_refs": [5]}, {"type": "bullet", "text": "결합 로봇: 쌍둥이 Type-A(수동 힌지 + 사전 굽힘 수염)가 세 가지 협업 보행을 수행하여 수평-수직 표면 전환을 하고; 직렬 운동학 SK-TS-Robot(능동 힌지를 통한 Type-A + Type-B)이 네 가지 보행(기기, 전/후방 플립업, 조향)을 수행하고 2층 시험 장치에서 손상된 회로를 재연결하며, 최대 속도 1.18 mm/s이다.", "figure_refs": [6]}, {"type": "bullet", "text": "지상-공중 협업: Flying-TS-Robot(EA-Pad로 결합된 Type-A + 시판 드론)이 36 g 드론을 실은 1.4 g 로봇을 드론이 날기에 너무 낮은 50 mm 터널을 통해 200 mm 기어가게 한 뒤, 함께 깊은 도랑 위를 날아(2 s) 착지하고 분리되어 3 mm 간극으로 '편지'를 배달한다; 최대 40 g 적재 시 기기가 느려지며, 3 Hz가 최적의 1 mm/s 운반 속도를 준다.", "figure_refs": [7]}]}, "discussion": {"content": [{"type": "bullet", "text": "두 가지 핵심 난제가 제시된다: (Ch1) 다영역 좁은 공간 이동은 건축 환경에서 사용하기 어려운 외부 자기장에 의존하지 않고 여러 보행(기기용 직선형, 헤엄용 파동형)을 갖춘 박형 로봇이 필요하다; (Ch2) 일부 작업은 장벽을 가로질러 서로를 운반하기 위해 높은 적재/자중비와 강성으로 여러 로봇이 협력해야 한다."}, {"type": "bullet", "text": "TS-DEA 구조는 직선형과 굽힘형 보행 모두로 근/서브밀리미터 두께를 가능케 하여 Ch1을 해결하며, 단일 Type-A 로봇이 고체와 액체 영역에 걸쳐 기고, 오르고, 조향하고, 헤엄치고, 착지하게 한다; 푸아송비 조절은 자유도와 비등방 이동성을 추가한다(Type-B)."}, {"type": "bullet", "text": "Ch2는 로봇 결합(최대 적재/자중 29:1; 강성 직선 311.5 N/m, 굽힘 4.5 N/m)으로 표면 간 전환을 하고 매니퓰레이터로 작동(회로 복구, 프로그래밍 가능 신호 전송)하며, 운반체와 탑승체가 각각 추가 모드를 얻도록 드론과 협업하여 해결된다."}, {"type": "bullet", "text": "새로운 기계적 방법은 인장 메커니즘 강성을 조정하여 DEA 공진 주파수를 조절하는데 — 최신 화학적 접근보다 빠르고 DEA 설계 전반에 적용 가능하다; Type-C는 43.1 mm/s에 도달한다."}, {"type": "bullet", "text": "명시된 한계: 단층 DEA가 힘-출력 진폭을 제한하며, 첨단 제조로 만든 다중 초박형 층 DEA로 개선 가능하다."}, {"type": "bullet", "text": "박형 TS-DEA 구조는 로봇을 근/서브밀리미터 두께로 만들면서 다양한 장애물을 독립적으로 가로지르게 하여, 단일 로봇이 고체 표면에서 직선형 기기 보행을 수행하고 헤엄용 파동형 보행을 수행함으로써 기존 건축 환경 로봇의 단일 보행 또는 자기 작동 제약을 회피한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "TS-Robots는 박형 프로파일의 영역 간 다중 모드 이동(기기, 오르기, 조향, 헤엄, 착지)과 고체-액체 영역 간 전환을 달성하며, 결합 및 드론 협업 변형은 이를 표면 전환, 조작, 공중 영역으로 확장한다."}, {"type": "bullet", "text": "저자들이 아는 한 이는 드론과 협업할 수 있는 최초의 소형 로봇으로, 양측에 추가 기기 이동 모드를 부여하고 지상-공중 영역 간 작업을 가능케 한다."}, {"type": "bullet", "text": "인장 메커니즘 강성을 통한 기계적 공진 주파수 조절은 DEA 성능 향상을 위한 근본적으로 새롭고 폭넓게 적용 가능한 방법으로 제시된다."}, {"type": "bullet", "text": "저자들은 산업 플랜트와 토목 구조물(항공 엔진, 항공기, 원자력 시설)의 좁은 공간 점검/유지보수 및 위험 환경의 보안 조사에서의 응용을 전망한다."}, {"type": "bullet", "text": "결합된 TS-Robots는 최대 적재/자중비 29:1과 강성 311.5 N/m(직선) 및 4.5 N/m(굽힘)에 도달하여, 수평-수직 표면 전환과 큰 간극 같은 장벽을 가로질러 서로를 운반하기에 충분하다."}, {"type": "bullet", "text": "운반체-탑승체 협업은 양측 파트너에게 추가 모드를 부여하여 — 드론은 깊은 도랑 위를 날고 TS-Robot은 접근이 어려운 공간을 통과한다 — 저자들은 단층 DEA가 힘-출력 진폭을 제한한다고 언급하며, 더 높은 힘을 위한 경로로 다중 초박형 층 DEA를 남긴다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "유전성 탄성체 작동 층이 단일 DEA 층이어서 힘 출력의 최대 진폭이 제한된다.", "source_quote": "The limitations of the current robots can be summarised as follows: the dielectric elastomer actuation layer is made of a single layer of DEA, limiting the maximum amplitude of the force output, which can be enhanced by using multiple-ultrathin-layer DEA made from advanced fabrication approaches.", "source_section": "discussion"}], "future_works": [{"claim": "첨단 제조 접근법으로 만든 다중 초박형 층 DEA를 사용하여 힘 출력 진폭을 증가시킨다.", "source_quote": "The limitations of the current robots can be summarised as follows: the dielectric elastomer actuation layer is made of a single layer of DEA, limiting the maximum amplitude of the force output, which can be enhanced by using multiple-ultrathin-layer DEA made from advanced fabrication approaches.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["안전이 중요한 건축 환경(발전소, 교량, 가스터빈 엔진)은 근밀리미터 및 서브밀리미터 간극을 포함하고 여러 영역(고체, 액체, 심지어 공중)에 걸친 이동 경로를 통한 주기적 점검을 요구하는데, 기존 로봇은 이를 통과할 수 없다.", "대부분의 소형 로봇(벌레형·곤충형)은 하나의 장애물 유형에 대해 단일 이동 모드로 설계되는 반면, 실제 응용은 여러 장애물 유형과 여러 영역을 통과하기 위한 다중 모드 이동을 필요로 한다.", "자기장 작동 다중 모드 소형 로봇은 환경 규모가 크고 강철 철근·배관 등 흔한 강자성체의 간섭 때문에 인공 건축 환경에서 사용하기 어렵다."], "addressed_by_this_work": ["이중 작동 샌드위치와 조절 가능 푸아송비 인장을 갖춘 초박형(1.7 mm) TS-Robot은 근/서브밀리미터 간극 접근을 가능케 하면서 고체와 액체 영역에 걸쳐 기기, 오르기, 조향, 헤엄, 착지를 수행하고 영역 간 전환을 한다.", "DEA 설계는 두 보행(면내 직선형과 면외 굽힘/파동형)과 높은 힘/자중비를 제공한다; 여러 TS-Robot이 힌지 관절로 결합하여 표면 간 전환을 하고 매니퓰레이터로 작동하며, 드론과의 협업(Flying-TS-Robot)이 공중 이동을 추가한다.", "자기 작동 대신 유전성 탄성체 작동기와 정전 접착을 사용하여 강자성체 간섭 제약 없이 건축 환경에서 로봇을 사용할 수 있게 한다."], "remaining_unresolved": ["단층 DEA가 최대 힘 출력 진폭을 제한한다; 더 높은 힘은 첨단 제조로 만드는 아직 구현되지 않은 다중 초박형 층 DEA를 요구한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

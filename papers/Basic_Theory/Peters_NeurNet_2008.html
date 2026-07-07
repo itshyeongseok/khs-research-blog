@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Reinforcement learning of motor skills with policy gradients</title>
+    <meta name="keywords" content="policy gradient methods, natural gradients, Natural Actor-Critic, motor primitives, motor skills, Fisher information matrix, REINFORCE, humanoid robotics">
+    <meta name="paper-authors" content="Jan Peters, Stefan Schaal">
+    <meta name="paper-journal" content="Neural Networks, Vol. 21, No. 4 (2008 Special Issue), pp. 682-697 · DOI: 10.1016/j.neunet.2008.02.003">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Reinforcement learning of motor skills with policy gradients</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Jan Peters, Stefan Schaal</div>
+            <div class="journal">Neural Networks, Vol. 21, No. 4 (2008 Special Issue), pp. 682-697 · DOI: 10.1016/j.neunet.2008.02.003</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 운동 기술(motor skill) 강화학습을 위한 <span class="term">policy gradient methods</span>를 개관하고 발전시키며, 휴머노이드 로봇의 고차원 연속 상태·행동 공간으로의 확장에 초점을 둔다. 두 아이디어를 결합한다: 제어 정책을 파라미터화된 <span class="term">motor primitives</span>(비선형 동역학계)로 표현하는 것과, 이를 확률적 policy gradient로 최적화하는 것이다. 저자들은 1차 그래디언트 추정기의 세 계열 — finite-difference, vanilla(likelihood-ratio) policy gradient, natural policy gradient — 을 검토하고, Fisher information matrix를 사용해 공변(covariant) natural gradient를 따르는 <span class="term">Episodic Natural Actor-Critic (eNAC)</span>를 전개한다. eNAC는 motor-primitive 학습에서 이전 방법들을 최소 한 자릿수(order of magnitude) 능가하는 것으로 나타난다. 이 방법은 T-stick 위의 야구공을 치는 법을 학습하는 7자유도 인간형 SARCOS 로봇 팔에서 시연된다.</div>
+            <div class="keywords"><span class="keyword-chip">policy gradient methods</span><span class="keyword-chip">natural gradients</span><span class="keyword-chip">Natural Actor-Critic</span><span class="keyword-chip">motor primitives</span><span class="keyword-chip">motor skills</span><span class="keyword-chip">Fisher information matrix</span><span class="keyword-chip">REINFORCE</span><span class="keyword-chip">humanoid robotics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 강화학습을 운동 기술의 시행착오적 습득을 위한 일반 틀로 동기화하되, 대부분의 RL 방법이 휴머노이드 로봇으로 확장되지 않음을 관찰한다. policy gradient 방법이 주목할 만한 예외이며, 이를 motor-primitive 정책 표현과 결합하면 고-DOF 시스템으로의 확장이 가능하다고 주장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 1990년대 초부터 로보틱스에서의 policy gradient 응용 계보와, 분석할 세 부류의 그래디언트 추정기를 검토하며, vanilla likelihood-ratio 방법 및 REINFORCE에 견주어 natural gradient와 Natural Actor-Critic을 위치시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">motor primitive를 사용한 연속 제어를 위한 강화학습 문제를 설정한 후, 이 논문은 likelihood-ratio(vanilla) policy gradient와 그 최적 baseline을 분석하고, 이어서 Fisher information matrix를 사용한 natural policy gradient와 이를 roll-out으로부터 추정하는 Episodic Natural Actor-Critic 알고리즘을 유도한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">알고리즘들은 먼저 스플라인과 dynamic motor primitive를 모두 사용한 motor-primitive 학습 과제(목표 달성 및 중간 목표 과제)에서 비교된 뒤, T-ball 야구 스윙을 학습하는 실제 7-DOF SARCOS 로봇 팔에 적용된다. episodic natural actor-critic 방법은 vanilla 및 finite-difference 그래디언트를 자릿수 단위로 능가한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 natural actor-critic 방법이 제어 정책 파라미터 최적화에 유의한 이점이 있음을 확립하면서, policy gradient가 복잡한 고차원 과제에 사전 지식 초기화를 필요로 하는 국소 방법임을 강조한다. 모방-후-개선 워크플로는 아이가 운동 기술을 배우는 방식을 닮았다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 고-DOF 로보틱스에 적용 가능한 policy gradient 방법의 광범위한 개관을 제공하고, 세 가지 그래디언트 추정 계열 모두에 대한 실용적 알고리즘을 제시하며, 운동 기술의 policy-gradient 학습에서 현재 선택되는 방법으로 검증되는 Natural Actor-Critic을 기여한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "구조화된 공장 바닥을 떠나는 미래 로봇은 보상과 비용에 기반해 새로운 운동 기술을 습득하고 개선해야 한다. 강화학습은 그러한 학습을 표현할 수 있는 가장 일반적인 틀이다."}, {"type": "bullet", "text": "표준 RL을 인간 동작 학습으로 가져오려면 두 구성 요소를 추가해야 한다: 운동 기술을 위한 도메인 특화 정책 표현, 그리고 그 표현과 효율적으로 작동하면서 고차원 시스템으로 확장되는 RL 알고리즘."}, {"type": "bullet", "text": "전통적 스플라인 기반 궤적 표현은 큰 단점이 있다: 시간 인덱스 기반이라 외란에 견고하지 않고, 재계산 없이는 새 상황에 일반화되지 않으며, 다른 환경 사건과 쉽게 협응될 수 없다."}, {"type": "bullet", "text": "파라미터화된 비선형 동역학계에 기반한 motor primitive (Ijspeert et al. 2002, 2003)는 끌개(attractor) 성질을 사용해 원하는 행동을 정의하며, 휴머노이드 로보틱스의 지도 모방 학습에 잘 맞는다."}, {"type": "bullet", "text": "학계에서 제안된 대부분의 RL 방법은 3~4자유도를 넘어 확장되지 않거나 파라미터화된 정책을 다룰 수 없다. policy gradient 방법은 주목할 만한 예외이다."}, {"type": "bullet", "text": "파라미터화된 motor primitive에 대한 policy gradient의 장점은 과제에 의미 있는 정책 표현을 선택할 수 있고, 도메인 지식을 통합할 수 있으며(가치 함수 접근보다 흔히 파라미터가 적음), 다양한 그래디언트 추정 알고리즘을 사용할 수 있다는 점이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "1990년대 초 Gullapalli와 동료들의 선구적 연구를 시작으로, policy gradient 방법은 단순 제어 과제(빔 위의 공, 막대 균형)부터 복잡한 운동 기술과 보행에 이르는 로봇 학습 문제에 적용되어 왔다."}, {"type": "bullet", "text": "policy gradient 강화학습의 일반 목표는 기대 수익의 그래디언트를 따라 확률적 정책의 파라미터 $\\theta$를 최적화하는 것이다. 이 논문은 finite-difference, likelihood-ratio(vanilla), natural gradient 추정기를 비교한다."}, {"type": "bullet", "text": "Williams의 REINFORCE (1992)는 근본적인 likelihood-ratio policy gradient 추정기이다. policy gradient theorem / G(PO)MDP 정식화는 정책을 상태 전이 확률로부터 분리하는 밀접히 관련된 진전이다."}, {"type": "bullet", "text": "최적 baseline은 likelihood-ratio 그래디언트 추정의 분산을 줄인다. 이 논문은 최적 baseline의 알고리즘적 형태를 유도하고 평이한 REINFORCE류 표현 대비 분산 이점을 언급한다."}, {"type": "bullet", "text": "natural policy gradient는 RL 맥락에서 Kakade (2002)에 의해 처음 제안되었다. Fisher information 계량에 대한 최급 상승은 'average natural policy gradient'를 산출한다."}, {"type": "bullet", "text": "Natural Actor-Critic 계열은 이 아이디어들을 통합하며, 저술 시점에 강화학습 학계에서 policy gradient 방법 중 '현재 선택되는 방법(current method of choice)'으로 여겨졌다."}]}, "method": {"content": [{"type": "bullet", "text": "제어 시스템은 확률적 플랜트 동역학 $x_{k+1}\\sim p(x_{k+1}\\mid x_k,u_k)$와 $\\theta$로 파라미터화된 확률적 정책 $u_k\\sim\\pi_\\theta(u_k\\mid x_k)$를 갖는 이산 시간으로 모델링되며, 탐험 행동은 정책의 확률성을 통해 통합된다."}, {"type": "bullet", "text": "vanilla(likelihood-ratio) policy gradient는 REINFORCE로부터 따라온다: 기대 수익의 그래디언트는 정책의 score function을 사용해 추정되며, 분산을 최소화하기 위해 최적 baseline이 차감된다."}, {"type": "formula", "label": "baseline을 가진 likelihood-ratio(vanilla) policy gradient", "latex": "g = \\mathbb{E}\\Big[ \\sum_{k=0}^{H} \\nabla_\\theta \\log \\pi_\\theta(u_k \\mid x_k)\\, (R - b) \\Big]", "description": "REINFORCE류 추정기는 정책 score function에 수익 $R$에서 baseline $b$를 뺀 값을 곱한다. 최적 $b$를 선택하면 편향을 도입하지 않고 그래디언트 추정의 분산을 줄인다."}, {"type": "bullet", "text": "vanilla 그래디언트는 (임의의) 파라미터화에 의존하므로 느리고 조건이 나쁠 수 있다. natural gradient는 대신 Fisher information matrix가 정의하는 계량 하에서 최급 상승 방향을 따라 공변 업데이트를 제공한다."}, {"type": "formula", "label": "Fisher information matrix를 통한 natural policy gradient", "latex": "\\tilde{g} = F_\\theta^{-1}\\, g", "description": "natural gradient $\\tilde{g}$는 vanilla 그래디언트 $g$에 Fisher information matrix의 역 $F_\\theta$를 앞에서 곱하여, 정책의 파라미터화에 불변인 업데이트를 만들고 평이한 그래디언트 상승이 낭비하는 탐험을 줄인다."}, {"type": "bullet", "text": "이 논문은 경로를 따라 정책으로부터 형성된 행렬 $G_\\theta$가 경로의 진짜 Fisher information matrix $F_\\theta$임을 증명하여, episodic 설정의 natural gradient에서 그것을 사용함을 정당화한다."}, {"type": "formula", "label": "Episodic Natural Actor-Critic 그래디언트 (eNAC1)", "latex": "g^{\\text{eNAC1}} = F_\\theta^{-1}\\,(g - \\phi b)", "description": "Episodic Natural Actor-Critic은 각 roll-out에 걸쳐 호환 가치 함수 통계량을 합산하여 natural gradient를 추정한다. $\\phi$는 기저 함수, $b$는 baseline/offset이며, 추정은 REINFORCE처럼 episodic 수익 정보만 사용한다."}, {"type": "bullet", "text": "Episodic Natural Actor-Critic은 roll-out에 걸쳐 호환 함수 근사를 합산하여 유도되며, roll-out을 따른 총(그리고 가능하면 중간) 보상만 가용한 episodic motor-primitive 설정에 적합하다."}]}, "experiment": {"content": [{"type": "bullet", "text": "첫 과제(최소 제곱 모터 명령으로 목표 달성)에서 스플라인과 dynamic motor primitive 모두에 대해, natural actor-critic 방법은 다른 어떤 방법보다 여러 자릿수 빠르게 최적해를 학습한다.", "figure_refs": [4]}, {"type": "bullet", "text": "episodic natural actor-critic의 두 버전(단일 offset, 시변 추가 기저 함수) 모두 vanilla policy gradient 방법과 finite-difference 방법을 명확히 능가한다."}, {"type": "bullet", "text": "finite-difference 방법은 종종 국소 최소에 갇혀 그만큼 좋은 해에 도달하지 못한다. 이 방법에서는 궤적 동안 탐험을 적용하지 않고 에피소드 시작에서만 파라미터를 섭동하는 것이 최선이며, 그렇지 않으면 그래디언트 추정이 너무 잡음이 많아진다."}, {"type": "bullet", "text": "로봇 응용은 7-DOF SARCOS Master Arm을 사용해 토크 포화를 피하면서 T-stick 위의 부드러운 야구공(T-Ball)을 최대한 멀리 치며, 공의 위치와 속도는 60 Hz 컬러 비전 시스템으로 관측된다."}, {"type": "bullet", "text": "DOF당 Fisher information matrix가 70차원이고 수치적으로 안정화하기 어려우므로, 이를 블록 대각으로 근사한다 — 각 DOF의 motor primitive를 독립적으로 학습 가능한 것처럼 취급 — 이는 양정치이며 vanilla 그래디언트의 수렴 보장을 물려받으면서 eNAC의 속도를 유지한다."}, {"type": "bullet", "text": "로봇은 먼저 one-shot 모방 학습으로 초기화되고, 제어 부정확성 때문에 처음에는 행동 재현에 실패하지만, 약 200~300회의 episodic Natural Actor-Critic 학습 시도 후 공을 제대로 쳐 약 5 m의 공 비행을 달성한다.", "figure_refs": [5]}]}, "discussion": {"content": [{"type": "bullet", "text": "결과로부터 저자들은 natural actor-critic 방법이 제어 정책의 파라미터를 최적화하는 학습 목표에 유의한 이점이 있다고 결론짓는다."}, {"type": "bullet", "text": "policy gradient 방법은 국소 학습 방법이므로, motor primitive가 사전 지식으로 초기화되지 않는 한 복잡한 고차원 행동을 빠르게 학습할 수 없다."}, {"type": "bullet", "text": "따라서 적합한 접근은 먼저 교사를 모방한 뒤 시행착오로 개선하는 것이다 — 부모가 시연한 후 아이가 야구공 치는 법을 배우는 방식을 흉내 낸다."}, {"type": "bullet", "text": "블록 대각 Fisher information 근사는, 같은 motor primitive의 파라미터들이 서로 다른 primitive 간의 파라미터보다 더 강하게 결합되어 있다는 가정으로 정당화된다."}, {"type": "bullet", "text": "일곱 개 motor primitive 전체에 동일한 난수 생성기를 탐험에 사용하면 그래디언트 분산이 줄어드는데, 그렇지 않으면 한 DOF의 탐험 잡음이 다른 DOF의 것과 충돌해 학습을 늦추기 때문이다."}, {"type": "bullet", "text": "파라미터만의 섭동에서 비롯되는 확률성 부족은 평탄 구간(plateau)과 국소 최소를 증가시킨다. 이는 탐험 행동과 함께 더 많은 샘플을 수집하여 극복할 수 있으나, 훨씬 많은 roll-out을 치러야 한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "이 논문은 고자유도 운동 시스템을 가진 로보틱스에 적용 가능한 최신 기술을 요약하며 policy gradient 방법의 광범위한 개관을 제시하고, 매우 저차원 상태 공간에만 적용되는 발전들은 생략한다."}, {"type": "bullet", "text": "1차 그래디언트를 추정하는 세 가지 주요 방식 — finite-difference, vanilla policy gradient, natural policy gradient — 모두 실용적 알고리즘과 함께 논의된다."}, {"type": "bullet", "text": "Natural Actor-Critic 알고리즘 부류는 이 논문을 위해 개발되었고, 널리 채택되었으며, RL 학계에서 policy gradient 방법 중 현재 선택되는 방법으로 여겨진다."}, {"type": "bullet", "text": "Episodic Natural Actor-Critic은 motor-primitive 학습에서 이전 알고리즘을 최소 한 자릿수 능가한다."}, {"type": "bullet", "text": "이 틀은 야구 스윙을 학습하는 실제 인간형 7-DOF 팔에서 검증되어, 진정으로 고차원인 물리 운동 기술에 대한 적용 가능성을 입증한다."}, {"type": "bullet", "text": "Isaac Lab 이족 보행을 목표로 하는 RL 입문 독자에게, 이 논문은 Sutton의 policy gradient theorem을 다리형 로봇 제어에 쓰이는 현대 알고리즘과 잇는 natural-gradient 및 actor-critic 기초(Fisher information, 호환 함수 근사, 모방-후-개선)를 설명한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "policy gradient 방법은 국소(local) 학습 방법이므로, 사전 지식 초기화 없이는 복잡한 고차원 행동을 빠르게 학습할 것으로 기대할 수 없다.", "source_quote": "As policy gradient methods are local learning methods, we cannot expect to learn this complex, high-dimensional behavior in a short time unless we initialize the motor primitives with some prior knowledge.", "source_section": "discussion"}, {"claim": "finite-difference 그래디언트 방법의 경우, 궤적 동안의 탐험을 피해야 하며 그렇지 않으면 그래디언트 추정이 너무 잡음이 많아 실용적이지 않게 된다.", "source_quote": "For finite-difference gradient methods, it is best not to apply exploration during the trajectory but only perturb the parameters at the start of the episode. Otherwise, the gradient estimate is too noisy for any practical purposes.", "source_section": "experiment"}, {"claim": "일부 policy-gradient 발전들은 매우 저차원 상태 공간에만 적용 가능하여 생략되었다.", "source_quote": "While some developments needed to be omitted as they are only applicable for very low-dimensional state-spaces, this paper largely summarized the state of the art in policy gradient methods as applicable in robotics with high degree-of-freedom movement systems.", "source_section": "conclusion"}], "future_works": [{"claim": "파라미터만의 섭동에서 비롯되는 확률성의 부족은, 더 많은 roll-out을 치르는 비용으로 추가 탐험 행동과 함께 충분히 많은 샘플을 수집하여 극복할 수 있다.", "source_quote": "This problem could be overcome by collecting sufficiently many samples with additional stochastic, exploratory actions, but at the cost of many more roll-outs.", "source_section": "experiment"}], "motivation_resolution": {"motivating_problems": ["대부분의 강화학습 방법은 3~4자유도를 넘는 시스템으로 확장되지 않으며 파라미터화된 정책을 다룰 수 없어, 휴머노이드 로봇에 적용 불가능하다.", "전통적 스플라인 기반 운동 표현은 시간 인덱스 기반이라 외란에 견고하지 않고, 재계산 없이는 일반화되지 않으며, 환경 사건과 쉽게 협응될 수 없다.", "신경생물학 연구도 기계학습 연구도, 강화학습을 인간이나 휴머노이드의 고차원 연속 공간으로 어떻게 확장할 수 있는지에 대해 설득력 있는 결과를 제시하지 못했다."], "addressed_by_this_work": ["policy gradient 방법은 연속적이고 고차원이며 파라미터화된 정책을 다룰 수 있는 주목할 만한 예외로 식별된다.", "비선형 동역학계에 기반한 motor primitive는 도메인 지식을 통합할 수 있는, 의미 있고 외란에 견고한 정책 표현을 제공한다.", "Episodic Natural Actor-Critic은 policy-gradient 학습을 7-DOF 인간형 팔로 확장하여, 이전 알고리즘을 최소 한 자릿수 능가한다."], "remaining_unresolved": ["policy gradient는 여전히 국소 방법이므로, 복잡한 고차원 과제에는 좋은 사전 지식 초기화(예: 모방)가 여전히 필요하다.", "탐험을 희생하지 않고 그래디언트 추정 잡음을 줄이려면 많은 추가 roll-out이 필요하다.", "고차원 Fisher information matrix를 수치적으로 안정화하려면 일반적 해결책이 아닌 블록 대각(block-diagonal) 근사가 필요했다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

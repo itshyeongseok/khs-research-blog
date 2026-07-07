@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flapping-wing robot achieves bird-style self-takeoff by adopting reconfigurable mechanisms</title>
+    <meta name="keywords" content="flapping-wing robot, bird-style takeoff, reconfigurable mechanism, flap-sweep-fold (FSF) motion, leading-edge vortex, bioinspired robotics, wing kinematics, underactuation, MuJoCo simulation, slow-flight aerodynamics">
+    <meta name="paper-authors" content="Ang Chen, Bifeng Song, Kang Liu, Zhihe Wang, Dong Xue, Hongduo Qi">
+    <meta name="paper-journal" content="Science Advances, Vol. 11, No. 36, eadx0465 (2025) · DOI: 10.1126/sciadv.adx0465">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Flapping-wing robot achieves bird-style self-takeoff by adopting reconfigurable mechanisms</div>
+                <span class="tier-badge tier-1">Tier 1 — Top</span>
+            </div>
+            <div class="authors">Ang Chen, Bifeng Song, Kang Liu, Zhihe Wang, Dong Xue, Hongduo Qi</div>
+            <div class="journal">Science Advances, Vol. 11, No. 36, eadx0465 (2025) · DOI: 10.1126/sciadv.adx0465</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">Paper Summary</div>
+            <div class="summary">This paper presents <span class="term">RoboFalcon2.0</span>, a medium-bird-scale flapping-wing robot capable of bird-style self-takeoff through a bioinspired <span class="term">flap-sweep-fold (FSF)</span> wing motion enabled by novel reconfigurable mechanisms. The robot's <span class="term">conical rocker mechanism (CRM)</span> combined with a folding decoupler and sweeping decoupler couples wing flapping, sweeping, and folding within a single wingbeat cycle, replicating the ventral-anterior downstroke with aerodynamically inactive tucked upstroke characteristic of flying vertebrates at low airspeeds. Wind tunnel experiments and CFD simulations demonstrate that increasing sweeping amplitude enhances both lift and nose-up pitching moment by strengthening the <span class="term">leading-edge vortex (LEV)</span> and shifting the <span class="term">center of pressure (CP)</span> forward, enabling an underactuation strategy where one actuator concurrently controls two degrees of freedom. Real-world flight tests on a prototype (1.2 m wingspan, 800 g) confirm controlled bird-style self-takeoff, validating the reconfigurable sweeping amplitude as an effective pitch-control strategy for the low-airspeed takeoff phase.</div>
+            <div class="keywords"><span class="keyword-chip">flapping-wing robot</span><span class="keyword-chip">bird-style takeoff</span><span class="keyword-chip">reconfigurable mechanism</span><span class="keyword-chip">flap-sweep-fold (FSF) motion</span><span class="keyword-chip">leading-edge vortex</span><span class="keyword-chip">bioinspired robotics</span><span class="keyword-chip">wing kinematics</span><span class="keyword-chip">underactuation</span><span class="keyword-chip">MuJoCo simulation</span><span class="keyword-chip">slow-flight aerodynamics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The introduction motivates the work by documenting the slow-flight wingbeat kinematics of flying vertebrates — specifically the asymmetrical hovering pattern featuring ventral-anterior downstrokes and aerodynamically inactive folded upstrokes — and contrasting it with the single-DOF wing kinematics universally adopted by existing flapping-wing robots. It argues that the full FSF (flap-sweep-fold) coupling characteristic of birds and bats during takeoff, landing, and hovering has never been implemented on a self-takeoff-capable robot, and that a reconfigurable mechanism approach can resolve the actuator weight-power-bandwidth contradiction inherent in multi-DOF wing drive systems.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Related work encompasses three threads: (1) biologically documented bird and bat wingbeat kinematics studies that established the aerodynamic significance of inclined stroke planes and anterior wing protracting at low airspeeds; (2) previous robotic implementations of wing sweeping and folding features in drones and flapping-wing robots that stopped short of slow-flight or self-takeoff applications; and (3) the authors' own prior CRM-based RoboFalcon platform capable of morphing-coupled cruise flight but limited to cruise-flight kinematics. The gap identified is the absence of any robot implementing ventral-anterior FSF wingbeat for self-takeoff.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The method section presents the mechanical design of RoboFalcon2.0 (1.2 m wingspan, 800 g, peregrine-falcon scale) centered on two new reconfigurable decoupler mechanisms — the <span class="term">folding decoupler</span> and the <span class="term">sweeping decoupler</span> — that, in combination with the previously developed CRM, convert the rotation of a single BLDC motor into fully coupled yet independently adjustable FSF wing motion. Aerodynamic characterization uses wind tunnel force measurements and CFD (SU2 solver, incompressible N-S equations) across three representative flight states, while a quasi-steady strip-theory aerodynamic model drives real-time MuJoCo dynamics simulation for takeoff dynamics analysis.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Experiments proceed in three phases: wind tunnel characterization of FSF aerodynamic forces across flight states and sweeping amplitudes, CFD flow visualization to explain the physical mechanisms, and real-world takeoff flight tests on the RoboFalcon2.0 prototype tethered to a ceiling-mounted string in a 15 m hangar. Results confirm that larger sweeping amplitude simultaneously enhances lift (especially at low airspeed) and head-up pitching moment, that this originates from a stronger leading-edge vortex and forward-shifted center of pressure, and that real-world bird-style self-takeoff is achievable with appropriate CG configuration.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The discussion contextualizes RoboFalcon2.0 as the first robotic platform to perform bird-style self-takeoff via FSF wing motion driven by reconfigurable mechanisms, highlighting the underactuation strategy coupling lift and pitching-moment control through sweeping amplitude as a key functional advantage that reduces actuator count and simplifies attitude control. The section honestly acknowledges the boundary of the approach — effective only in the low-airspeed takeoff phase — and proposes multiple concrete future hardware pathways to extend the flight envelope to cruise and perching landing.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The conclusion affirms that RoboFalcon2.0 successfully demonstrates bird-style self-takeoff through reconfigurable FSF wing motion, validated by wind tunnel aerodynamics, CFD flow visualization, MuJoCo dynamics simulation, and real-world flight tests. It positions the work as an advance in avian-inspired robotics that bridges the kinematic gap between existing single-DOF flapping robots and the vertebrate slow-flight wing kinematics, while acknowledging that full-envelope flight remains an open challenge.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction",
+            related_works: "Related Works",
+            method:        "Method",
+            experiment:    "Experiment",
+            discussion:    "Discussion",
+            conclusion:    "Conclusion"
+        };
+
+        const FIG_PREFIX = "Fig";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "Most flying vertebrates adopt more sophisticated wing kinematics than insects for sufficient lift in low-airspeed conditions, including heavily deformed or tucked wings during upstroke due to their articulated forelimb anatomy.", "figure_refs": []}, {"type": "bullet", "text": "<span class=\"term\">Asymmetrical hovering</span> is a rarely discussed mode in which the downstroke starts with wings fully extended and sweeps anteriorly and ventrally (combining ventral flapping and cranial sweeping), while upstroke uses flexed, folded wings — observed in some passerine birds, larger birds, and bats.", "figure_refs": [1]}, {"type": "bullet", "text": "The wingbeat kinematics of birds and bats changes gradually with flight speed: in slower flight, the stroke plane becomes more inclined relative to the body, cranio-caudal sweeping amplitude increases, and wings are more protracted anteriorly overall.", "figure_refs": [1]}, {"type": "bullet", "text": "Anteroposterior wing sweeping allows flying vertebrates to regulate the relative position of the <span class=\"term\">aerodynamic center</span> and <span class=\"term\">center of gravity (CG)</span>, providing pitch agility and maneuverability across flight speeds.", "figure_refs": [1]}, {"type": "bullet", "text": "Five species at different scales (mallard, turkey vulture, Canada goose, Egyptian fruit bat, kingfisher) all exhibit a distinct forward sweep during downstroke, demonstrating the universality of FSF-type wingbeat pattern across flying vertebrates during slow flight, takeoff, and hovering.", "figure_refs": [1]}, {"type": "bullet", "text": "Existing bioinspired drone designs incorporating wing sweeping are used only in cruise or gliding flight; no prior work has discussed or demonstrated how sweeping enhances slow-flight or takeoff/landing capabilities in flapping-wing robots.", "figure_refs": []}, {"type": "bullet", "text": "Bird-scale flapping robots with self-takeoff capability — such as those by Wang et al. (ICRA 2024) — still depend on jumping, catapult, or other assistive launching devices, and exclusively use single-DOF wing kinematics (reciprocal rotation about the longitudinal body axis) relying on passive aeroelastic torsion for thrust.", "figure_refs": [2]}, {"type": "bullet", "text": "Implementing FSF motion on a robot poses a substantial engineering challenge: flapping, sweeping, and folding must follow the same wingbeat period at different phases, yet a separate high-bandwidth actuator per DOF creates an irreconcilable weight-power-bandwidth contradiction at bird scale.", "figure_refs": []}, {"type": "bullet", "text": "The proposed solution is to use a <span class=\"term\">reconfigurable mechanism</span> regulated by several low-power actuators to convert the actuation of a single high-power main actuator into the desired FSF wing motion, building on the authors' earlier <span class=\"term\">conical rocker mechanism (CRM)</span> demonstrated on RoboFalcon for cruise flight.", "figure_refs": [2]}]}, "related_works": {"content": [{"type": "bullet", "text": "Biological research on wingbeat kinematics (Tobalske & Dial 1996; Berg & Biewener 2008, 2010; Norberg & Winter 2006) established that birds' and bats' wingtip stroke plane shifts from near-perpendicular at cruise to more inclined at slower flight speeds, with cranio-caudal sweeping amplitude increasing as speed decreases.", "figure_refs": []}, {"type": "bullet", "text": "Chang et al. (hovering passerine, 2011) and Crandell & Tobalske (2015) documented the asymmetrical hovering kinematics in which the aerodynamically inactive upstroke with flexed wings is combined with an active extended-wing downstroke, the same pattern this robot aims to implement mechanically.", "figure_refs": []}, {"type": "bullet", "text": "Bionic feathered-wing drones with sweeping capability (Chang et al. 2020; Ajanic et al. 2020, 2022) substantially enhanced rolling and pitching maneuverability but were applied to propeller-driven platforms during cruise or gliding, not to flapping-wing slow-flight or takeoff.", "figure_refs": []}, {"type": "bullet", "text": "Foldable-wing flapping robots inspired by vertebrate forelimb anatomy (Stowers & Lentink 2015; Ramezani et al. 2017; Chen et al. 2022; Send et al. 2012) demonstrated wing morphing in cruise flight but did not address slow-flight or self-takeoff enhancement.", "figure_refs": []}, {"type": "bullet", "text": "Hovering-capable insect-scale and hummingbird-scale flapping robots (Karásek et al. 2018; Tu et al. 2020; Wu et al. 2024) use symmetrical hovering kinematics; bird-scale self-takeoff robots (Wang et al. ICRA 2024; Mikawa et al. AIM 2024) still require jumping or catapult assistance.", "figure_refs": []}, {"type": "bullet", "text": "Robotic bat wing studies (Bahlman et al. 2013, 2014) characterized the aerodynamic and power requirements of multi-articulated wing kinematics experimentally and simulatively, confirming the importance of folding and sweeping, but these were benchtop mechanism studies rather than flying robots.", "figure_refs": []}, {"type": "bullet", "text": "The authors' prior work (Chen et al. IEEE Trans. Robot. 2022) introduced the CRM enabling morphing-coupled wingbeat in RoboFalcon for cruise flight, and experimentally examined unilateral wingspan-limitation-based roll control; however, the previous robot could not perform low-airspeed flight or self-takeoff using the FSF pattern.", "figure_refs": [2]}]}, "method": {"content": [{"type": "bullet", "text": "RoboFalcon2.0 uses a three-segment bat-style wing skeleton (humerus, radius, manus) covered with polyester fabric; the body frame is carbon fiber composite, and the folding decoupler is CNC-machined aluminum while the sweeping decoupler is selectively laser-melted metal 3D-printed due to its complex geometry.", "figure_refs": [3]}, {"type": "bullet", "text": "The <span class=\"term\">folding decoupler</span> is a five-link mechanism (folding switcher) that converts conical rocker rotation into reciprocating longitudinal motion to drive cyclic wing folding; a rear servo controls maximum wing-expanding range, and the switcher design allows folding authority to swap between the conical rocker (during upstroke) and the servo (during downstroke), maintaining the wing-folding phase lag of 90° behind flapping.", "figure_refs": [3]}, {"type": "bullet", "text": "The <span class=\"term\">sweeping decoupler</span> converts reciprocating flapping shaft rotation into anteroposterior wing sweeping via a crankshaft-ball-joint-sweep-actuating-arm-four-link mechanism; a servo controls the crankshaft angle to independently adjust sweeping amplitude from near-zero (less than 5°) to maximum (~25° forward sweep), with sweeping synchronized to flapping at 180° phase lag.", "figure_refs": [3]}, {"type": "bullet", "text": "The combined CRM and decoupler system achieves five control DOFs for the full wing actuation system: flapping driven by the main BLDC motor, plus independent folding and sweeping amplitude control on each wing side by high-voltage GDW RS0708 servos.", "figure_refs": [3, 7]}, {"type": "bullet", "text": "Wind tunnel experiments use RoboFalcon2.0 mounted on a six-axis ME K6D40 load cell (sampled at 1000 Hz) in an open-jet low-turbulence tunnel at Northwestern Polytechnical University; three flight states are tested: (i) 0 m/s at 45° pitch, (ii) 5 m/s at 22.5° AoA, (iii) 7 m/s at 0° AoA, each at three sweeping amplitudes and four flapping frequencies (2–6 Hz). Cycle-averaged values are computed as $\\bar{A} = \\frac{1}{nT}\\int_0^{nT} A(t)\\,dt$.", "figure_refs": [4]}, {"type": "formula", "label": "Eq. (1) — Cycle-averaged aerodynamic quantity", "latex": "\\bar{A} = \\frac{1}{nT}\\int_0^{nT} A(t)\\,dt", "description": "The cycle-averaged value $\\bar{A}$ of an aerodynamic quantity $A(t)$ is computed over $n$ complete wingbeat periods $T$, eliminating inter-cycle contingencies to yield a stable mean force or moment."}, {"type": "bullet", "text": "CFD simulations solve 3D incompressible Navier-Stokes equations using SU2 V7.0.7 with a second-order Jameson-Schmidt-Turkel spatial scheme, second-order dual time-stepping, and a deforming dynamic mesh (~8 million hexahedron-dominated cells); seven wingbeats are simulated with 400 steps per wingbeat, and only the final wingbeat is used for analysis.", "figure_refs": [4]}, {"type": "formula", "label": "Eq. (2) — 3D incompressible Navier-Stokes equations", "latex": "\\begin{cases} \\dfrac{\\partial u_i}{\\partial x_i} = 0 \\\\[6pt] \\dfrac{\\partial u_i}{\\partial t} + u_j\\dfrac{\\partial u_i}{\\partial x_j} = -\\dfrac{1}{\\rho}\\dfrac{\\partial p}{\\partial x_i} + v\\dfrac{\\partial^2 u_i}{\\partial x_i \\partial x_j} \\end{cases}", "description": "The governing equations for the CFD analysis: the continuity equation (incompressibility) and momentum equations in index notation, where $u_i$ is the velocity component, $p$ is pressure, $\\rho$ is air density, and $v$ is kinematic viscosity."}, {"type": "bullet", "text": "The strip-theory aerodynamic estimation model for MuJoCo dynamics simulation divides the morphing wing into narrow rectangular strips along the wing spar centerlines; each strip's width $dy = y_{ss}/n_s$ varies with wingspan during folding, and the aerodynamic force on each strip is $dF = \\frac{1}{2}\\rho v_{loc}^2 C_{us} C_F(\\alpha_{loc}) c(y)\\,dy$.", "figure_refs": [8]}, {"type": "formula", "label": "Eq. (3) — Strip width", "latex": "dy = \\frac{y_{ss}}{n_s}", "description": "The width $dy$ of each aerodynamic strip equals the current semispan $y_{ss}$ divided by the total number of strips $n_s$, ensuring that the strip model tracks the morphing wing planform during folding."}, {"type": "formula", "label": "Eq. (4) — Strip aerodynamic force", "latex": "dF = \\frac{1}{2}\\rho v_{loc}^2 C_{us} C_F(\\alpha_{loc}) c(y)\\,dy", "description": "The aerodynamic force on a strip is computed from local dynamic pressure ($\\frac{1}{2}\\rho v_{loc}^2$), an unsteady correction factor $C_{us}$, a steady force coefficient $C_F(\\alpha_{loc})$ derived from full-span wind tunnel data, local chord $c(y)$, and strip width $dy$."}, {"type": "bullet", "text": "The unsteady factor $C_{us}$ corrects for added-mass and vortex-wake effects empirically: it approaches 1 at high airspeeds (quasi-steady flow) and a constant above 1 at low airspeeds (unsteady enhancement), parameterized by $C_{us} = 1 + C_{uh}\\tan^{-1}\\!\\left(C_u\\dfrac{v_{ref}}{v_x}\\right)$, where $v_{ref}$ is the reference flapping speed and $v_x$ characterizes flow speed through the stroke plane.", "figure_refs": [8]}, {"type": "formula", "label": "Eq. (5) — Unsteady correction factor", "latex": "C_{us} = 1 + C_{uh}\\tan^{-1}\\!\\left(C_u\\frac{v_{ref}}{v_x}\\right)", "description": "The unsteady factor $C_{us}$ is an empirical correction blending hovering-regime ($C_{uh}$) and level-flight-regime ($C_{ul}$) unsteady aerodynamic effects; it smoothly transitions from a value above 1 at low airspeed (strong unsteady effects) to 1 at high airspeed (near-steady flow), using calibrated constants $C_{uh}$ and $C_u$."}, {"type": "bullet", "text": "The MuJoCo dynamics simulation reproduces the real-world RoboFalcon2.0 prototype's dimensional parameters, kinematic constraints, and mass distribution; a closed-loop single-loop PID controller for pitch and roll is applied, and the aerodynamic model is coupled in real time via a block diagram pipeline where MuJoCo supplies wing-spar kinematics and the aero model returns differential forces to forward-integrate the dynamics.", "figure_refs": [8]}]}, "experiment": {"content": [{"type": "bullet", "text": "Wind tunnel results show that increasing sweeping amplitude produces a relative lift enhancement at higher flapping frequencies in flight state 1 (0 m/s, 45° pitch), the state most representative of the takeoff initial phase; the sweeping amplitude has no significant effect on thrust across all three states.", "figure_refs": [4]}, {"type": "bullet", "text": "Pitching moment increases significantly with sweeping amplitude in all three flight states; from state 1 to state 3, the variation range transitions from spanning both sides of zero (controllable) to a consistently positive (head-up) range, implying sweep-based pitch control is effective only in low-airspeed states.", "figure_refs": [4]}, {"type": "bullet", "text": "CFD vortex visualizations (Q-criterion iso-surfaces colored by local pressure coefficient $C_p$) show that sweeping motion enhances the <span class=\"term\">leading-edge vortex (LEV)</span> at mid-downstroke, especially at low airspeed; the enhanced LEV creates a larger low-pressure zone on the leading edge, generating more aerodynamic lift.", "figure_refs": [4]}, {"type": "bullet", "text": "CFD surface pressure distributions confirm that the sweeping wing increases planform area ahead of the pitching line (through the CG), moving the <span class=\"term\">center of pressure (CP)</span> forward; the CP with maximum sweeping amplitude leads that with minimum amplitude during late downstroke and early upstroke, enlarging the moment arm and producing a larger nose-up pitching moment.", "figure_refs": [4]}, {"type": "bullet", "text": "MuJoCo takeoff simulation with PID pitch/roll control shows that RoboFalcon2.0 successfully lifts off and ascends with pitch angle stabilized near the 45° setpoint for the first two to three wingbeat cycles; when pitch setpoint is reduced to 10° at 1 s, the robot transitions toward level flight but pitch diverges after 2 s as airspeed increases beyond the controllable range.", "figure_refs": [5]}, {"type": "bullet", "text": "A quasi-hovering simulation (pitch setpoint 45°, airspeed below 3 m/s for 4 s) demonstrates that sweeping-amplitude-based pitch control can maintain a nearly stable attitude in low-speed flight; a scaled-up model (2× span, 2.4 m, 6400 g) shows controllability up to ~6 m/s, while a scaled-down model (0.5×, 0.6 m, 100 g) shows controllability only below 2 m/s with oscillatory pitch dynamics.", "figure_refs": [5]}, {"type": "bullet", "text": "Real-world takeoff flight tests use a tethered setup (lightweight string to 15 m ceiling) providing near-free flight within a spherical zone; the robot stands on two carbon fiber rod support legs at 45° elevation, mirroring the pre-takeoff attitude of a bird. Onboard STM32-F765-based PX4 flight controller provides closed-loop pitch and roll stabilization.", "figure_refs": [6]}, {"type": "bullet", "text": "With default CG configuration, RoboFalcon2.0 achieves bird-style takeoff with an S-shaped ascent trajectory, sweeping at maximum amplitude during initial climb; pitch is controlled down from 45° toward level flight, but attitude controllability is lost when airspeed exceeds ~3 m/s (matching simulation), with flapping frequency reaching ~7 Hz and peak power consumption ~400 W.", "figure_refs": [6]}, {"type": "bullet", "text": "With a forward-offset CG configuration (battery mounted on a forward-extending carbon fiber rod), RoboFalcon2.0 avoids attitude divergence in the later takeoff phase, reaching a maximum airspeed of 6 m/s and maintaining level flight; the robot pitches down in early takeoff due to forward CG then stabilizes, with similar power and flapping frequency to the default configuration.", "figure_refs": [6]}, {"type": "bullet", "text": "A takeoff power loading vs. disk loading comparison with other flapping robots (insect-scale hummingbird-style resonant robots and one osprey-inspired eagle-scale robot) shows that insect-scale resonant robots achieve significantly higher flight efficiency while meter-scale flapping robots lack energy advantage during takeoff; this highlights the fundamental efficiency gap at this scale.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "RoboFalcon2.0's FSF wing motion follows the same wingbeat period at different phases for flapping, sweeping, and folding, replicating the essential kinematic signature of flying vertebrates' low-speed flight and establishing a robotic platform for studying avian slow-flight locomotion mechanisms.", "figure_refs": []}, {"type": "bullet", "text": "The reconfigurable mechanisms (folding and sweeping decouplers) reduce servo burden by offloading wingbeat kinematic adjustment, freeing the high-power main actuator entirely for wing-stroke driving to meet the high power demand of takeoff — a critical weight-power trade-off at meter scale.", "figure_refs": [3]}, {"type": "bullet", "text": "The <span class=\"term\">underactuation strategy</span> couples lift and pitching-moment control through sweeping amplitude, allowing one actuator to control two DOFs simultaneously; this reduces actuator count and simplifies takeoff operation by aligning the demands of climb and pitch-up in the initial takeoff phase.", "figure_refs": []}, {"type": "bullet", "text": "The pitch-control strategy fails at higher airspeeds because the head-up pitching moment increases and surpasses the controllable range; a tail with elevator is required for trimmed cruise flight, and the CG must be appropriately configured for each flight regime.", "figure_refs": [4, 5]}, {"type": "bullet", "text": "Birds and bats adapt to different flight states using more elaborate mechanisms including wing torsion at end of downstroke, aerodynamically active upstrokes in some species, and tail participation in attitude trimming and lift generation — all absent in RoboFalcon2.0 and representing the limitation of the current actuation mechanisms.", "figure_refs": []}, {"type": "bullet", "text": "This work is also an extended validation of the CRM multi-DOF reconfigurability, confirming the feasibility of achieving anatomically more correct controlled flapping takeoff through rational mechanical design, providing alternative perspectives and methodologies for avian-inspired robotics and avian locomotion research.", "figure_refs": []}, {"type": "bullet", "text": "Future hardware extensions proposed to extend the flight envelope include: a biomimetic feathered tail to modulate aerodynamic center, a CG-shifting device (e.g., mechanical claws), and an elevator mechanically linked to the sweeping amplitude actuator — each representing a pathway to transition from takeoff-only to cruise-and-perching-capable flight.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "RoboFalcon2.0 is the first flapping-wing robot demonstrated to achieve bird-style self-takeoff using FSF wing motion (ventral-anterior downstroke with tucked upstroke) without any assistive launch device, at a medium-bird scale of 1.2 m wingspan and 800 g total weight.", "figure_refs": [6]}, {"type": "bullet", "text": "Wind tunnel and CFD results confirm that increasing sweeping amplitude enhances lift at low airspeed and generates a larger head-up pitching moment through LEV strengthening and forward CP displacement, forming the aerodynamic basis of the underactuation pitch-control strategy.", "figure_refs": [4]}, {"type": "bullet", "text": "The reconfigurable sweeping amplitude functions as an effective pitching maneuver strategy for bird-scale flapping robots during the low-airspeed takeoff phase, as verified by both MuJoCo simulation and real-world flight tests across multiple CG configurations.", "figure_refs": [5, 6]}, {"type": "bullet", "text": "The work advances avian-inspired robotics by implementing vertebrate-like actuation principles in a functional robot, enabling more biomimetic flapping-wing designs and providing an experimental platform for studying bird and bat slow-flight locomotion.", "figure_refs": []}, {"type": "bullet", "text": "The actuation mechanisms proposed reduce attitude control complexity by deploying a proper underactuation strategy, enabling a previously unexplored robotic flapping takeoff using ventral-anterior downstroke and tucked upstroke.", "figure_refs": []}, {"type": "bullet", "text": "Future work should integrate an elevator (or equivalent tail configuration) and CG management strategies to extend the controlled flight envelope from the demonstrated takeoff/low-speed phase to cruise and perching landing, completing the avian locomotion cycle on a robotic platform.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "The underactuation strategy for pitch control using sweeping amplitude is not effective across the full flight envelope; at higher airspeeds the head-up pitching moment increases beyond a controllable range, causing attitude divergence.", "source_quote": "Although RoboFalcon2.0 is able to achieve pitch control under windless or low-airspeed conditions by the wings' kinematic reconfiguration, the underactuation strategy for pitch control is not applicable to the full flight envelope, given that the pitching-moment range rises with the flight-state variation from low to high airspeed.", "source_section": "discussion"}, {"claim": "The robot lacks effective yaw control, preventing real-world hovering flight.", "source_quote": "Furthermore, even if the robot does not have effective yaw control strategy, when ensuring that there are no additional perturbations during flight, we can almost achieve an attitude-controlled bird-style hovering for a period of time in the simulation.", "source_section": "discussion"}, {"claim": "RoboFalcon2.0 is not equipped with a tail elevator due to takeoff weight limitations, restricting trim authority at higher airspeeds.", "source_quote": "RoboFalcon2.0, as a prototype to validate the unique flapping pattern, is not equipped with elevator due to the limitation of takeoff weight.", "source_section": "discussion"}, {"claim": "The birds' takeoff dynamics involve wing torsion at end of downstroke and aerodynamic upstroke contributions that the current actuation mechanisms do not replicate, revealing an inherent limitation of the mechanism design.", "source_quote": "Birds' takeoff dynamics are more elaborate, involving wing torsion, which occurs at the end of the downstroke, and aerodynamic contributions from the upstroke. Their tails also participate in attitude trimming and lift generation. This reveals the limitation of our current actuation mechanisms.", "source_section": "discussion"}], "future_works": [{"claim": "The sweeping amplitude reconfiguration should be co-operated with an elevator for pitch control in cruise flight to extend the flight envelope and enable bird-style perching landing.", "source_quote": "In future work, the sweeping amplitude reconfiguration can be co-operated with the elevator for pitch control in cruise flight, which would also enable the transition from cruising to low-speed flight to perform a bird-style perching landing.", "source_section": "discussion"}, {"claim": "A lightweight biomimetic feathered tail design could be used to adjust the aerodynamic center by varying tail area or angle.", "source_quote": "Examples for this are using a lightweight biomimetic feathered tail design to adjust the aircraft's aerodynamic center by varying the tail area or angle.", "source_section": "discussion"}, {"claim": "A center-of-gravity shifting device, such as mechanical claws, could be used to adapt the CG to different flight conditions.", "source_quote": "using a CG shifting device, such as mechanical claws, to adapt the CG to different flight conditions.", "source_section": "discussion"}, {"claim": "An elevator mechanically linked to the sweep amplitude actuator with rational design could meet pitching-moment compensation requirements for various flight conditions.", "source_quote": "and using an elevator mechanically linked to the sweep amplitude actuator with a rational design to meet the pitching-moment compensation requirements for various flight conditions.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["No existing flapping-wing robot uses bird-style ventral-anterior downstrokes with aerodynamically inactive tucked upstrokes to achieve self-takeoff; prior bird-scale robots rely on jumping, catapult, or other assistive launch devices.", "Existing flapping-wing robots use single-DOF wing kinematics (rotation solely about longitudinal body axis), exhibiting stark kinematic divergence from the pronounced folding and sweeping motions of flying vertebrates during low-speed flight.", "Assigning a separate high-bandwidth actuator for each of the three wing DOFs (flapping, sweeping, folding) creates an irreconcilable contradiction in weight, power, and control bandwidth for bird-scale platforms.", "The kinematically variable wingbeat pattern of flying vertebrates (FSF motion coupling flapping, sweeping, and folding within one wingbeat cycle) has only been studied experimentally/simulatively but never implemented on a robot capable of self-takeoff."], "addressed_by_this_work": ["RoboFalcon2.0 achieves bird-style self-takeoff using FSF wing motion with ventral-anterior downstrokes and tucked upstrokes, validated by real-world flight tests without any assistive launch device.", "A set of reconfigurable mechanisms (CRM + folding decoupler + sweeping decoupler) couples flapping, sweeping, and folding within a single wingbeat cycle using one high-power BLDC motor and lightweight servo actuators, resolving the weight/power contradiction.", "The reconfigurable sweeping amplitude modulates both lift and pitching moment simultaneously, enabling an underactuation strategy that controls two DOFs with one actuator, simplifying takeoff attitude control.", "Wind tunnel experiments and CFD simulations quantify how FSF sweeping amplitude affects lift, thrust, and pitching moment across flight states from windless to 7 m/s, providing the first systematic aerodynamic characterization of this bird-style motion on a robot."], "remaining_unresolved": ["Pitch control using sweeping amplitude fails at higher airspeeds where head-up pitching moment exceeds the controllable range; a tail elevator is still required for full-envelope flight trim.", "Yaw control is not addressed, preventing real-world sustained hovering flight.", "The aerodynamically active upstroke contribution and wing torsion at the end of downstroke, characteristic of birds' actual takeoff dynamics, are not replicated by the current mechanism."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "Limitations",
+            future_works:   "Future Works",
+            motivation:     "Motivation Resolution",
+            mot_problems:   "Motivating Problems",
+            mot_addressed:  "Addressed by This Work",
+            mot_remaining:  "Remaining Unresolved"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

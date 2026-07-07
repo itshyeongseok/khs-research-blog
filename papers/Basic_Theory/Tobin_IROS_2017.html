@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World</title>
+    <meta name="keywords" content="domain randomization, sim-to-real transfer, reality gap, object localization, deep neural networks, robotic grasping, synthetic training data, domain adaptation">
+    <meta name="paper-authors" content="Josh Tobin, Rachel Fong, Alex Ray, Jonas Schneider, Wojciech Zaremba, Pieter Abbeel">
+    <meta name="paper-journal" content="2017 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), pp. 23-30 · arXiv:1703.06907 · DOI: 10.1109/IROS.2017.8202133">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Josh Tobin, Rachel Fong, Alex Ray, Jonas Schneider, Wojciech Zaremba, Pieter Abbeel</div>
+            <div class="journal">2017 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), pp. 23-30 · arXiv:1703.06907 · DOI: 10.1109/IROS.2017.8202133</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 렌더링이 크게 무작위화된 시뮬레이션 이미지만으로 모델을 학습시켜, 실세계가 모델에게는 학습에서 본 또 하나의 변형처럼 보이도록 함으로써 <span class="term">reality gap</span>을 메우는 단순한 기법인 <span class="term">domain randomization</span>을 소개한다. 저자들은 이를 <span class="term">object localization</span>에 적용한다: 저충실도이고 비현실적으로 텍스처링된 MuJoCo 렌더만으로 전적으로 학습된 심층 합성곱 검출기가, 실세계 학습 데이터 없이도 방해물과 부분 가림에 견고하게 실제 객체를 약 1.5 cm 이내로 위치 추정한다. ablation 연구는 이 방법이 고유 텍스처 수, 학습 이미지 수, 방해물, 카메라 무작위화에 민감하지만, 놀랍게도 ImageNet 사전학습에는 민감하지 않음을(데이터가 충분하면 무작위 초기화도 동등하게 작동) 보인다. 검출기는 실제 Fetch 로봇을 구동할 만큼 정확하여 40회 중 38회 잡동사니 속 목표 객체 파지에 성공한다. 저자들이 아는 한 이는 (실세계 사전학습 없이) 시뮬레이션 RGB 이미지만으로 학습된 심층 네트워크를 로봇 제어를 위해 실세계로 전이한 최초의 성공이다.</div>
+            <div class="keywords"><span class="keyword-chip">domain randomization</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">reality gap</span><span class="keyword-chip">object localization</span><span class="keyword-chip">deep neural networks</span><span class="keyword-chip">robotic grasping</span><span class="keyword-chip">synthetic training data</span><span class="keyword-chip">domain adaptation</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 시뮬레이션에서의 학습이, 특히 심층 RL에 대해, 물리 로봇보다 빠르고 저렴하며 안전한 데이터 원천임을 동기화하면서도, reality gap을 시뮬레이션 학습 모델 배치의 장벽으로 지목한다. 시뮬레이터를 system identification으로 현실에 맞추는 대신, 이 논문은 시뮬레이터를 매우 폭넓게 무작위화하여 실세계가 또 하나의 변형으로 보이게 하는 것을 제안하고, 이 가설을 조작으로 가는 디딤돌로서 object localization에서 시험한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 로보틱스를 위한 객체 검출/자세 추정, 비전 및 RL에서의 domain adaptation, 그리고 reality gap을 메우는 이전 전략들(고충실도 렌더링과 system identification, 파인튜닝, 역동역학 모델, progressive network)을 개관한다. domain randomization을 실세계 데이터와 현실적 텍스처를 요구하지 않는다는 점에서 이들과 대비시키고, 주로 현실적 텍스처 뱅크를 사용한 이전 무작위화 연구와 구별한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 방법은 단일 단안 이미지를 관심 객체의 데카르트 좌표로 매핑하는 심층 합성곱 객체 검출기를 학습시키며, 텍스처·조명·카메라 자세·방해물·잡음이 매 샘플마다 무작위화된 시뮬레이션 이미지만 사용한다. 수정된 VGG-16을 L2 위치 손실에 대해 Adam으로 확률적 경사 하강법으로 학습시킨다. 목표는 충분한 시뮬레이션 변동성이 실세계를 또 하나의 학습 변형으로 보이게 하는 것이다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 여덟 개 기하 객체(480장 웹캠 이미지)에 대한 실세계 위치 추정 정확도, 학습 요인에 대한 ablation, 그리고 Fetch 로봇에서의 로봇 파지 시연을 평가한다. 검출기는 방해물과 가림 하에서 ~1.5 cm 정확도에 도달하고, 이 방법은 텍스처 수·학습 이미지 수·방해물·카메라 무작위화에는 민감하지만 사전학습에는 그렇지 않으며, 검출기는 40회 중 38회 잡동사니 속 파지를 가능하게 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문에는 독립된 토론 절이 없다. 해석적 시사점은 ablation 및 정확도 분석 전반에 분산되어 있다. 핵심 통찰은 폭넓은 무작위화(특히 텍스처)가 현실성과 실제 데이터를 대체한다는 것, 규모에서는 사전학습이 불필요하다는 것, 그리고 남은 정확도 간극이 시뮬레이터에 대한 미묘한 형태의 과적합이라는 것이다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 시뮬레이션에서만 학습한 객체 검출기가 잡동사니 속 파지를 수행할 만큼 실세계에서 정확할 수 있다고 밝히고, 더 높은 정밀도와 접촉이 많은 과제로 방법을 확장하는 방향을 개략한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "물리 시뮬레이터에서의 학습은 물리 로봇보다 빠르고 확장성 있으며 저비용인 데이터 수집을 가능하게 하여 로보틱스를 가속할 수 있으며, 이는 수십만에서 수백만 샘플을 필요로 하는 <span class=\"term\">deep reinforcement learning</span>에 특히 매력적이다."}, {"type": "bullet", "text": "심층 RL은 물리 하드웨어에서 위험할 수 있는 무작위 탐험을 사용하여, 전적으로 시뮬레이션에서 학습한 뒤 나중에 전이하는 것의 매력을 강화한다."}, {"type": "bullet", "text": "<span class=\"term\">reality gap</span> — 비강체성, 기어 백래시, 마모, 유체 동역학 같은 미모델링 효과를 포함한 시뮬레이터와 실세계 간의 불일치 — 은 직접적 전이를 가로막는다.", "figure_refs": [1]}, {"type": "bullet", "text": "system identification(시뮬레이션 파라미터를 물리 시스템에 맞게 조정)은 시간이 많이 들고 오류가 잦으며, identification이 잘되더라도 저충실도 센서 렌더러는 실세계의 풍부함과 잡음을 재현할 수 없다."}, {"type": "bullet", "text": "중심 가설: 시뮬레이션 변동성이 충분히 크다면, 시뮬레이션에서 학습된 모델은 추가 학습 없이 실세계로 일반화될 것이다."}, {"type": "bullet", "text": "이 연구는 object localization을 위해 저충실도 시뮬레이션 카메라 이미지로부터 전이하는 데 초점을 두며, 카메라가 저렴하고 정보가 풍부하며 위치 추정이 일반 조작으로 가는 디딤돌이기 때문에 선택되었다."}, {"type": "bullet", "text": "핵심 실험적 주장: 시뮬레이션 데이터만으로 학습한 검출기가 실제 객체를 ~1.5 cm로 위치 추정하고, 실제 이미지 사전학습이 불필요하며, 이 방법이 시뮬레이션 RGB 이미지만으로 학습된 네트워크를 로봇 제어를 위해 실세계로 전이한 최초이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "로보틱스를 위한 고전적 객체 검출과 자세 추정은 SIFT나 색 동시발생 특징에 맞춘 3D 모델에 의존하며, 흔히 다중 카메라 프레임이나 깊이를 사용한다. 이들은 완전한 3D 자세를 복원하지만 이 단안 접근보다 풍부한 감지를 요구한다."}, {"type": "bullet", "text": "컴퓨터 비전 <span class=\"term\">domain adaptation</span> 문헌은 재학습, 가중치 적응, 불변 특징 학습, 또는 타깃-소스 매핑 학습으로 소스 도메인 모델을 타깃 도메인에 적응시킨다. 이 논문은 대신 어떤 domain adaptation도 없이 전이를 연구한다."}, {"type": "bullet", "text": "이전 reality-gap 연구는 system identification과 고품질 렌더링(특히 깊이)으로 시뮬레이터를 현실적으로 만들었지만, 현실적 RGB 렌더링만으로는 전이 성공이 제한적이었다."}, {"type": "bullet", "text": "Rusu 등의 <span class=\"term\">progressive networks</span>는 시뮬레이션 사전학습 모델을 적응시켜 파인튜닝이나 실제 전용 학습보다 나은 샘플 효율을 보이지만, 보상 함수나 라벨된 실제 데이터를 요구한다."}, {"type": "bullet", "text": "무작위화를 통한 견고성의 선례로는 동역학 모델 앙상블에 대한 학습(Mordatch 등)과 무작위화된 마찰/행동 지연(Antonova 등)으로 제어기를 모델링 오차에 견고하게 만드는 것이 있다."}, {"type": "bullet", "text": "컴퓨터 비전 연구는 3D 모델과 렌더링 데이터로 학습을 증강해 왔지만, 보통 현실적 텍스처와 객체를 단색 또는 사진 배경에 대해 렌더링했지 일관된 무작위화 3D 장면에 대해서는 아니었다."}, {"type": "bullet", "text": "Sadeghi와 Levine의 CAD2RL이 가장 가까운 이전 연구(시뮬레이션 학습 쿼드로터 비행)이지만, ~200개 재질 뱅크의 주로 현실적 텍스처를 사용했고 고정밀 과제를 다루지 않았다. 이 논문은 비현실적 절차 생성 텍스처만 사용하여 수십만 개의 고유 텍스처화를 가능하게 한 최초이다."}]}, "method": {"content": [{"type": "bullet", "text": "목표는 하나의 단안 RGB 프레임을 각 관심 객체의 3D 좌표로 매핑하고 방해 객체는 무시하는 검출기 $d(I_0)$를, domain randomization과 함께 전적으로 시뮬레이션에서 학습시키는 것이다."}, {"type": "bullet", "text": "학습 샘플마다 무작위화되는 측면: 방해물의 수와 형태, 모든 객체의 위치와 텍스처, 테이블/바닥/스카이박스/로봇의 텍스처, 카메라 위치/방향/시야각, 조명의 수와 속성, 그리고 무작위 이미지 잡음."}, {"type": "bullet", "text": "텍스처는 무작위 RGB 값, 두 무작위 RGB 값 사이의 그래디언트, 또는 두 무작위 RGB 값의 체커 패턴에서 뽑힌다. 모든 객체 텍스처가 무작위라서 검출기는 목표의 실제 색을 결코 보지 못하고 크기와 형태만 본다."}, {"type": "bullet", "text": "이미지는 MuJoCo 내장 렌더러로 렌더링되며, 이는 의도적으로 사실적이지 않다 — 물리적으로 그럴듯한 텍스처와 조명은 필요하지 않다.", "figure_refs": [7]}, {"type": "bullet", "text": "장면당 0~10개의 방해 객체가 추가된다. 카메라는 손으로 배치한 초기 자세 주위 10x5x10 cm 상자 안에서 무작위화되며, 시야 각도 오프셋은 최대 0.1 rad, 시야각은 최대 5%까지 조정되어, 실세계 카메라 보정의 필요를 없앤다."}, {"type": "bullet", "text": "검출기는 표준 합성곱 계층을 갖되 더 작은 (256, 64) 완전 연결 계층과 dropout이 없는 수정된 <span class=\"term\">VGG-16</span>으로, 224x224 이미지를 받아 객체 (x,y,z) 좌표를 출력한다.", "figure_refs": [2]}, {"type": "bullet", "text": "학습은 예측 객체 위치와 실제 위치 사이의 L2 손실을 약 1e-4의 학습률로 Adam을 사용해 최소화하며, 이는 수렴을 개선하고 모든 객체를 테이블 중심으로 매핑하는 국소 최적을 피했다.", "figure_refs": []}, {"type": "formula", "label": "L2 위치 손실 (학습 목적함수)", "latex": "\\mathcal{L} = \\sum_i \\lVert d(I_0)_i - (x_i, y_i, z_i) \\rVert_2^2", "description": "검출기는 네트워크가 추정한 객체 위치와 실제 위치 사이의 제곱 L2 거리에 대해 확률적 경사 하강법으로 학습된다. 이 경험적 회귀 손실이 논문의 유일한 학습 목적함수이다(여기서 RL은 사용되지 않는다)."}]}, "experiment": {"content": [{"type": "bullet", "text": "실세계 평가는 고정 카메라에서 70-105 cm 떨어진 객체의 웹캠 이미지 480장을 사용했고, 객체당 60장의 라벨 이미지(단독, 방해물과 함께, 가림과 함께)를 통제되지 않은 조명과 장면 잡동사니에서 촬영했다."}, {"type": "bullet", "text": "검출기는 객체를 평균 ~1.5 cm 이내로 위치 추정했고 잡동사니와 부분 가림 하에서도 정확함을 유지하여, 더 높은 해상도 이미지를 쓰는 전통적 단일 프레임 단안 자세 추정에 필적했다.", "figure_refs": []}, {"type": "bullet", "text": "성능은 5,000개 학습 샘플만으로도 합리적이지만 ~50,000개 샘플까지 향상된다.", "figure_refs": [4]}, {"type": "bullet", "text": "저자들의 가설과 달리, 데이터가 충분하면 무작위 가중치 초기화가 ImageNet 사전학습에 필적하거나 능가했다. 사전학습은 저데이터 영역에서만 도움이 되었다.", "figure_refs": [4]}, {"type": "bullet", "text": "텍스처 다양성이 결정적이다: ~1,000개 미만의 고유 텍스처를 쓰면 성능이 급격히 저하되며, 저데이터 영역에서는 텍스처 무작위화가 객체 위치 무작위화보다 더 중요하다.", "figure_refs": [5]}, {"type": "bullet", "text": "ablation은 학습 시 방해물이 방해물 견고성에 필수적이고(제거하면 방해물 하 오차가 ~1.8 cm에서 ~7.2 cm로 증가), 카메라 무작위화가 일관된 작은 향상을 주며, 추가된 이미지 잡음은 효과가 미미함을 보인다.", "figure_refs": []}, {"type": "bullet", "text": "Fetch 로봇에서 검출기와 기성 동작 계획을 더해 40회 잡동사니 시도 중 38회 목표를 파지했고, YCB Spam 캔 검출기는 보지 못한 식품 방해물을 무시하고 10회 중 9회 파지했다.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "충분한 시뮬레이션 변동성은 실세계를 또 하나의 변형으로 취급하게 하므로, 저충실도이고 비현실적인 렌더러만으로도 실제 이미지나 domain adaptation 없이 전이가 가능하다."}, {"type": "bullet", "text": "텍스처 무작위화가 단일하게 가장 중요한 요인이다. 수십만 개 고유 텍스처화의 다양성은 절차적(비현실적) 텍스처만이 독특하게 가능하게 하는 것이다."}, {"type": "bullet", "text": "필수적이라고 가설했던 ImageNet 사전학습은, 무작위화 데이터가 충분하면 불필요한 것으로 판명되었다 — 중요한 실용적 단순화이다."}, {"type": "bullet", "text": "지속되는 ~1.5 cm 대 0.3-0.5 cm 간극은 시뮬레이션 분포에 대한 과적합을 반영한다. 학습 시점에 실제 데이터가 없어 통상적 검증으로는 이를 완전히 탐지할 수 없다.", "figure_refs": []}, {"type": "bullet", "text": "domain randomization은 대부분의 domain-adaptation 기법을 대체하는 것이 아니라 그에 상보적이고 결합 가능한 것으로 제시된다."}, {"type": "bullet", "text": "저자들은 domain randomization을, 여기서 보인 위치 추정 과제를 넘어, 대규모 시뮬레이션 학습(심층 RL 포함) 정책을 실제 로봇에서 사용 가능하게 만드는 유망한 도구로 규정한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "시뮬레이션에서만 학습한 객체 검출기가 잡동사니 속 파지를 수행할 만큼 높은 실세계 정확도를 달성하여, 정밀도에 민감한 로봇 과제에 대한 시뮬레이션 전용 전이를 입증했다."}, {"type": "bullet", "text": "향후 연구는 접촉이 많은 조작이나 더 높은 정밀도 과제에 신뢰할 수 있을 만큼 기법을 만드는 것을 목표로 한다."}, {"type": "bullet", "text": "더 높은 해상도의 카메라 프레임으로 정확도를 개선할 수 있다."}, {"type": "bullet", "text": "모델 구조 선택의 최적화가 추가 개선 방향으로 식별된다."}, {"type": "bullet", "text": "텍스처·조명·렌더링 무작위화의 형태를 더 추가하고 학습 데이터를 늘리면 도움이 될 것으로 기대된다."}, {"type": "bullet", "text": "다중 시점, 스테레오 또는 깊이 정보의 통합과 domain randomization을 domain adaptation과 결합하는 것이 제안된 확장이다. sim-to-real 입문 독자에게 이 논문은 이제 Isaac Lab 파이프라인에서 표준이 된 시각적 domain-randomization 아이디어의 정전적 기원이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "전이 후에도 검출기는 여전히 시뮬레이션 학습 분포에 과적합되어, 실세계 오차(~1.5 cm)가 시뮬레이션 오차(0.3-0.5 cm)보다 몇 배 크다.", "source_quote": "Though the accuracy of our trained detectors is promising, note that they are still over-fitting2 the simulated training data, where error is 0.3cm to 0.5cm.", "source_section": "experiment"}, {"claim": "단일 비보정 단안 이미지를 사용하고 테이블 높이가 고정되어 있어, 과제가 실질적으로 완전한 3D 자세가 아닌 2D 자세 추정으로 축소된다.", "source_quote": "we fix the height of the table in simulation, effectively creating a 2D pose estimation task.", "source_section": "method"}], "future_works": [{"claim": "접촉이 많은 조작이나 더 높은 정밀도 과제에 신뢰할 수 있고 정확하게 적용할 수 있도록 기법을 발전시킨다.", "source_quote": "Future work will explore how to make this technique reliable and effective enough to perform tasks that require contact-rich manipulation or higher precision.", "source_section": "conclusion"}, {"claim": "검출기 정확도를 높이기 위해 더 높은 해상도의 카메라 프레임을 사용한다.", "source_quote": "Using higher resolution camera frames", "source_section": "conclusion"}, {"claim": "다중 카메라 시점, 스테레오 비전, 또는 깊이 정보를 통합한다.", "source_quote": "Incorporating multiple camera viewpoints, stereo vision, or depth information", "source_section": "conclusion"}, {"claim": "domain randomization을 domain adaptation 기법과 결합한다.", "source_quote": "Combining domain randomization with domain adaptation", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["물리 시뮬레이터와 실세계 사이의 reality gap은 시뮬레이션에서 학습한 행동을 실제 로봇으로 전이하기 어렵게 만든다.", "시뮬레이터를 물리 시스템에 맞추는 system identification은 시간이 많이 들고 오류가 잦으며, 비강체성·기어 백래시·마모 같은 미모델링 효과를 포착할 수 없다.", "심층 학습은 대량의 라벨 데이터를 필요로 하는데, 정밀한 로봇 조작을 위해 이를 실세계에서 얻기는 어렵다.", "심층 RL은 물리 하드웨어에서 위험한 무작위 탐험에 의존하며 실제 로봇에서 수집하기 비현실적인 수백만 샘플을 필요로 한다."], "addressed_by_this_work": ["domain randomization은 비현실적으로 무작위화된 시뮬레이션 이미지만으로 검출기를 학습시켜, 실제 이미지와 domain adaptation 없이 실세계로 전이한다(~1.5 cm 정확도).", "이 방법은 system identification을 완전히 회피하며, 실제 텍스처나 조명에 맞추지 않은 저충실도 렌더러로 작동한다.", "라벨 학습 데이터는 실세계에서 수집·라벨링하는 대신 시뮬레이션에서 저렴하고 풍부하게 생성된다."], "remaining_unresolved": ["object localization(위치, 고정 높이)만 시연되며, 완전한 6D 자세와 접촉이 많거나 더 높은 정밀도의 조작은 향후 과제로 남는다.", "여기서는 (RL 제어 정책이 아닌) 지도 검출기만 전이되므로, 하드웨어에서의 심층 RL 탐험의 위험과 샘플 비용은 해결된 것이 아니라 우회된 것이다.", "검출기는 여전히 시뮬레이터에 과적합되어, 실세계 정확도가 시뮬레이션 정확도에 비해 제한적으로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

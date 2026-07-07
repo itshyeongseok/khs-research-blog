@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Humanoid Locomotion and Manipulation: Current Progress and Challenges in Control, Planning, and Learning</title>
+    <meta name="keywords" content="humanoid robotics, loco-manipulation, bipedal locomotion, sim-to-real reinforcement learning, imitation learning, model predictive control, whole-body control, foundation models, whole-body tactile sensing, domain randomization">
+    <meta name="paper-authors" content="Zhaoyuan Gu, Junheng Li, Wenlan Shen, Wenhao Yu, Zhaoming Xie, Stephen McCrory, Xianyi Cheng, Abdulaziz Shamsah, Robert Griffin, C. Karen Liu, Abderrahmane Kheddar, Xue Bin Peng, Yuke Zhu, Guanya Shi, Quan Nguyen, Gordon Cheng, Huijun Gao, Ye Zhao">
+    <meta name="paper-journal" content="IEEE/ASME Transactions on Mechatronics (TMECH), 2025 (survey). arXiv:2501.02116v2 [cs.RO], 19 Apr 2025. Co-corresponding authors: Huijun Gao, Ye Zhao.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Humanoid Locomotion and Manipulation: Current Progress and Challenges in Control, Planning, and Learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Zhaoyuan Gu, Junheng Li, Wenlan Shen, Wenhao Yu, Zhaoming Xie, Stephen McCrory, Xianyi Cheng, Abdulaziz Shamsah, Robert Griffin, C. Karen Liu, Abderrahmane Kheddar, Xue Bin Peng, Yuke Zhu, Guanya Shi, Quan Nguyen, Gordon Cheng, Huijun Gao, Ye Zhao</div>
+            <div class="journal">IEEE/ASME Transactions on Mechatronics (TMECH), 2025 (survey). arXiv:2501.02116v2 [cs.RO], 19 Apr 2025. Co-corresponding authors: Huijun Gao, Ye Zhao.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 서베이는 제어, 계획, 학습을 중심으로 구성하여 휴머노이드 이동 및 조작(HLM)에 대한 포괄적인 30년 개관을 제공한다. 먼저 모델 기반 골격(접촉 계획, 동작 계획, MPC + WBC를 통한 전신 제어 및 최적 제어 정식화)을 검토한 뒤, 강화학습(RL), 모방학습(IL), 그리고 부상하는 기초 모델(FM/VLA) 통합에 큰 비중을 두며 학습 기반 방법으로 전환한다. 핵심 논지는 sim-to-real RL과 모델 기반 제어가 경쟁이 아니라 상호 보완적이며, sim-to-real 간극이 고자유도·동역학적으로 불안정한 휴머노이드의 주요 장애물이라는 것이다. 저자들은 또한 전신 촉각 센싱을 미탐구되었으나 결정적인 양식으로 격상하고, 구조화된 비교 표(강건성, 정확성, 다용성, 일반화 가능성)와 하드웨어 한계(구동기, 관성, 배터리) 및 사회적 도전으로 마무리한다. 본 프로젝트에 대해 이 서베이는 RL 보행 목표의 방법론적 골격이다: 이족 이동을 위한 sim-to-real 기법(도메인 무작위화, 시스템 식별, 도메인 적응, 커리큘럼 학습, 제약 RL, 보상 설계)을 통합하여 — 공중/플래핑윙 비행을 다루지는 않지만 — 다리 장착 오니솝터에게 보행을 가르치는 데 직접 전이 가능하다.</div>
+            <div class="keywords"><span class="keyword-chip">humanoid robotics</span><span class="keyword-chip">loco-manipulation</span><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">sim-to-real reinforcement learning</span><span class="keyword-chip">imitation learning</span><span class="keyword-chip">model predictive control</span><span class="keyword-chip">whole-body control</span><span class="keyword-chip">foundation models</span><span class="keyword-chip">whole-body tactile sensing</span><span class="keyword-chip">domain randomization</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 서베이는 제어, 계획, 학습의 관점을 통해 휴머노이드 이동 및 조작(HLM)에 대한 포괄적 검토를 범위로 하며, 휴머노이드가 체화 지능을 위해 풍부한 인간 데이터를 활용할 수 있다는 점에서 동기를 얻는다. 모델 기반 예측-반응 제어(MPC + WBC)를 30년 골격으로 규정하고 두 가지 입장을 제시한다: sim-to-real RL 자체가 모델 기반으로 볼 수 있다는 것, 그리고 두 패러다임이 충돌이 아니라 상호 보완한다는 것. 이어서 RL, 모방학습, 기초 모델을 조사하며, 이족 이동 + sim-to-real RL 내용이 RL 보행 목표의 직접적 방법론 참조가 된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 서베이는 최신 연구를 수집하고 새로운 학습 기반 패러다임을 상세히 다룸으로써 기존 휴머노이드 리뷰와 차별화되며, 각 주제를 기초 연구, 최신 연구, 참고용 서베이로 구성한다. 의도적으로 중복하지 않는 도메인 특화 서베이(촉각 센싱, 모델 기반 제어, RL/IL, 기초 모델) 대비 자신을 위치시키고, 수동 보행에서 동적·학습된 파쿠르 수준 기술까지 이족 이동 및 로코-매니퓰레이션 계보를 검토한다. 또한 전신 조작, 전신 로코-매니퓰레이션, 로코-매니퓰레이션을 구분하는 분류 체계를 도입하고, 보상 대 제약 설계와 관련된 제약 RL 연구 계열을 짚는다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 서베이는 HLM 방법을 모델 기반 기둥(모델 충실도와 연산을 절충하는 접촉/동작 계획과 전신 제어)과, 처음부터의 RL, 모방학습, 하이브리드 방법, 기초 모델을 아우르는 학습 기둥으로 구성한다. 온폴리시 PPO(표본 비효율적이나 병렬 sim-to-real에 확장 가능)와 오프폴리시 SAC/TD3를 비교하고, 효율 향상 기법(커리큘럼 학습, 호기심 보상, 제약 RL)을 조사하며, 도메인 무작위화·시스템 식별·도메인 적응이라는 프로젝트에 결정적인 sim-to-real 도구를 상세히 다룬다. 모방학습은 시연 원천과 알고리즘으로, 기초 모델은 프롬프팅 대 VLA 전략으로 분해되며, 전신 촉각 센싱은 손, 발, 피부를 가로지르는 횡단 양식으로 다뤄진다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험 대신, 이 서베이는 비교 종합(표 VI)을 제공하여 RL이 강건성에서, IL이 다용성에서, 모델 기반 방법이 동작 정확성과 실시간 실현 가능성에서 가장 강하며, VLA는 유망하나 휴머노이드 기술에서 입증되지 않았음을 발견한다. 기술별 평가, 에너지 효율 발견(휴머노이드 COT > 0.7 대 인간 ~0.2), sim-to-real 대조(사족은 간극을 좁혔으나 고자유도 휴머노이드는 못함)가 비교를 뒷받침한다. 물리 엔진 충실도 한계(MuJoCo 관통, PhysX 마찰 콘 근사)와 하드웨어 동향(준직접구동 구동기, 질량 집중 전동부, 배터리 한계)이 서베이 주장의 정량적 근거를 제공한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의의 핵심 요지는 상호 보완성 — 강건성을 위한 RL, 다용성을 위한 IL, 정확성을 위한 모델 기반 — 으로, 어느 단일 패러다임이 아니라 통합 접근이 예견되는 해법이다. sim-to-real 간극을 RL의 '아킬레스건'으로 식별하며 아직 체계적(사례 비특이적) 해법이 없다고 보고, 하드웨어 한계(구동기 출력 밀도, 저관성 전동부 단점, 배터리 용량), 기초 모델 도전(추론 비용, 스케일링 법칙, 안전), 사회적 장벽을 목록화한다. 프로젝트에 대해 명시적 sim-to-real 도구를 다리 장착 오니솝터에게 보행을 가르치는 데 직접 매핑하면서, 이족/휴머노이드 전이가 사족보다 어렵고 서베이 자체가 공중이나 플래핑윙 이동을 다루지 않음을 경고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서베이는 휴머노이드 로봇공학이 전례 없는 속도로 발전하고 있다고 결론지으며, 모델 기반 및 학습 기반 HLM 방법을 통합하고 부상하는 물리적 관측기(비전, 전신 촉각 센싱)와 인지적 기초 모델을 부각한다. 기초 모델을 계획 및 제어와 통합하는 것을 가장 유망한 방향으로 식별하고, 10년 내 주요 하드웨어 및 인지 발전을 기대한다. 이족 오니솝터 + RL 프로젝트에 대해, 이는 자체적으로 다루지 않는 다중 모드 공중-지상 논문과 짝지어진다면 RL 보행 구성요소의 단연 최고의 방법론 참조이다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "범위: 제어, 계획, 학습에 초점을 맞춘 휴머노이드 이동 및 조작(HLM)의 포괄적 서베이로, 이족 휴머노이드와 전신 동작을 중심으로 한다(정교한 다지 조작이나 의인화 미학이 아님)."}, {"type": "bullet", "text": "동기: 휴머노이드 의인화는 로봇이 풍부한 인간 데이터를 활용해 운동/인지 기술을 습득하게 하여, 인간 데이터 + 연산의 스케일링을 체화 지능으로 가는 잠재적 빠른 경로로 만든다; 기업들(NVIDIA, Boston Dynamics, Tesla, Figure)이 휴머노이드 체화 지능으로 수렴하고 있다."}, {"type": "bullet", "text": "모델 기반 방법은 30년 골격으로 규정된다: 계획/제어는 예측-반응 위계로 수렴했다 — 전신 또는 중심 동역학 MPC가 작업 공간 전신 제어기(WBC)와 결합되어, 수치적으로 풀리는 최적 제어 문제로 정식화된다."}, {"type": "bullet", "text": "모델 기반 대 학습 논쟁에 대한 두 핵심 입장: (1) 정확한 시뮬레이터 동역학에 의존하는 sim-to-real RL은 RL 알고리즘이 동역학을 명시적으로 모델링하지 않더라도 그 자체로 '모델 기반'으로 볼 수 있다; (2) 모델 기반 제어와 sim-to-real RL은 충돌하지 않으며 각자 단독보다 더 나은 성능을 위해 종종 상호 보완한다."}, {"type": "bullet", "text": "RL은 강건한 운동 기술에 대해 입증된 것으로 강조되지만, 시연 없는 순수 RL은 고자유도·희소 보상 HLM 작업에 표본 효율이 지나치게 낮다; 따라서 sim-to-real RL(시뮬에서 훈련, 하드웨어로 전이)이 sim-to-real 간극에도 불구하고 보편적 방법이 되었다."}, {"type": "bullet", "text": "전문가 시연으로부터의 모방학습과 풍부한 인간 데이터(인터넷 영상, 공개 데이터셋)로부터의 학습이 다재다능한 기술로 가는 효율적 경로로 위치한다; 인간으로부터의 학습은 휴머노이드 형태의 고유한 이점으로, 관찰된 동작(결과)뿐 아니라 인간 의도(원천)를 학습하는 더 깊은 질문을 제기한다."}, {"type": "bullet", "text": "기초 모델(LLM/VLM)은 개방형 세계 추론과 다중 양식 의미 이해 — 인간 의도를 포착한다고 가정 — 를 제공하기 때문에 포함되며, 위계적 휴머노이드 프레임워크에서 작업 계획 모듈로 사용되어 왔다."}, {"type": "bullet", "text": "프로젝트 관련성: 서베이의 이족 이동 + sim-to-real RL 내용은 다리 장착 비행 로봇에서 RL 기반 지상 보행이라는 프로젝트 목표의 직접적 방법론 참조이다; 기초 모델과 조작 부분은 그 특정 목표에 주변적이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "기존 휴머노이드 서베이 대비 위치 설정: 이전 리뷰와 달리 최신 논문을 수집하고 새로운 학습 기반 패러다임을 상세히 소개하며, 주제마다 세 논문 범주 — 기초 연구, 최신 연구, 추가 독서용 참고 서베이 — 를 부각한다."}, {"type": "bullet", "text": "중복하지 않는 도메인 특화 서베이를 인용: 촉각 센싱 리뷰, 모델 기반 계획/제어 리뷰, RL 및 IL 서베이, 로봇용 기초 모델 서베이, 그리고 학습 기반 다리 이동과 이족 이동의 휴머노이드 원격조작/IL에 대한 권장 심층 서베이."}, {"type": "bullet", "text": "이족 이동 계보 검토: 수동 보행에서 준정적, 동적 보행으로의 모델 기반 진행, 점프와 백플립으로 확장; 달리기, 점프, 계단 오르기, 파쿠르를 달성하고 외력과 적재물을 처리하는 학습 기반 병행 연구."}, {"type": "bullet", "text": "로코-매니퓰레이션 선행 연구를 사족(매니퓰레이터로서의 사지, 픽앤플레이스를 위한 전신 제어)과 더 어려운 휴머노이드 경우(작은 지지 영역, 높은 질량중심)에 걸쳐 조사하며, 초기 프레임워크는 이동과 조작 제어를 분리했다."}, {"type": "bullet", "text": "객체 이동, 로봇 자체 이동성, 전 표면 상호작용을 포함하는지 여부로 전신 조작, 전신 로코-매니퓰레이션, 로코-매니퓰레이션을 구분하는 분류 체계(표 I)를 정의한다."}, {"type": "bullet", "text": "특히 제약 RL 아이디어('제약 RL 프레임워크에서 보상 항을 제약으로 대체하면 보상 튜닝을 크게 단순화하면서 최신 이동 성능을 달성할 수 있다')를 인용한다 — 프로젝트의 보상 대 제약 설계와 직접 관련된 'Not Only Rewards but Also Constraints' 연구 계열이다."}]}, "method": {"content": [{"type": "bullet", "text": "모델 기반 기둥: 접촉 계획(접촉 선택/순서화), 동작 계획, MPC + WBC를 통한 전신 제어로, 모델 충실도와 연산 효율 사이의 핵심 절충을 갖는다; 고차원 시스템을 위한 솔버 효율, 수치적 안정성, 강건성, 확장성 연구가 계속된다."}, {"type": "bullet", "text": "처음부터의 RL(VII-A절): 종단 간 모델 프리 정책이 원시 감각 입력을 구동으로 매핑하여 동역학 모델이나 시연이 필요 없지만 정교한 보상 형성이 필요하다; PPO/SAC는 복잡성, 표본 비효율, 희소 보상 때문에 대부분의 휴머노이드 로코-매니퓰레이션 작업에서 처음부터 실패한다."}, {"type": "bullet", "text": "알고리즘 비교: PPO(온폴리시)는 표본 비효율적이나 빠르고/확장 가능하며 sim-to-real을 위한 병렬화 시뮬(Isaac Gym)에서 지배적이다; SAC/TD3/DDPG(오프폴리시)는 표본 효율적이나 느리고 Q-함수 모델 편향을 도입할 수 있다 — 데이터(예: 실로봇)가 비쌀 때 오프폴리시가 선호된다."}, {"type": "bullet", "text": "학습 효율 향상: 커리큘럼 학습(점진적으로 어려워지는 작업), 희소 보상을 극복하기 위한 호기심 기반 내재 보상(예: 문 열기, 동작 사전 없는 다재다능한 기술), 그리고 보상 항을 제약으로 대체해 보상 튜닝을 단순화하는 제약 RL."}, {"type": "bullet", "text": "sim-to-real 기법(이 프로젝트의 핵심): 도메인 무작위화(질량, 마찰, 구동기 동역학을 변화 — 무작위화 범위에 민감), 시스템 식별 / real-to-sim(실 궤적에 맞게 시뮬 파라미터 최적화), 도메인 적응(실 데이터로 시뮬 훈련 정책을 미세조정, 예: 안전 필터를 갖는 Sim-to-Lab-to-Real 2단계 전이)."}, {"type": "bullet", "text": "모방학습(VII-B/C절): 네 시연 원천 — 정책 실행, 원격조작, 모션 캡처, 인간 영상 — 이 로봇 경험 데이터(형태 간극 작음, 희소)와 인간 데이터(풍부, 형태 간극 큼)로 나뉜다; 단봉 대 다봉 데이터 처리를 위해 BC, ACT, 확산 정책, IRL, GAIL, AMP/RL 동작 모방이 조사된다."}, {"type": "bullet", "text": "하이브리드 및 다재다능 기술 방법(VII-D/E절): RL + IL + 궤적 최적화의 결합, 동작 참조 추종/증강, 동작 표현과 합성, 그리고 다용성과 일반화를 위한 목표 조건부 정책(다용성은 일반화의 전제 조건)."}, {"type": "bullet", "text": "기초 모델(VIII절): 두 전략 — (a) 사전 훈련된 LLM/VLM에 프롬프트하여 저수준 기술을 위한 작업 계획, 코드, 보상 함수를 생성; (b) 인터넷 규모 로봇 데이터로 훈련된 로봇 기초 모델 / 비전-언어-행동(VLA) 모델(위계적 또는 종단 간) 구축; 휴머노이드 VLA는 지금까지 대부분 시뮬레이션에서 시연되었다."}, {"type": "bullet", "text": "전신 촉각 센싱(III절)은 횡단 양식으로 다뤄진다: 손 센싱(파지력, 객체/상태 추정, RL/IL 입력), 발바닥 센싱(GRF 및 지형 특성 추정, 발걸음 재계획), 전신 피부(컴플라이언스, 안전한 HRI)로, 고차원 접촉 공간, 촉각 시뮬레이션, sim-to-real에 도전이 있다."}]}, "experiment": {"content": [{"type": "bullet", "text": "실험보다, 서베이는 비교 종합(표 VI)을 전달한다: 학습 기반 방법은 우수한 강건성(RL)과 다용성(IL)을 보이는 반면, 모델 기반 접근은 가장 높은 동작 정확성과 높은 실시간 실현 가능성을 제공한다; VLA는 가장 높은 일반화 가능성을 약속하나 그 휴머노이드 기술 효과는 아직 설득력 있게 입증되지 않았다."}, {"type": "bullet", "text": "기술별 능력 평가: 휴머노이드 이동은 모델 기반[예: 백플립/점프]과 RL[달리기/파쿠르] 모두에 매우 높음으로 평가되나 IL에는 중간, VLA에는 해당 없음이다; 전신 다중 접촉은 모델 기반과 IL이 가장 잘 다루며 RL/VLA에 간극이 있다."}, {"type": "bullet", "text": "에너지 효율 발견: 수동 동적 보행기는 인간보다 더 나은 수송 비용(COT)을 달성했으나 다용성이 제한적이었던 반면, 오늘날 휴머노이드(COT > 0.7)는 인간(COT ≈ 0.2)보다 훨씬 덜 효율적이다 — 효율적 보행은 컴플라이언트 에너지 저장 하드웨어를 동기 짓는 미해결 문제로 남아 있다."}, {"type": "bullet", "text": "sim-to-real 증거 대조: 사족은 sim-to-real 간극을 일관되게 극복했으나(저렴한 하드웨어 + 병렬 물리 엔진, 본질적으로 안정한 동역학), 휴머노이드는 더 높은 자유도와 지지 다각형을 끊임없이 벗어나는 CoM 때문에 더 가파른 간극에 직면한다."}, {"type": "bullet", "text": "물리 엔진 충실도가 정량적 제한 요소로 식별된다: MuJoCo의 소프트 접촉 모델은 비물리적 관통을 야기할 수 있고, PhysX는 마찰 콘을 저충실도 피라미드로 근사하여 sim-to-real 간극을 넓힌다 — 접촉 모델링 발전이 다뤄야 할 정확성 대 효율 절충이다."}, {"type": "bullet", "text": "하드웨어 동향 증거: 준직접구동 구동기(<10:1 기어비)는 동적이고 역구동 가능하며 고대역폭 힘 제어를 가능하게 한다; MIT Humanoid는 벨트/병렬 메커니즘으로 질량의 ~75%를 몸통에 집중시켜 회전 관성을 줄인다; 배터리 예로 Apptronik Apollo(~4시간)와 Unitree G1(~2시간)을 인용하나 실험실에서는 여전히 유선 운용이 지속된다."}]}, "discussion": {"content": [{"type": "bullet", "text": "모델 기반 대 학습 기반(IX-A절): 핵심 요지는 상호 보완성 — RL은 강건성을, IL은 다용성을, 모델 기반은 동작 정확성을 주며, 예견되는 해법은 한 패러다임을 택하는 것이 아니라 그 강점을 결합하는 통합 접근이다."}, {"type": "bullet", "text": "sim-to-real은 RL의 '아킬레스건'이다(프로젝트 결정적): RL 훈련은 현 단계에서 실세계에서 거의 실용적이지 않아 정책이 시뮬레이션에서 훈련된다; 간극은 고자유도 휴머노이드에 특히 도전적이며, 그래서 제한된 도메인 내 실 데이터를 쓰는 IL이 순수 RL보다 인기를 얻었다."}, {"type": "bullet", "text": "명시된 미해결 과제 — 체계적 sim-to-real 해법 없음: 도메인 무작위화, 시스템 식별, 도메인 적응이 모두 사례 특이적이어서, 간극을 좁히기 위한 더 나은 물리 엔진과 접촉 모델링을 동기 짓는다."}, {"type": "bullet", "text": "하드웨어 한계(IX-B절): 고출력 밀도 구동기(고전류 하 열 방출) 필요, 전동부에 단점이 있는 저관성 설계(4절 링크는 운동 범위를 줄이고 벨트 구동은 유지보수 필요), 그리고 무선 고출력 운동의 주요 제한 요소로서의 배터리 용량."}, {"type": "bullet", "text": "기초 모델 도전(VIII-C절): 높은 추론 비용이 온보드 실시간 제어를 비현실적으로 만든다(완화책: 클라우드/온보드 분산 위계, Jetson Thor 같은 더 빠른 연산, SARA-RT); 훈련은 자원 집약적이다; 안전, 편향/윤리, 부재한 스케일링 법칙이 미해결로 남는다."}, {"type": "bullet", "text": "사회적 도전(IX-C절): 휴머노이드는 일상 배치 전에 물리적·정신적으로 신뢰할 수 있어야 하고, 효과적인 인간-로봇 상호작용을 통해 의도를 전달해야 하며, 경제적(높은 비용) 및 법적/규제 장벽을 극복해야 한다."}, {"type": "bullet", "text": "프로젝트 관련성: 서베이의 명시적 sim-to-real 도구(도메인 무작위화, 시스템 식별, 도메인 적응, 커리큘럼 학습, 제약 RL, 보상 설계)는 RL을 통해 다리 장착 오니솝터에게 보행을 가르치는 데 직접 매핑된다; 서베이는 또한 이족/휴머노이드 sim-to-real이 사족보다 어렵다고 경고하는데, 이는 더 강하게 결합된 공중-지상 플랫폼에 적용 가능한 주의이다."}, {"type": "bullet", "text": "프로젝트에 관련된 간극: 서베이는 공중/플래핑윙 비행이나 공중-지상 모드 전환을 다루지 않는다 — 따라서 RL 보행 방법론은 제공하나 다중 모드 이동 통합은 제공하지 않으며, 이는 프로젝트가 동일 코퍼스의 공중 로봇 논문에서 조달해야 한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "휴머노이드 로봇공학은 전례 없는 속도로 발전하고 있다; 서베이는 모델 기반 및 학습 기반 관점 모두에서 기초적·최신 HLM 방법을 통합하며, 남은 기술적 도전에도 불구하고 민첩성, 안전성, 신뢰성, 다용성에서의 상당한 진전을 언급한다."}, {"type": "bullet", "text": "물리적으로, 접촉이 풍부한 전신 로코-매니퓰레이션을 위한 고급 관측기(비전과 전신 촉각 센싱)와 추정기가 부상하고 있다; 인지적으로, 휴머노이드 기반 기초 모델은 개방형 세계 이해와 범용 지능 에이전트에 큰 잠재력을 지닌다."}, {"type": "bullet", "text": "가장 유망한 방향은 기초 모델을 계획 및 제어 정책과 통합하는 것이다; 저자들은 다가오는 10년 내 휴머노이드 비용 감소와 하드웨어(물리적) 및 인지 지능 양면의 상당한 발전을 기대한다."}, {"type": "bullet", "text": "이족 오니솝터 + RL 프로젝트에 대해: 이 서베이는 RL 보행 구성요소의 단연 최고의 방법론 참조이다 — 이족 제어기에 그 sim-to-real 및 보상/제약 지침을 사용 — 다만 비행과 모드 전환을 다루려면 (서베이가 다루지 않는) 다중 모드 공중-지상 논문과 짝지어야 함을 인식해야 한다."}, {"type": "bullet", "text": "서베이는 전신 촉각 센싱을 접촉이 풍부한 로코-매니퓰레이션에 미탐구되었으나 결정적인 양식으로 격상하며, 지형 인식 자세, 속도, 보법을 가능하게 하도록 발바닥 및 피부 센싱을 고유감각 및 비전과 융합할 것을 촉구한다."}, {"type": "bullet", "text": "서베이는 하드웨어와 에너지 효율을 분야 진보의 관문 제약으로 규정한다 — 오늘날 휴머노이드는 인간보다 훨씬 덜 효율적이고(COT > 0.7 대 ~0.2) 여전히 자주 유선이다 — 무선 고출력 전신 운동이 일상화되기 전 컴플라이언트, 에너지 저장 구동과 개선된 배터리를 동기 짓는다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "sim-to-real 간극은 휴머노이드 RL의 근본적, 미해결 병목이다: RL은 실세계에서 직접 훈련하기가 거의 실용적이지 않아 정책이 시뮬레이션에서 훈련되며, 그로 인한 전이 간극에 대한 체계적(사례 비특이적) 해법이 아직 없다 — 사족 대비 고자유도 휴머노이드에서 특히 심하다.", "source_quote": "Despite these efforts to address the sim-to-real gap, a systematic solution remains elusive, as the aforementioned approaches are often case-specific.", "source_section": "discussion"}, {"claim": "배터리 기술은 여전히 주요 하드웨어 한계로, 운용 시간과 무선으로 고출력 전신 운동을 수행하는 실현 가능성을 제한한다; 많은 최신 휴머노이드 시연이 여전히 유선 전원에 의존한다.", "source_quote": "Battery technology remains one of the primary hardware limitations in the development of sustained, autonomous humanoid robots. Limited battery capacity restricts both operational time and the feasibility of executing high-power, full-body motions in untethered scenarios.", "source_section": "discussion"}, {"claim": "민첩한 운동에 쓰이는 질량 분포/전동부 전략은 단점을 동반한다: 4절 링크 전동부는 관절 운동 범위를 줄이고 벨트 구동은 추가 모델링과 유지보수를 요구한다.", "source_quote": "While this significantly reduces rotational inertia and the torque demand for agile maneuvers, there are a number of notable drawbacks. Four-bar transmissions often reduce joint range of motion, while belt drives may require additional modeling and maintenance.", "source_section": "discussion"}, {"claim": "기초 모델로 휴머노이드 로코-매니퓰레이션을 위한 효과적인 입출력 표현을 설계하는 것은 여전히 미해결 연구 문제이며, 높은 FM 추론 비용은 온보드 실시간 제어를 비현실적으로 만든다.", "source_quote": "designing effective input/output representation for humanoid loco-manipulation tasks still remains an open research question.", "source_section": "discussion"}], "future_works": [{"claim": "sim-to-real 간극을 좁히기 위해, 더 높은 충실도의 접촉 모델링을 통해 real-to-sim 구축과 sim-to-real 전이를 더 잘 지원하는 물리 엔진을 개발한다.", "source_quote": "developing physics engines that facilitate real-to-sim construction and sim-to-real transfer is crucial... advancements in contact modeling will significantly narrow the sim-to-real gap.", "source_section": "discussion"}, {"claim": "범용 휴머노이드 에이전트를 달성하기 위해 비전-언어-행동(VLA) 모델과 기초 모델의 계획 및 제어 정책 통합을 발전시킨다.", "source_quote": "More importantly, an integration of foundation models with planning and control policies presents promising capabilities.", "source_section": "conclusion"}, {"claim": "휴머노이드 기초 모델(모델, 연산, 데이터)의 스케일링 법칙과, 본질적으로 불안정한 로봇에 대한 인터넷 데이터 훈련 정책의 철저한 안전 평가 절차를 확립한다.", "source_quote": "A critical component of the humanoid foundation model that has yet to be developed is a scaling law, similar to the training of large language models.", "source_section": "discussion"}, {"claim": "야외에서의 강건한 이동을 위해 지형 인식 자세, 속도, 보법에 정보를 주도록 고유감각 및 비전과 융합하는 전신 및 발바닥 촉각 센싱을 개발한다.", "source_quote": "future directions for tactile sensing of feet need to address the following challenges: (i) how to accurately estimate more terrain properties... (iii) how to fuse terrain tactile sensing with other conventional sensing modules such as proprioception and visual perception to jointly inform postures, speeds, and gaits for intelligent, terrain-aware locomotion.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["휴머노이드 이동 및 조작 능력은 빠르게 진보했으나 대체로 따로(모델 기반 대 학습 기반 커뮤니티) 발전했으며, 전신 로코-매니퓰레이션에 어느 패러다임을 쓸지에 대한 진행 중이고 잘 종합되지 않은 논쟁이 있다.", "학습 기반 방법(RL, IL, 기초 모델)이 급증했으나 특히 휴머노이드 로코-매니퓰레이션을 지향하는 포괄적, 최신 리뷰가 없어, 신규 진입자에게 방법과 그 절충의 통합된 지도가 없다.", "촉각 센싱 — 특히 접촉이 풍부한 상호작용에 결정적인 전신 촉각 피드백 — 은 기존 휴머노이드 문헌에서 상대적으로 제한된 주목을 받았다."], "addressed_by_this_work": ["접촉/동작 계획, 전신 제어(MPC+WBC), RL, IL, 기초 모델을 아우르는 통합 분류 체계와 30년 종합을 제공하며, 모델 기반 제어와 sim-to-real RL이 충돌이 아니라 상호 보완적이고 결합 가능하다고 명시적으로 주장한다.", "강건성, 동작 정확성, 실시간 실현 가능성, 다용성, 일반화 가능성에 걸쳐 모델 기반 대 학습 기반 방법의 구조화된 비교(표 VI)를 휴머노이드 기술(이동, 로코-매니퓰레이션, 전신 다중 접촉)별 대표 논문과 함께 제공하여 방법 선택을 안내한다.", "손, 발, 전신의 촉각 센싱에 한 절 전체를 할애하여 그 역할, 도전, 해법을 매핑하고, 전신 촉각 피드백을 접촉이 풍부한 로코-매니퓰레이션의 결정적 양식으로 격상한다."], "remaining_unresolved": ["고자유도 휴머노이드의 sim-to-real 전이는 일반적 해법이 없다; 전신 조작(모든 몸체 표면 사용)은 일반 능력으로서 '아직 개발되어야' 한다.", "휴머노이드 로코-매니퓰레이션을 위한 기초 모델 통합(VLA 입출력 설계, 스케일링 법칙, 온보드 추론 비용, 안전)은 여전히 미해결이며 대부분 시뮬레이션에서 시연된다.", "하드웨어 한계가 지속된다 — 열 방출을 동반한 고출력 밀도 구동기, 범위/유지보수 페널티 없는 저관성 전동부, 무선 고출력 운동을 위한 배터리 용량."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Mimic biological flapping motion for a two-dimensional wing by reinforcement learning</title>
+    <meta name="keywords" content="flapping motion design, reinforcement learning, PPO, bio-inspired fluid mechanics, two-dimensional wing, boundary data immersion method, quasi-periodic motion, propulsion optimization, degrees of freedom">
+    <meta name="paper-authors" content="Ran Bi, Changdong Zheng, Hongyu Zheng, Tingwei Ji, Fangfang Xie, Yao Zheng">
+    <meta name="paper-journal" content="Bioinspiration & Biomimetics, Vol. 20, No. 3, 036011, 2025 (DOI 10.1088/1748-3190/adcde0)">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Mimic biological flapping motion for a two-dimensional wing by reinforcement learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Ran Bi, Changdong Zheng, Hongyu Zheng, Tingwei Ji, Fangfang Xie, Yao Zheng</div>
+            <div class="journal">Bioinspiration & Biomimetics, Vol. 20, No. 3, 036011, 2025 (DOI 10.1088/1748-3190/adcde0)</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 2차원 NACA0015 날개의 운동학을 설계하기 위해 <span class="term">proximal policy optimization</span>(PPO) 강화학습 에이전트를 고충실도 <span class="eng">boundary data immersion method</span>(BDIM) 유동 솔버와 결합하는 적응형 날갯짓 운동 최적화 프레임워크를 제안한다. 사전 설계된 정현파 운동 가정에서 벗어나, 에이전트는 각 단계에서 속도 증분을 조절하여 피치, 히브, 인라인 운동을 자유롭게 형성하고, 시간 평균 추력 계수를 최대화하는 비조화·준주기 패턴을 발견한다. 실험은 1자유도(피치만)에서 2자유도(피치 더하기 히브), 3자유도(인라인 운동 추가)로 진행된다. 학습된 전략은 대리 모델 매개변수 최적화를 능가하고, 새와 바다거북에서 보이는 비대칭 진동과 빠름/느림 위상 비대칭 같은 생물학적으로 관련된 특성을 재현하며, 더 높은 자유도가 탐색 공간을 확장하고 더 느리고 덜 안정적인 수렴을 대가로 더 높은 최종 성능을 달성함을 보인다.</div>
+            <div class="keywords"><span class="keyword-chip">flapping motion design</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">PPO</span><span class="keyword-chip">bio-inspired fluid mechanics</span><span class="keyword-chip">two-dimensional wing</span><span class="keyword-chip">boundary data immersion method</span><span class="keyword-chip">quasi-periodic motion</span><span class="keyword-chip">propulsion optimization</span><span class="keyword-chip">degrees of freedom</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">곤충, 새, 박쥐는 적응형 날갯짓을 통해 양력과 추력을 동시에 생성하여 생체모방 추진에 풍부한 영감을 제공하지만, 전통적 연구는 균일 유동에서의 대칭 정현파 운동과 단순화된 저자유도 모델에 초점을 둔다. 머신러닝, 특히 강화학습은 복잡한 고차원 탐색 공간을 탐색할 수 있으며 군집 동역학, 항법, 물고기 유영, 와류-날개 상호작용에 적용되어 왔다. 저자들은 PPO를 채택하여 유동장 감지를 적응형 날갯짓 운동에 연결하는 종단간 프레임워크를 구축하며, 2자유도를 넘어 더 복잡하고 생물학적으로 현실적인 다자유도 전략으로 확장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 날갯짓 운동학의 모델링과 날갯짓 추진에 대한 머신러닝의 적용을 다룬다. 고전적 연구는 대칭 및 비대칭 정현파 피칭/히빙, 인라인 운동, 그리고 비대칭 스트로크가 공력과 유동 구조에 미치는 영향을 조사했다. 머신러닝 접근법 — 베이지안 최적화, 딥러닝 대리 모델, 강화학습 — 은 복잡한 날갯짓 동역학을 점점 더 포착하지만, 대부분 사전 정의된 운동 계열이나 사전 데이터에 의존하여, 확장된 자유도를 갖는 데이터프리 종단간 RL 접근법의 동기가 된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">물리 모델은 0.3c에 피벗을 둔 Re = 1100의 2차원 NACA0015 익형으로, 1~3자유도(피치, 히브, 인라인 운동)가 허용된다. 운동은 고정된 정현파가 아니라 속도 증분과 조정 시간으로 형성되어 연결 함수로 평활화되며, 양력 및 추력 계수와 유효 받음각은 준정상 이론으로 정의된다. 유동은 데카르트 격자 침지 경계 솔버인 경계 데이터 침지 방법(BDIM)으로 시뮬레이션되며, 발표된 결과 및 격자 수렴에 대해 검증되었다. PPO 기반 프레임워크는 물리 모델, RL 에이전트(256뉴런 액터-크리틱 MLP), 수치 환경을 마르코프 결정 과정으로 결합하며, 추력을 위치/진폭 페널티와 균형 맞추는 신중하게 설계된 보상을 갖는다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">프레임워크는 1자유도, 2자유도, 3자유도 날갯짓 날개에 적용되었다. 1자유도(피치만)에서 에이전트는 약 10 에피소드 후 빠르게 수렴하여 전통적 방법의 추력-주파수 상관관계와 일치하는 고주파·소각 준사각파 운동에 이르렀다. 2자유도(피치 더하기 히브)에서는 에피소드 60 부근에서 광범위한 대칭 히빙 더하기 비대칭 중간 진폭 피칭으로 수렴하여 대리 모델 최적화를 능가하고 곤충 비행과 유사한 'M'자 각도 변화를 생성했다. 3자유도(인라인 운동 추가)에서는 학습 곡선이 더 불안정했으나 더 높은 최종 보상(~1500)에 도달했으며, 가변적 위상 관계와 새 및 거북과 유사한 빠름/느림 스트로크 비대칭을 보였다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 학습된 운동을 RL이 와류 동역학과 스트로크 비대칭을 활용하여 추진을 향상시키는 생체모방적 비조화 전략을 발견할 수 있다는 증거로 해석한다. 그들은 자유도 증가가 운동 탐색 공간을 확장하고 최종 성능을 높이지만 학습 불안정성을, 그리고 단일 추력 전용 목적 하에서 다수의 비일관적 해를 도입함에 주목한다. 그들은 양력 계수나 추진 효율 같은 목적을 추가하면 더 일관되고 생물학적으로 충실한 운동 패턴으로의 수렴을 유도할 것이라고 주장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 연구는 PPO를 사용하여 유동장 인식을 적응적이고 효율적인 날갯짓 행동으로 변환하는 적응형 최적화 프레임워크를 개발하여, BDIM 수치 시뮬레이션, 다양한 자유도의 물리적 날갯짓 날개 모델, RL 에이전트 사이의 실시간 상호작용을 통합하면서 사전 정의된 운동 패턴과 사전 데이터에 대한 의존을 제거한다. 1자유도, 2자유도, 3자유도 사례 전반에 걸쳐 에이전트는 고주파, 준주기, 생체모방적 리듬 패턴을 발견했으며, 더 높은 자유도가 안정성을 대가로 탐색을 확장하고 최종 성능을 높였다. 향후 연구는 더 풍부한 유동장 및 생체모방 데이터와 추진 효율 목적을 보상에 접어 넣어 더 진정하고 다재다능한 생체모방 추진 시스템을 설계할 것이다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "곤충, 새, 박쥐는 날개 날갯짓을 통해 양력과 추력을 동시에 생성하며, 각각 고유한 적응을 가진다 — 곤충은 민첩성을 위해 빠른 날갯짓을 사용하고, 새는 지속적이고 효율적인 추진을 위해 더 큰 날개를 사용하며, 박쥐는 날개를 재형성하기 위해 유연한 막을 사용한다."}, {"type": "bullet", "text": "초기 연구는 균일 유동에서 날갯짓 날개의 대칭 진동에 초점을 두었다. Kinsey와 Dumas는 히브 진폭과 주파수가 익형 성능을 지배하는 반면 기하 및 점성 요인은 부차적임을 보였다."}, {"type": "bullet", "text": "Read와 Hover 등은 비정현파 피칭과 히빙을 탐구하여 비정현파 운동이 합리적인 효율을 유지하면서 높은 추력을 달성할 수 있음을 발견했고, Licht 등은 고도로 비대칭적인 날갯짓이 추력을 줄이지만 효율을 향상시킬 수 있음을 보였다."}, {"type": "bullet", "text": "머신러닝은 숨겨진 패턴과 비선형 상호작용을 발견하기 위해 복잡한 고차원 탐색 공간을 탐색하는 데 뛰어나다. Zheng 등은 다중충실도 베이지안 최적화를, Corban 등은 딥러닝 대리 모델을 사용해 날갯짓 운동학을 최적화했으나, 둘 다 사전 설계된 모델과 사전 지식에 의존했다."}, {"type": "bullet", "text": "강화학습은 환경 상호작용을 통해 최적 행동을 학습함으로써 복잡한 의사결정을 해결하며, 군집 동역학, 관절 운동, 자율 항법, 물고기 유영, 그리고 (Wang 등을 통해) 와류-날개 상호작용을 통한 비매개변수 날개 운동에 적용되어 왔다."}, {"type": "bullet", "text": "기존 RL 날갯짓 연구는 특히 인라인 운동을 이해하고 더 유연하고 생물학적으로 현실적인 전략을 가능하게 하기 위해 2자유도에서 더 복잡한 다자유도 조합으로의 확장이 필요하다."}, {"type": "bullet", "text": "이 논문은 안정적 갱신을 위해 확률비를 클리핑하고 데이터 효율을 위해 반복당 다중 갱신을 지원하는 PPO를 사용하여, 사전 데이터 없이 유동장 감지를 적응형 날갯짓 운동에 연결하는 종단간 프레임워크를 구축한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "생물학적 날갯짓 운동학의 현실적 모델링은 점점 더 복잡해진다. Licht 등은 인라인 운동을 조사하여 고도로 비대칭적인 날갯짓이 효율을 향상시키면서 추력을 줄임을 발견했다."}, {"type": "bullet", "text": "Zhu와 Zhou는 비대칭 스트로크를 분석하여 적절히 설계된 비대칭 스트로크가 특정 조건에서 공력 성능을 향상시킬 수 있음을 보여, 진정한 생물학적 운동 패턴의 가치를 강조했다."}, {"type": "bullet", "text": "Zheng 등은 히브 진폭, 주파수, 받음각 진폭, 스트로크 각도의 설계 공간 내에서 최적 비대칭 날갯짓 매개변수를 효율적으로 식별하는 다중충실도 베이지안 최적화 프레임워크를 개발했으나, 사전 정의된 운동 모델에 의해 안내되었다."}, {"type": "bullet", "text": "Corban 등은 비정상 공기역학과 다목적 최적화에 딥러닝 대리 모델을 사용하여, 효율 우선 및 양력 최대화 운동 계열을 식별했으나 여전히 사전 지식을 활용했다."}, {"type": "bullet", "text": "강화학습은 군집 동역학, 관절 운동, 자율 항법, 물고기 유영을 포함한 생물학적 행동을 모델링하고 향상시키는 데 적용되어 왔으며, Wang 등은 와류-날개 상호작용을 통해 비매개변수 날개 운동을 최적화했다."}, {"type": "bullet", "text": "기존 머신러닝 날갯짓 연구 전반에 걸친 공통 한계는 사전 설계된 운동 가정이나 사전 데이터에 대한 의존이며, 특히 인라인 운동을 포함한 다자유도 조합에 대해 새로운 전략을 발견할 여지를 남기는데, 이것이 본 연구가 목표하는 바이다."}]}, "method": {"content": [{"type": "bullet", "text": "2차원 NACA0015 익형이 선행 가장자리에서 0.3c에 피벗을 두고 자유류 유동에서 움직이며, 1~3자유도가 허용된다: 1자유도 피치 alpha(t), 히브 y(t)를 추가한 2자유도, 유동에 평행한 인라인 운동 x(t)를 추가한 3자유도.", "figure_refs": [1]}, {"type": "formula", "label": "식 (1)–(2) — 레이놀즈수와 스트로할수", "latex": "Re = \\frac{\\rho U_0 l}{\\mu},\\qquad St = \\frac{2 y_0 f}{U_0 L}", "description": "유체 밀도 $\\rho$, 자유류 속도 $U_0$, 특성 길이 $l$(= 시위 $c$), 동점성 $\\mu$, 히브 진폭 $y_0$, 주파수 $f$를 갖는 무차원 지배 매개변수이며, 본 연구에서 Re는 1100으로 고정된다."}, {"type": "bullet", "text": "고정된 운동 형태 대신, 날갯짓 날개는 조정 시간 delta-T 동안 속도 증분 delta-V로 구동되며, 위치, 속도, 가속도가 평활화 연결 함수 R(x), H(x), D(x)를 통해 정의되어 운동 단계가 매끄럽게 연결된다."}, {"type": "formula", "label": "식 (9)–(10) — 양력 및 추력 계수", "latex": "C_l = \\frac{L}{\\tfrac{1}{2}\\rho U_0^2 c},\\qquad C_t = \\frac{T}{\\tfrac{1}{2}\\rho U_0^2 c}", "description": "순간 양력 $L$과 추력 $T$로부터의 양력 계수 $C_l$과 추력 계수 $C_t$이며, 준정상 이론 하에서 둘 다 순간 유효 받음각에 의존한다."}, {"type": "formula", "label": "식 (11) — 유효 받음각", "latex": "\\alpha_e(t) = \\alpha(t) - \\arctan\\!\\left(\\frac{v_y(t)}{U_0 + v_x(t)}\\right)", "description": "시위-합속도 각도로부터의 유효 받음각으로, $v_y$는 히브 속도이고 $v_x$는 인라인 속도이다."}, {"type": "bullet", "text": "유동은 침지 경계 운동 방정식을 나비에-스토크스와 합성곱하는 데카르트 격자 침지 경계 기법인 경계 데이터 침지 방법(BDIM)으로 시뮬레이션되며, 시간 적분은 명시적 오일러 더하기 Heun 방법과 샤프 인터페이스 유사 압력 처리를 사용한다.", "figure_refs": [2]}, {"type": "formula", "label": "식 (12) — BDIM 메타 방정식", "latex": "F(U)\\,(1-\\delta_{\\varepsilon}^{b}) + B(U)\\,\\delta_{\\varepsilon}^{b} + S(U)\\,\\delta_{\\varepsilon}^{S} = 0", "description": "유체 및 고체 영역에 걸친 결합 지배 방정식으로, $F(U)$와 $B(U)$는 유체와 고체 운동량을 지배하고, $S(U)$는 인터페이스 경계 조건이며, $\\delta_{\\varepsilon}^{b}$, $\\delta_{\\varepsilon}^{S}$는 표면까지의 최소 거리의 커널 함수이다."}, {"type": "bullet", "text": "솔버는 서로 다른 피치 진폭에서의 시간 평균 추력에 대해 Pedro 등과 비교하여, 그리고 4격자 수렴 연구(168k에서 1.0M 셀)를 통해 검증되었으며, 정밀도와 비용의 균형을 위해 663,600셀 공칭 격자를 선택했다.", "figure_refs": [3, 4]}, {"type": "bullet", "text": "RL 프레임워크는 세 구성요소 — 물리 모델, 강화학습, 수치 시뮬레이션 — 를 마르코프 결정 과정으로 결합한다. 고정된 함수 형태를 버리고, 에이전트는 궤적과 속도 정보를 받으면 각 단계에서 속도 증분을 조절한다.", "figure_refs": [5]}, {"type": "bullet", "text": "액터와 크리틱 네트워크 모두 ReLU 활성화를 갖는 256뉴런 은닉층을 가지며, 각 30초 에피소드는 정적 상태에서 시작하고, 에이전트는 0.1초 간격으로 현재와 이전 스텝 상태를 관측하며, 인공 제약이 사전 설정된 공간 경계 근처에서 행동을 반전시킨다.", "figure_refs": [6]}, {"type": "formula", "label": "식 (17) — 보상 함수", "latex": "r_t = \\max(C_t, C_{tset}) + \\big(\\beta_{\\alpha} f_1(|\\alpha_t|) + \\beta_y f_2(|y_t|) + \\beta_x f_2(|x_t|)\\big)", "description": "추력 계수($\\max(C_t,C_{tset})$로 비정상적으로 높은 값을 걸러 시간 평균 추력에 집중)와 최대 피치, 히브, 인라인 위치에 대한 페널티 함수 $f_1$, $f_2$를 결합한 보상으로, 운동 모드별 조정 가능한 $\\beta_{\\alpha}$, $\\beta_y$, $\\beta_x$로 가중된다."}]}, "experiment": {"content": [{"type": "bullet", "text": "1자유도 피치만 운동에서 학습 곡선은 빠르게 수렴하여 단 10 에피소드 후 규칙적인 고주파·소각 피칭 운동으로 안정화되며, 그 누적 보상은 최대 진폭 기준을 초과하고 최고 주파수 사례와 일치한다.", "figure_refs": [8]}, {"type": "bullet", "text": "1자유도 에이전트는 각 주기마다 가속한 후 감속하는 준사각파 행동 패턴을 채택하며, 이는 추력 계수와 날갯짓 주파수가 양의 상관관계를 갖는다는 전통적 결과와 일치한다.", "figure_refs": [8]}, {"type": "bullet", "text": "2자유도 운동에서 학습 곡선은 에피소드 60 부근에서 수렴하며(1자유도보다 느리지만 훨씬 높은 최종 보상으로), 처음 20 에피소드에서 광범위 저주파에서 협소 고주파 행동으로 전환된다.", "figure_refs": [9]}, {"type": "bullet", "text": "수렴된 2자유도 전략은 광범위한 대칭 히빙과 비대칭 중간 진폭 피칭을 결합하여, 동일 제약 하에서 대리 모델 매개변수 최적화(파란 점선)를 능가하고 Zheng 등의 추력-진폭-주파수 결론과 일치한다.", "figure_refs": [9]}, {"type": "bullet", "text": "상세한 2자유도 분석은 후류가 혼돈에서 규칙적인 양/음 와류 배열로 전환되고, 히브가 정현파와 유사하며, 피치가 곤충 비행 피치 경향을 반영하고 최대 추력을 높이는 독특한 'M'자 각도 변화를 형성함을 보인다.", "figure_refs": [10, 12]}, {"type": "bullet", "text": "3자유도 운동에서 학습 곡선은 눈에 띄게 더 불안정하고 느리지만(초기 모드 형성에 약 70 에피소드, 에피소드 100까지 준주기적) 모든 사례에서 약 1500의 더 높은 최종 보상에 도달한다.", "figure_refs": [13]}, {"type": "bullet", "text": "3자유도에서 히빙과 피칭 사이의 위상 지연은 2자유도에서처럼 0.5pi 부근에 머물지만, 인라인 운동은 훨씬 더 가변적이어서 — 히브와 동기화되거나, 반대되거나, 0.5pi만큼 지연되어 — 새 및 거북과 유사한 빠름/느림 스트로크 비대칭을 산출한다.", "figure_refs": [14, 15]}]}, "discussion": {"content": [{"type": "bullet", "text": "최대 추력에서 상승타 중 생성된 선행 와류가 부착된 채로 남아 있으며, 상부 표면 양압, 하부 표면 음압, 최적 피치의 조합이 유리한 추력 생성 조건을 만들어, 순간 유효 받음각의 중요성과 일치한다.", "figure_refs": [12]}, {"type": "bullet", "text": "2자유도 에이전트의 매끄럽고 비균일한 각도 전환은 푸른바다거북의 유영과 꿀벌의 호버링 미세 조정과 유사하여, RL이 새롭고 효율적인 생체모방 전략을 발견함을 보인다."}, {"type": "bullet", "text": "3자유도 운동에서 에이전트는 일관되게 상승타-하강타 비대칭을 활용하여 하나의 빠른 위상과 하나의 느린 위상을 만들어, 더 약한 하강타 추력 피크와 음의 추력을 줄이는 앞당겨진 상승타 피크를 생성하며, 새와 거북의 날갯짓을 반영한다.", "figure_refs": [15]}, {"type": "bullet", "text": "3자유도 패턴의 비일관성은 향상된 자유도와 단일 최적화 목적의 결합에 귀속된다. 추력만 최대화하는 것은 양력과 효율에서 절충을 갖는 다수의 실행 가능한 해를 허용한다."}, {"type": "bullet", "text": "저자들은 양력 계수나 추진 효율 같은 추가 목적을 도입하면 최적화가 더 일관된 운동 패턴으로 수렴하게 할 것이라 기대하며, 더 포괄적인 유동장 정보의 가치를 강조한다."}, {"type": "bullet", "text": "전반적으로 논의는 RL을 광범위한 사전 지식 없이 다자유도 날갯짓 동역학의 복잡성을 관리하고, 더 넓은 가능성을 탐색하면서 생물학적 운동을 복제하는 강력한 도구로 자리매김한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "PPO를 활용하여 유동장 인식을 적응적이고 효율적인 날갯짓 행동으로 변환하는 적응형 최적화 프레임워크가 개발되어, 사전 정의된 운동 패턴과 광범위한 사전 데이터에 대한 의존을 제거했다."}, {"type": "bullet", "text": "1자유도 운동에서 에이전트는 고주파 진동 전략을 빠르게 고안했고, 2자유도에서는 준주기 운동을 개발하고 행동 제약 페널티를 피하며 시간 평균 추력 계수를 향상시키기 위해 비대칭 운동을 점진적으로 미세 조정했다."}, {"type": "bullet", "text": "더 복잡한 3자유도 운동에서 에이전트는 향상된 적응성을 보여, 정밀한 동적 조정을 수행하고 뚜렷한 빠르고 느린 위상을 갖는 생체모방적 리듬 패턴을 확립했다."}, {"type": "bullet", "text": "1자유도와 2자유도 운동은 3자유도보다 더 매끄럽게 수렴했으나, 자유도 증가가 날갯짓 운동 탐색 공간을 확장하면서 더 큰 학습 불확실성을 도입하기 때문에 3자유도의 최종 성능 정점이 더 높았다."}, {"type": "bullet", "text": "비조화 준주기 운동은 전통적 대칭 날갯짓에 비해 추진을 크게 향상시켰고 자연적 생물학적 운동의 특성과 밀접하게 일치했다."}, {"type": "bullet", "text": "향후 연구는 더 진정한 비행 패턴을 발견하고 생체모방 비행 장치의 개발을 추진하기 위해 더 포괄적인 유동장 정보, 생체모방 데이터, 추진 효율 고려사항을 RL 보상 함수에 통합할 것이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "최적화는 단일 목적(추력 최대화)을 사용하는데, 이는 양력과 효율에서 절충을 갖는 다수의 실행 가능한 해를 허용하고 비일관적인 3자유도 운동 패턴을 생성한다.", "source_quote": "When the goal is limited to maximizing thrust, the system allows for multiple viable solutions. These may include trade-offs between generating high or low lift and achieving varying levels of propulsion efficiency.", "source_section": "discussion"}, {"claim": "자유도 증가는 학습 중 더 큰 불확실성과 더 큰 변동을 도입하여, 3자유도 학습 곡선을 눈에 띄게 더 불안정하고 수렴이 느리게 만든다.", "source_quote": "The learning curve for 3-DOF motion is noticeably more unstable but shows the potential to exceed the performance of 2-DOF motion. It takes significantly more episodes to form an initial regular motion and converges more slowly compared to the 2-DOF case.", "source_section": "experiment"}, {"claim": "연구는 단일 고정 레이놀즈수 1100의 2차원 NACA0015 익형에 국한되어, 3차원 고레이놀즈수 비행으로의 직접 일반화를 제한한다.", "source_quote": "In the current work, Re is fixed to 1100.", "source_section": "method"}], "future_works": [{"claim": "향후 연구는 더 포괄적인 유동장 정보와 생체모방 데이터, 특히 자연적 날갯짓 운동의 특성을 RL 보상 함수에 통합할 것이다.", "source_quote": "Future work will integrate more comprehensive flow field information and bio-inspired data, particularly the characteristics of natural flapping motions, into RL reward functions.", "source_section": "conclusion"}, {"claim": "저자들은 더 통일되고 실세계 적용 가능한 전략으로의 수렴을 유도하기 위해 추진 효율과 추가 성능 지표(예: 양력 계수)를 목적에 포함할 계획이다.", "source_quote": "Additionally, we will incorporate propulsion efficiency considerations to better adapt our optimization to real-world robotic applications.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["전통적 날갯짓 운동 연구는 자연적 운동의 복잡성, 적응성, 효율을 포착하지 못할 수 있는 제한된 자유도의 단순화된 운동 모델에 의존한다.", "기존 최적화 방법은 사전 설계된 운동 가정과 사전 데이터에 의존하여, 새롭고 더 유연한 전략을 발견할 여지를 남긴다.", "날갯짓 날개에 대한 기존 RL 연구는 대체로 2자유도에 국한되어, 인라인 운동 같은 더 높은 다자유도 조합의 효과가 이해되지 않았다."], "addressed_by_this_work": ["PPO 기반 적응형 RL 프레임워크가 각 단계에서 속도 증분을 조절하여 고정된 함수적 운동 형태를 버리고 유동장 정보에 안내되어 실시간으로 운동을 형성한다.", "PPO를 고충실도 BDIM 유동 솔버와 결합하여, 에이전트는 시간 평균 추력 계수를 향상시키고 대리 모델 매개변수 최적화를 능가하는 비조화·준주기 운동 패턴을 발견한다.", "프레임워크는 1자유도, 2자유도, 3자유도 날개에 걸쳐 시연되어, 추가된 자유도가 탐색을 확장하고 더 높은 최종 성능을 산출하면서 생물학적으로 관련된 비대칭·빠름/느림 위상 운동을 드러냄을 보인다."], "remaining_unresolved": ["단일 추력 전용 목적 하에서 3자유도 최적화는 수렴을 위해 추가 목적(양력, 효율)이 필요한 비일관적 다중해 운동 패턴을 산출한다.", "더 높은 자유도 학습은 더 큰 학습 곡선 변동과 함께 여전히 불안정하고 표본 집약적이다.", "검증은 고정 Re = 1100의 2D 익형에 국한되어, 3D 및 고레이놀즈수 실세계 로봇 응용은 향후 과제로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

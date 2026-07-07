@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Sim-to-Real: Learning Agile Locomotion For Quadruped Robots</title>
+    <meta name="keywords" content="sim-to-real transfer, quadruped locomotion, deep reinforcement learning, reality gap, actuator model, dynamics randomization, latency modeling, proximal policy optimization">
+    <meta name="paper-authors" content="Jie Tan, Tingnan Zhang, Erwin Coumans, Atil Iscen, Yunfei Bai, Danijar Hafner, Steven Bohez, Vincent Vanhoucke">
+    <meta name="paper-journal" content="Proceedings of Robotics: Science and Systems (RSS) 2018 · arXiv:1804.10332 · DOI: 10.15607/RSS.2018.XIV.010">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Sim-to-Real: Learning Agile Locomotion For Quadruped Robots</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Jie Tan, Tingnan Zhang, Erwin Coumans, Atil Iscen, Yunfei Bai, Danijar Hafner, Steven Bohez, Vincent Vanhoucke</div>
+            <div class="journal">Proceedings of Robotics: Science and Systems (RSS) 2018 · arXiv:1804.10332 · DOI: 10.15607/RSS.2018.XIV.010</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 민첩한 사족 보행을 시뮬레이션에서 학습하여 추가 튜닝 없이 실제 <span class="term">Minitaur</span> 로봇에 직접 배치하는 완전한 시스템을 제시한다. 두 가지 도전을 다룬다: 제어 가능한 보행 학습과 <span class="term">reality gap</span> 건너기. 제어성은 사용자가 제공한 개루프 기준에 학습된 피드백 항을 더하는 하이브리드 정책으로 제공되며, 완전 수작업 명시부터 완전 처음부터 학습까지의 스펙트럼을 아우른다. reality gap은 양쪽에서 좁혀진다: <span class="term">system identification</span>, 정확한 비선형 DC 모터 <span class="term">actuator model</span>, 명시적 <span class="term">latency modeling</span>을 통한 시뮬레이션 충실도 향상; 그리고 <span class="term">dynamics randomization</span>, 무작위 섭동력, 의도적으로 작은 관측 공간을 통한 견고한 제어기 학습. PyBullet에서 PPO로 학습된 이 시스템은 하드웨어로 전이되는 트롯과 갤럽을 학습하고(갤럽 실제 ~1.18 m/s 대 시뮬레이션 ~1.34 m/s), 비슷한 속도에서 전문가 수작업 보행보다 23-35% 더 에너지 효율적이다. ablation은 시뮬레이션 개선과 작은 관측 공간 둘 다 필수적임을 보인다 — 큰 관측 공간은 시뮬레이터에 과적합되어 reality gap을 넓힌다.</div>
+            <div class="keywords"><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">quadruped locomotion</span><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">reality gap</span><span class="keyword-chip">actuator model</span><span class="keyword-chip">dynamics randomization</span><span class="keyword-chip">latency modeling</span><span class="keyword-chip">proximal policy optimization</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 역사적으로 수작업 튜닝되던 민첩한 사족 보행 설계를 심층 RL로 자동화하려는 동기를 제시하면서, 보행의 잦은 접촉 변화로 증폭되는 reality gap을 시뮬레이션 학습 정책 배치의 중심 장애물로 지목한다. 시뮬레이션 학습이 로봇 학습보다 빠르고 저렴하며 안전하다고 주장하고, 논문의 두 갈래 해법 — 제어 가능한 하이브리드 정책과 reality-gap 축소 기법 모음 — 을 예고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 다리형 보행 제어(블랙박스/베이지안 최적화부터 심층 RL까지)와 reality-gap 전략의 넓은 지형을 다룬다. 이 논문을, 지각 영역 전이에 의존하기보다 system identification, 정확한 actuator/지연 모델, 견고성 기법을 결합하여 시뮬레이션에서 학습할 뿐 아니라 하드웨어에서도 시험하는 소수 중 하나로 위치시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 방법은 보행을 PPO로 푸는 POMDP로 정식화하며, 다리 공간 행동 표현과 속도-에너지 보상을 사용한다. 하이브리드 정책은 사용자가 명시한 개루프 기준에 학습된 피드백 네트워크를 더해 제어 가능한 보행을 제공한다. reality-gap 축소는 시뮬레이션 충실도 향상(system identification, 비선형 DC 모터 actuator 모델, 지연 처리)과 견고한 제어기 학습(dynamics 무작위화, 섭동력, 컴팩트 관측 공간)으로 나뉜다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 PyBullet에서 PPO로 트롯과 갤럽을 학습하고(25개 병렬 rollout, 700만 스텝) 정책을 실제 Minitaur에 직접 배치한다. 학습된 보행은 전문가 속도에 필적하면서 전력을 23-35% 적게 쓰며, 연속적 reality-gap 측정은 시뮬레이터 개선, 무작위화 추가, 작은 관측 공간 사용이 각각 중요함을 보인다 — 작은 관측 공간에 무작위화를 더한 것이 최고의 실세계 전이를 준다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 토론을 평가에 접어 넣는다. 정리된 통찰은, 보행에서 reality gap을 건너려면 정확한 동역학 모델과 의도적 견고성 둘 다 필요하다는 것, 컴팩트한 관측 공간이 놀랍도록 강력한 전이 도구라는 것, 그리고 견고성이 공짜가 아니라는 것이다. 핵심 메시지는 단일 묘책이 아니라 균형 잡힌 레시피이다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 심층 RL이 민첩한 보행을 자동으로 학습할 수 있고, 정확한 물리 모델과 견고한 제어기로 그것이 시뮬레이션에서 실제 Minitaur로 전이됨을 트롯과 갤럽에서 시연했다고 밝힌다. 동적 속도/방향 제어와 비전 기반 복잡 지형 보행을 향후 방향으로 지목한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "민첩한 사족 보행 설계는 저구동 로봇을 매우 동적이고 균형이 중요한 동작으로 제어해야 하기 때문에 어려우며, 고전적 접근은 광범위한 경험과 지루한 수작업 튜닝을 필요로 한다.", "figure_refs": [1]}, {"type": "bullet", "text": "심층 RL은 인간 개입을 거의 없이 보행을 처음부터 풀 수 있지만, 시뮬레이션에서 학습된 제어기는 <span class=\"term\">reality gap</span> — 미모델링 동역학, 잘못된 파라미터, 수치 오차로 인한 모델 불일치 — 때문에 실제 로봇에서 종종 부실하게 작동한다."}, {"type": "bullet", "text": "reality gap은 보행에서 특히 심각하다: 잦은 접촉 변화가 제어 공간을 파편 조각으로 쪼개어, 어떤 작은 모델 불일치든 분기된 결과로 확대될 수 있다."}, {"type": "bullet", "text": "(파지에서처럼) 하드웨어에서 직접 학습하는 것은 어려운 자동 리셋, 느리고 안전하지 않은 데이터 수집, 넘어짐 손상 위험 때문에 보행에는 어렵다. 시뮬레이션 학습이 더 빠르고 저렴하며 안전하다."}, {"type": "bullet", "text": "이 시스템은 reality gap을 두 가지로 좁힌다: 시뮬레이터 개선(system identification, 충실한 actuator 모델, 지연 시뮬레이션)과 견고한 정책 학습(dynamics 무작위화, 섭동력, 컴팩트 관측 공간)."}, {"type": "bullet", "text": "기여: 완전한 제어성 스펙트럼을 가진 완전한 학습 시스템, reality-gap 축소 기법의 포괄적 평가, 그리고 시뮬레이션에서 학습된 트롯과 갤럽이 추가 학습 없이 하드웨어로 전이됨의 입증."}]}, "related_works": {"content": [{"type": "bullet", "text": "블랙박스 및 베이지안 최적화를 통한 자동 제어기 최적화는 실제 로봇에 충분히 데이터 효율적이지만 고차원 제어로 잘 확장되지 않아, 특징 엔지니어링과 구조 설계를 요구한다."}, {"type": "bullet", "text": "심층 RL은 인간 전문성의 필요를 줄인다. 저자들은 안정적이고 쉽게 병렬화되는 on-policy 방법으로 <span class=\"term\">Proximal Policy Optimization (PPO)</span>를 선택한다."}, {"type": "bullet", "text": "이전의 많은 RL 보행 연구(CPG 변조, guided policy search, actor-critic 전문가, 계층적 제어기, 위상 파라미터 정책)는 전적으로 시뮬레이션에서 학습·평가되어, 실제 로봇 배치는 입증되지 않았다."}, {"type": "bullet", "text": "reality-gap 원인은 분석되었고(Neunert 등), 신중히 측정된 파라미터 사용이나 시뮬레이션과 실제 행동 매칭, 자기 모델링, 가우시안 과정 모델, 온라인/암묵적 system identification(Yu 등, Peng 등)을 포함한 system identification으로 부분적으로 해결되었다."}, {"type": "bullet", "text": "견고성은 잡음 주입, 로봇 섭동, 다중 시뮬레이터 사용, domain randomization, dynamics randomization으로 향상될 수 있으며, 모두 실세계 학습 데이터 없이 sim-to-real 성공을 높이는 데 효과적임이 보여졌다."}, {"type": "bullet", "text": "시뮬레이션과 실제 데이터 양쪽에서의 학습(파인튜닝, 학습된 행동 공간 변환, 특징/픽셀 수준 domain adaptation)은 파지에는 통하지만, 안전하지 않은 데이터 수집 때문에 보행에는 어렵고, 여기서 관련된 간극은 지각이 아니라 동역학이다."}]}, "method": {"content": [{"type": "bullet", "text": "로봇은 8개 직접 구동 actuator(다리당 2개, 시상면)를 가진 사족 Minitaur이다. Nvidia Jetson TX2가 신경망 정책을 가변 ~150-200 Hz로 실행하며, 시뮬레이션은 <span class=\"term\">PyBullet</span>로 구축된다.", "figure_refs": [2]}, {"type": "bullet", "text": "기저 위치와 발 접촉력이 감지되지 않으므로 보행은 <span class=\"term\">Partially Observable Markov Decision Process (POMDP)</span>로 던져진다. RL은 부분 관측을 행동으로 매핑하는 정책을 기대 수익 최대화하도록 최적화한다."}, {"type": "formula", "label": "RL 목적함수 (식 1) — 기대 수익", "latex": "\\pi^{*} = \\arg\\max_{\\pi}\\; \\mathbb{E}_{s_0 \\sim D}\\big[ R(s_0) \\big]", "description": "정책 $\\pi: O \\mapsto A$는 초기 상태 분포 $D$에 대한 누적 보상 $R$의 기댓값을 최대화하도록 최적화된다. 문제가 POMDP이므로 완전 상태 대신 부분 관측 $o \\in O$이 사용된다."}, {"type": "bullet", "text": "컴팩트한 관측은 기저 롤, 피치, 그 두 축에 대한 각속도, 그리고 8개 모터 각도만 포함한다. 표류하는 요(yaw)와 잡음 많은 모터 속도는 전이를 돕기 위해 의도적으로 배제된다."}, {"type": "bullet", "text": "행동 공간은 원시 모터 각도가 아니라 <span class=\"term\">leg space</span>(스윙 $s$와 확장 $e$)에서의 위치 제어를 사용하는데, 다리 공간 직사각형이 유효 행동을 비볼록 영역에 흩어놓을 무효한 자기 충돌 구성을 가지치기하기 때문이다.", "figure_refs": [3]}, {"type": "formula", "label": "다리 공간에서 모터 공간으로의 매핑", "latex": "\\theta_1 = e + s, \\qquad \\theta_2 = e - s", "description": "각 다리의 두 모터 각도 $\\theta_1,\\theta_2$는 스윙 $s$(두 모터를 같은 방향으로 회전, 전체 다리 회전 설정)와 확장 $e$(반대로 회전, 다리 길이 설정)로부터 유도된다. $(s,e)$ 공간에서 행동하면 유효 행동이 단순한 볼록 상자가 된다."}, {"type": "bullet", "text": "보상은 전방 속도를 장려하고 에너지 사용을 벌점한다. 가중치 $w=0.008$은 학습이 그 넓은 범위에 견고하므로 튜닝하지 않고 둔다."}, {"type": "formula", "label": "보상 함수 (식 2) — 속도 빼기 에너지", "latex": "r_n = (p_n - p_{n-1}) \\cdot d - w\\,\\Delta t\\, |\\tau_n \\cdot \\dot{q}_n|", "description": "첫 항은 원하는 주행 방향 $d$를 따른 기저의 변위를 보상한다. 둘째 항은 기계적 에너지(토크 $\\tau_n$ 곱하기 모터 속도 $\\dot q_n$)를 타임스텝 $\\Delta t$와 가중치 $w$로 스케일하여 벌점한다. 이 단순한 보상이 민첩한 보행을 떠오르게 한다."}, {"type": "bullet", "text": "제어성은 학습된 피드백 항을 사용자가 제공한 개루프 기준에 중첩하는 <span class=\"term\">hybrid policy</span>에서 온다. 완전 사용자 명시(피드백 한계 0)부터 완전 처음부터 학습(기준 0, 넓은 피드백 한계)까지 아우른다."}, {"type": "formula", "label": "하이브리드 개루프 + 피드백 정책 (식 3)", "latex": "a(t, o) = \\bar{a}(t) + \\pi(o)", "description": "행동은 사용자가 원하는 보행 스타일을 표현하는 보통 주기적인 개루프 신호 $\\bar a(t)$와, 균형 및 나머지를 다루는 학습된 피드백 성분 $\\pi(o)$를 결합한다. $\\pi(o)$를 한정하면 사용자 안내 대 학습이 얼마나 적용될지를 제어한다."}, {"type": "bullet", "text": "시뮬레이션 충실도는 정확한 URDF(측정된 링크 치수, 질량, 질량 중심, 추정 관성) 구축과 전용 실험을 통한 모터 마찰 측정으로 향상된다."}, {"type": "bullet", "text": "이상적 DC 모터 동역학에 기반한 정확한 <span class=\"term\">actuator model</span>이 Bullet의 과감쇠 제약 기반 위치 제어를 대체하는데, 후자는 느린 걷기만 산출하고 하드웨어에서 실패했기 때문이다.", "figure_refs": [4]}, {"type": "formula", "label": "DC 모터 토크와 전류 (식 5-6)", "latex": "\\tau = K_t I, \\qquad I = \\frac{V_{pwm} - V_{emf}}{R}, \\qquad V_{emf} = K_t \\dot{q}", "description": "모터 토크는 토크/역기전력 상수 $K_t$를 통해 전기자 전류 $I$에 비례한다. 전류는 PWM 변조 공급 전압 $V_{pwm}$, 역기전력 $V_{emf}=K_t\\dot q$, 전기자 저항 $R$에 의존한다. 실제 토크가 전류로 포화하므로, 저자들은 구간 선형 토크-전류 곡선을 추가하여 시뮬레이션 로봇이 발로 주저앉는 경향을 고친다."}, {"type": "bullet", "text": "<span class=\"term\">Latency</span>는 타임스탬프된 관측 이력을 유지하고 지연된 시각으로 선형 보간하여 모델링된다. 측정된 지연은 ~3 ms(마이크로컨트롤러 PD 서보)와 ~15-19 ms(TX2 보행 제어기)이며, 시뮬레이션에서 그에 맞게 설정된다."}, {"type": "bullet", "text": "견고성은 세 가지로 구축된다: 에피소드당 ~10개 물리 파라미터(질량, 모터 마찰/강도, 관성, 제어 스텝, 지연, 배터리 전압, 접촉 마찰, IMU 편향/잡음)의 <span class=\"term\">dynamics randomization</span>, 섭동력(130-220 N, 1.2 s마다 0.06 s 동안 적용), 그리고 시뮬레이터에 과적합할 여지를 거의 남기지 않는 컴팩트 관측 공간."}]}, "experiment": {"content": [{"type": "bullet", "text": "정책과 가치 함수는 모두 하이퍼파라미터 탐색으로 크기가 정해진 은닉층 2개의 완전 연결 네트워크이다. 학습은 25개 병렬 rollout(각 최대 1000 스텝)을 사용하고 700만 시뮬레이션 스텝에서 멈췄다.", "figure_refs": [5]}, {"type": "bullet", "text": "개선된 시뮬레이터로 처음부터 학습(개루프 기준 0, 넓은 피드백 한계)하면 시뮬레이션에서 ~1.34 m/s, 하드웨어에서 ~1.18 m/s의 떠오르는 갤럽 보행이 산출되었다. 대부분의 무작위 시드가 가장 빠른 자연 사족 보행인 갤럽으로 수렴했다."}, {"type": "bullet", "text": "트롯은 개루프 2-사인 기준과 작은 피드백 한계(±0.25 rad)를 제공하여 얻어졌고, 시뮬레이션에서 ~0.50 m/s, 실제 로봇에서 ~0.60 m/s를 주었다. 개루프 신호만으로는 전방 운동을 산출할 수 없었다.", "figure_refs": []}, {"type": "formula", "label": "개루프 트롯 기준 신호", "latex": "\\bar{s}(t) = 0.3\\sin(4\\pi t), \\qquad \\bar{e}(t) = 0.35\\sin(4\\pi t) + 2", "description": "사용자가 명시한 트롯 스타일은 스윙 $\\bar s(t)$와 확장 $\\bar e(t)$ 성분에 대한 사인파로 인코딩된다. 한 대각선 다리 쌍은 이 곡선을 따르고 다른 쌍은 180° 위상차를 가지며, 학습된 피드백 항이 실제로 움직이는 데 필요한 균형 제어를 더한다."}, {"type": "bullet", "text": "비슷한 속도의 Ghost Robotics 전문가 수작업 보행과 비교하여, 학습된 보행은 평균 기계적 전력을 35%(갤럽: 188.79 W 대 290.00 W)와 23%(트롯: 71.78 W 대 92.72 W) 줄였다."}, {"type": "bullet", "text": "reality gap은 시뮬레이션과 하드웨어에서의 기대 수익(식 2) 차이로 연속적으로 정량화되었다. 분산을 통제하기 위해 조건당 100개 제어기를 학습하고 상위 셋을 각각 로봇에서 세 번씩 실행했다.", "figure_refs": [6]}, {"type": "bullet", "text": "시뮬레이터 개선은 필수적이다: 기준 시뮬레이터(actuator 모델이나 지연 없음)에서 학습된 제어기는 섭동을 더해도 큰 reality gap을 보인 반면, 개선된 시뮬레이션 그룹은 잘 전이되었다. 정확한 actuator 모델과 지연 시뮬레이션 둘 다 개별적으로 필요했다.", "figure_refs": [6]}, {"type": "bullet", "text": "무작위화(파라미터 무작위화와 섭동, 동등함이 보여짐)는 시험 환경 전반의 수익 평균과 표준편차를 모두 낮춘다 — 즉 최고 최적성을 견고성과 맞바꾼다 — 그리고 더 큰 12차원 관측 공간은 시뮬레이션에서 더 높은 점수를 내지만 관측 분포 불일치 때문에 컴팩트한 4차원 IMU 전용 공간보다 전이가 나쁘다.", "figure_refs": [7, 8, 9]}]}, "discussion": {"content": [{"type": "bullet", "text": "reality-gap 축소는 양쪽을 필요로 한다: 시뮬레이션 충실도 향상과 견고한 제어기 학습이며, 불일치가 클 때 어느 하나만으로는 불충분하다."}, {"type": "bullet", "text": "정확한 actuator 모델링이 민첩성에 가장 중요하다: Bullet의 기본 과감쇠 제약 actuator는 느린 걷기만 산출한 반면, 토크 포화를 가진 DC 모터 모델은 떠오르는 갤럽을 가능하게 했다."}, {"type": "bullet", "text": "흔히 무시되는 지연이 핵심 불안정 원인이다. 보간된 관측 이력으로 이를 모델링하면 하드웨어에서 보이는 진동-발산 실패를 막는다."}, {"type": "bullet", "text": "컴팩트한 관측 공간은 단순한 효율 선택이 아니라 전이 도구이다: 큰 관측 공간은 시뮬레이션에서 도움이 되지만, 실제 관측이 희소한 학습 분포와 거의 일치하지 않아 과적합되어 reality gap을 넓힌다."}, {"type": "bullet", "text": "dynamics 무작위화와 섭동력은 교환 가능하며(불확실성이 추가 힘처럼 작용) 견고성을 향상시키지만 최고 성능을 낮추므로, 신중히 사용해야 한다."}, {"type": "bullet", "text": "하이브리드 개루프/피드백 정식화는 사용자 의도(보행 스타일)와 학습된 역량(균형)을 깔끔히 분리하여, 수작업 설계와 end-to-end 학습 사이의 실용적 조절 손잡이를 제공한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "심층 RL은 처음부터 학습과 사용자 안내 학습을 모두 지원하는 완전한 시스템을 통해 로봇의 민첩한 보행을 자동으로 학습할 수 있다."}, {"type": "bullet", "text": "정확한 물리 모델과 견고한 제어기로, 시뮬레이션에서 학습된 정책이 추가 튜닝 없이 실제 로봇에 성공적으로 배치되었다."}, {"type": "bullet", "text": "사족을 위한 두 민첩한 보행, 트롯과 갤럽이 개발되어 하드웨어로 전이됨이 보여졌다."}, {"type": "bullet", "text": "이 연구는 의도적으로 평지에서 단순한 속도 최대화 보상을 사용하여, 과제 복잡도보다 전이 가능한 보행에 초점을 맞췄다."}, {"type": "bullet", "text": "향후 연구: 주행 속도와 방향을 동적으로 바꾸는 정책을 학습한다."}, {"type": "bullet", "text": "향후 연구: 복잡한 지형을 다루기 위해 비전을 통합한다. RL 입문 독자에게 이 논문은 정전적 end-to-end sim-to-real 레시피(정확한 actuator/지연 모델 + dynamics 무작위화 + 컴팩트 관측)로, 현대 Isaac Lab 사족 파이프라인에 직접 영향을 준다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "이 연구는 단순한 보상과 단순한 평지 환경을 사용하여, 지각이나 조향 없이 전방 주행 속도만 최대화한다.", "source_quote": "For this purpose, we used a simple reward function and a simple environment: maximizing the running speed on a flat ground.", "source_section": "conclusion"}, {"claim": "dynamics 무작위화는 최적성을 견고성과 맞바꿔 더 보수적이고 차선인 보행을 산출하므로, 필요할 때만 사용해야 한다.", "source_quote": "These results demonstrate a clear trade-off between robustness and optimality when randomization is used. Since randomization is not a free meal, we should use it only when necessary.", "source_section": "experiment"}, {"claim": "모델 불일치가 너무 크면 무작위 섭동으로 학습된 견고한 제어기조차 reality gap을 극복할 수 없으므로, 정확한 시뮬레이션은 여전히 필요하다.", "source_quote": "If the model discrepancy is too big, even a robust controller trained with random perturbations cannot overcome the reality gap.", "source_section": "experiment"}], "future_works": [{"claim": "주행 속도와 방향을 동적으로 바꿀 수 있는 보행 정책을 학습한다.", "source_quote": "First, we would like to learn locomotion policies that can dynamically change running speed and direction.", "source_section": "conclusion"}, {"claim": "비전을 감각 입력의 일부로 통합하여 복잡한 지형 구조를 다루도록 연구를 확장한다.", "source_quote": "it would be interesting to extend this work to handle complex terrain structures by integrating vision as part of sensory input.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["저구동(under-actuated) 사족 로봇을 위한 민첩한 보행 설계는 고전적으로 광범위한 전문성과 지루한 수작업 튜닝을 요구하는 오랜 문제이다.", "심층 RL은 보행을 처음부터 학습할 수 있지만 대부분 시뮬레이션에서 연구되며, 시뮬레이션에서 학습된 제어기는 reality gap 때문에 전이가 부실하다.", "reality gap은 보행에서 크게 증폭된다: 잦은 접촉 변화가 제어 공간을 파편화하여 작은 모델 불일치가 분기된 결과를 낳는다.", "하드웨어에서 직접 학습하는 것은 어려운 리셋, 느리고 안전하지 않은 데이터 수집, 넘어짐으로 인한 손상 때문에 보행에는 비현실적이다."], "addressed_by_this_work": ["단순한 보상의 심층 RL이 민첩한 트롯과 갤럽을 자동으로 학습하여, 대부분의 수작업 보행 튜닝 전문성을 제거한다.", "하이브리드 개루프+피드백 정책은 스타일이 중요할 때 학습된 보행에 대한 완전한 제어 스펙트럼을 사용자에게 제공한다.", "시뮬레이션 충실도 향상(system identification + 비선형 actuator 모델 + 지연)에 견고성 기법(dynamics 무작위화, 섭동, 컴팩트 관측)을 더해 reality gap을 충분히 좁혀, 파인튜닝 없이 직접 하드웨어 배치를 가능하게 한다.", "학습된 보행은 전문가 수작업 속도에 필적하면서 전력을 23-35% 적게 소비한다."], "remaining_unresolved": ["평지에서 고정 속도·고정 방향 주행만 시연되며, 동적 속도/방향 제어는 향후 과제로 남는다.", "지각이 사용되지 않으므로, 비전을 통한 복잡한 지형 항행은 다루지 않는다.", "무작위화를 통한 견고성은 최적성을 희생하며, 매우 큰 모델 불일치는 여전히 견고성만으로 극복할 수 없다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>A Simplified Underactuated Platform for AI-Ready Bipedal Walking Control: The Stilt-bot</title>
+    <meta name="keywords" content="bipedal locomotion, knee-less robot, Linear Inverted Pendulum Model, capture point, nonlinear model predictive control, underactuated robot, AI testbed, ServoBelt mechanism, push recovery">
+    <meta name="paper-authors" content="Baekseok Kim, Paul Oh">
+    <meta name="paper-journal" content="2025 American Control Conference (ACC), July 8-10, 2025, Denver, CO, USA, pp. 3782-3787">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">A Simplified Underactuated Platform for AI-Ready Bipedal Walking Control: The Stilt-bot</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Baekseok Kim, Paul Oh</div>
+            <div class="journal">2025 American Control Conference (ACC), July 8-10, 2025, Denver, CO, USA, pp. 3782-3787</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 이족 보행 제어를 위한 <span class="term">AI/RL testbed</span>로 설계된 초경량(3.0 kg, 0.5 m) 무릎 없는 이족 로봇 <span class="term">Stilt-bot</span>을 소개한다. 기존의 3-1-2 고관절-무릎-발목 관절 배치를 3-0-0 구성(직동 다리 슬라이드를 포함한 세 개의 고관절 자유도, 무릎이나 발목 구동 없음)으로 대체함으로써, 이 로봇은 질량을 집중시키고 선형 도립진자 모델(Linear Inverted Pendulum Model, LIPM)을 근접하게 근사한다. 캡처 포인트 기반 보행 전략과 비선형 모델 예측 제어기(NMPC)를 결합하여 발 디딤 타이밍과 배치를 실시간으로 조정한다. MuJoCo 시뮬레이션(45 Ns 푸시 회복)과 테더링된 실세계 제자리 보행 실험 모두 안정적인 평지 보행과 외란 제거를 확인한다. 이 플랫폼은 RL 제어기를 재훈련 없이 쉽게 재구성 가능한 로봇 크기와 질량에 걸쳐 시험할 수 있는 미래의 기술 전이 연구를 위해 자리매김된다.</div>
+            <div class="keywords"><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">knee-less robot</span><span class="keyword-chip">Linear Inverted Pendulum Model</span><span class="keyword-chip">capture point</span><span class="keyword-chip">nonlinear model predictive control</span><span class="keyword-chip">underactuated robot</span><span class="keyword-chip">AI testbed</span><span class="keyword-chip">ServoBelt mechanism</span><span class="keyword-chip">push recovery</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">다리 로봇에 대한 최근의 기계학습 성공은 인상적이지만, 몸이 성장함에 따라 기술을 전이하는 인간 및 동물과 달리, 로봇의 운동학이나 동역학이 변할 때마다 큰 훈련 노력과 재훈련을 요구한다. 신뢰할 수 있는 AI는 제어되고 다양한 환경에서의 엄밀한 시험을 필요로 하지만, 포괄적 AI 테스트베드는 드물고 대부분의 평가는 제한된 데이터셋에 의존한다. 저자들은 간단한 다리 슬라이딩 메커니즘을 통해 LIPM을 근접하게 근사하는 무릎 없는 플랫폼 Stilt-bot을 소개하며, 이는 이족 보행 제어, 특히 RL 기반 방법을 벤치마킹하는 동시에 플랫폼 간 재훈련 필요성을 줄이도록 설계되었다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">대부분의 이족 로봇은 무릎을 사용하므로 LIPM의 일정 CoM 높이 가정을 만족하기 위해 웅크린 비효율적 보행을 채택하며, 무릎/발목 액추에이터는 LIPM 정확도를 저하시키는 다리 무게와 관성을 추가한다. 선행 해결책은 최적화 기반 전신 제어와 액추에이터를 무릎 위로 옮기는 기계적 재설계, 그리고 여러 무릎 없는 로봇에 걸쳐 있으나, 대부분 여전히 발목 액추에이터를 요구한다. Stilt-bot은 무릎 없는 설계와 수동 발목 및 점 발(point-foot) 제어를 결합하여 차별화된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Stilt-bot은 기존의 3-1-2 고관절-무릎-발목 관절 배치를 3-0-0 구성으로 대체한다: 세 개의 고관절 자유도(롤, 피치, 직동 다리 슬라이드)와 무릎이나 발목 자유도 없음으로, 질량을 집중시켜 LIPM을 근사한다. ServoBelt 선형 액추에이터와 벨트 구동 회전 관절이 다리를 경량으로 유지하며, 제어는 LIPM 동역학, 캡처 포인트 보행, 스텝 타이밍 적응 전략, 실시간 비선형 MPC 위에 구축된다. 로봇은 무게 3.0 kg, 높이 0.5 m이다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Stilt-bot은 MuJoCo 시뮬레이션과 테더링된 실세계 실험에서 평가되었다. 시뮬레이션은 보행 중 45 Ns 푸시 외란을 가했고 제어기가 캡처 포인트를 재정렬하기 위해 발 배치를 조정하여 회복함을 보였다. 전원 케이블에 의해 제자리 보행으로 제한된 실세계 시험은 IMU와 OptiTrack 상태 추정을 사용하고 5 ms 제어 루프로 실행되는 NMPC를 사용하여, 로봇이 외란 하에서 CP를 지지 영역 내에 유지함을 확인했다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">시뮬레이션과 실세계 결과는 캡처 포인트 플러스 NMPC 제어기가 보행과 발 배치를 적응시켜 갑작스러운 외란을 처리함을 공동으로 입증한다. 실세계 시험은 케이블 간섭과 테더링에 의해 제한되었으나, Stilt-bot은 여전히 균형을 유지하고 CP를 지지 영역 내에 유지하여 시뮬레이션을 검증했다. 전반적으로 무릎 없는 수동 발목 3-0-0 설계는 안정적 평지 보행을 가능하게 할 만큼 LIPM을 충분히 근접하게 근사하여, 플랫폼의 의도된 AI/RL 테스트베드 역할을 뒷받침한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Stilt-bot은 시뮬레이션과 실세계 실험에서 안정적 평지 보행이 검증된 초경량 무릎 없는 이족 로봇으로 제시된다. 직동 슬라이딩 메커니즘을 갖춘 단순한 6자유도 설계는 손쉽게 조정 가능한 파라미터로 AI 기반 보행 제어를 시험하기 위한 민첩하고 경량이며 직관적인 플랫폼으로 만든다. 미래 연구는 비테더링 설계, 다양한 크기 변형, 그리고 재훈련 없는 기술 전이 가능 이족 보행을 향한 RL 제어기 통합을 목표로 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "다리 로봇에 기계학습을 적용하는 최근의 발전은 인상적인 성과를 거두었으나, 이러한 성공은 상당한 훈련 노력을 요구하고 로봇의 운동학이나 동역학의 어떤 변경도 재훈련을 필요로 하는 반면, 인간과 동물은 신체 크기와 힘이 진화하더라도 기술 전이를 통해 보행을 적응시킨다."}, {"type": "bullet", "text": "기술 전이 능력을 갖춘 AI 시스템을 달성하려면 신뢰성과 적응성을 보장하기 위해 다양한 실세계 환경에서의 엄밀한 시험이 필요하지만, 많은 기존 AI 시스템은 그 상호작용에 대한 포괄적 이해 없이 배치되어 확장성, 안전성, 윤리적 우려를 야기한다."}, {"type": "bullet", "text": "대부분의 AI 평가는 새롭거나 다양한 사용 사례로 일반화되지 않을 수 있는 제한된 데이터셋에 의존하며, 이는 <span class=\"term\">AI testbeds</span>—AI 시스템을 현실적 조건 하에서 철저히 시험할 수 있는 제어된 환경—에 대한 증가하는 필요성을 부각한다."}, {"type": "bullet", "text": "선형 도립진자 모델(LIPM)은 역사적으로 이족 보행을 해독하는 데 중요했으며, 최근의 LIPM 기반 AI 접근법은 안정적 보행을 달성하지만 여전히 서로 다른 플랫폼 간 재훈련을 요구한다."}, {"type": "bullet", "text": "저자들은 간단한 다리 슬라이딩 메커니즘과 집중된 질량 분포를 통해 LIPM을 근접하게 근사하는 로봇 플랫폼 <span class=\"term\">Stilt-bot</span>을 소개하며, 이는 이족 보행 제어 알고리즘, 특히 강화학습을 사용하는 알고리즘을 벤치마킹하고 평가하도록 설계되었다.", "figure_refs": [1]}, {"type": "bullet", "text": "복잡한 고관절, 무릎, 발목 관절을 갖춘 기존 이족 및 사족 로봇과 달리, Stilt-bot은 높은 민첩성을 유지하면서 제어와 모델링을 간소화하는 훨씬 단순한 운동학적 구조를 가진다. 다리 슬라이딩 메커니즘과 벨트-풀리 시스템은 손쉬운 크기 조정을 가능하게 하여 모터를 교체하거나 질량 분포를 수정함으로써 더 가볍거나 무거운 이족 로봇의 시뮬레이션을 가능하게 한다."}, {"type": "bullet", "text": "Stilt-bot은 모듈성과 사용 편의성을 강조한다: 대부분의 부품은 쉽게 구할 수 있는 부품이고 3D 프린팅 요소는 간단한 수리와 교체를 용이하게 하여, 이 로봇을 이족 보행 실험의 속도와 유연성을 향상시키는 다재다능한 도구로 만든다."}]}, "related_works": {"content": [{"type": "bullet", "text": "대부분의 이족 로봇은 인간과 유사하게 보이도록 무릎을 갖추어 설계되지만, 이러한 설계는 일정한 무게 중심(CoM) 높이를 유지한다는 LIPM 가정을 만족하기 위해 종종 웅크린 비효율적 보행을 초래한다."}, {"type": "bullet", "text": "일정 CoM 높이 요구사항을 충족하기 위해 액추에이터가 무릎과 발목에 장착되어 다리 무게와 관성을 증가시키고 LIPM 동역학에 부정확성을 도입하는데, 이는 매우 동적인 운동을 시도할 때 문제가 된다."}, {"type": "bullet", "text": "여러 연구는 이차 계획법(Quadratic Programming, QP)을 전신 제어 프레임워크와 통합하여 최적화 기반 제어를 통해 LIPM 부정확성을 다룬다."}, {"type": "bullet", "text": "다른 접근법은 로봇을 LIPM 동역학에 더 잘 정렬시키기 위해 액추에이터를 무릎 위에 배치하는 등 기계적 설계에 초점을 맞춘다."}, {"type": "bullet", "text": "일부 연구자는 LIPM과의 불일치를 줄이기 위해 무릎 없는 로봇 설계를 탐구한다: Raibert 등은 공압 신축 다리를 갖춘 3D 이족 로봇을 개발했고, Kajita 등은 무릎 없는 Meltran V로 3D 보행을 시연했으며, 무릎 없는 SLIDER 로봇이 특수 제어 전략과 함께 도입되었으나, 이러한 설계는 종종 LIPM 실현을 복잡하게 하는 추가 발목 액추에이터를 여전히 사용한다."}, {"type": "bullet", "text": "최근 연구는 발목 액추에이터 없이 안정성을 유지하기 위한 수동 발목 및 점 발 제어 전략을 탐구하여 유망한 결과를 보이며, 이 무릎 없는 수동 발목 구성이 Stilt-bot을 다른 무릎 없는 로봇과 차별화한다.", "figure_refs": [2]}, {"type": "bullet", "text": "이 선행 연구에 동기를 받은 주요 설계 목표는 확장성(높이, 무게, 힘의 손쉬운 조정), 견고성(쉬운 수리), 적응성(센서 추가 또는 제거, 예: 결함 허용 연구를 위한)이다."}]}, "method": {"content": [{"type": "bullet", "text": "Stilt-bot은 전통적 3-1-2 자유도 패턴(고관절 셋, 무릎 하나, 발목 둘)을 <span class=\"term\">3-0-0 configuration</span>으로 대체하는 무릎 없는 이족 로봇이다: 세 개의 고관절 자유도(고관절 롤, 고관절 피치, 직동 슬라이드)와 무릎이나 발목에 자유도 없음으로, 이는 더 가벼운 다리를 위해 질량을 집중시키고 LIPM을 근접하게 근사하며, 로봇은 무게 3.0 kg, 높이 0.5 m이다.", "figure_refs": [1, 2]}, {"type": "bullet", "text": "기계적 설계는 경량, 모듈식, 효율적 구동 시스템을 목표로 한다. 선형 다리 슬라이드 액추에이터는 관절 회전을 선형 다리 운동으로 변환하는 회전 타이밍 벨트 풀리를 갖춘 <span class=\"term\">ServoBelt</span> 이중 층 벨트 시스템(고정 벨트와 가동 벨트)을 사용하여, 높은 하중 용량, 최소화된 백래시, 고속 구동을 제공한다.", "figure_refs": [3]}, {"type": "bullet", "text": "Table I은 ServoBelt 구동 메커니즘을 기존 직동 전동 장치(리드 스크류, 볼 스크류, 랙 앤 피니언)와 비교하여, 다리 슬라이드 관절에 대한 낮은 백래시, 높은 정밀도, 고속, 고효율의 조합을 강조한다."}, {"type": "bullet", "text": "고관절 롤 및 고관절 피치 회전 관절은 동일한 모듈식 구조를 공유하며 더 무거운 하모닉 또는 유성 기어박스 대신 타이밍 벨트와 풀리 전동을 사용하여, 빠른 적층 제조 프로토타이핑과 비용 효율적이고 경량인 설계를 가능하게 한다. 모든 관절은 T-motor MN5006-kv450 브러시리스 모터를 사용한다(Table II).", "figure_refs": [3]}, {"type": "bullet", "text": "모든 관절은 8 kHz로 캐스케이드 위치, 속도, 전류 루프를 실행하는 오픈소스 ODRIVE S1 제어기로 제어되는 브러시리스 DC 모터로 구동된다. USDigital E6 증분 엔코더가 모터 측 피드백을 제공하고, 베이스 프레임 IMU가 방향을 모니터링한다."}, {"type": "bullet", "text": "제어 전략은 일정한 수직 CoM 높이를 가정하고 CoM 가속도를 CoM과 ZMP 사이의 변위에 관계 짓는 2차 지배 방정식을 산출하는 LIPM 동역학에 기반한다.", "figure_refs": [4]}, {"type": "formula", "label": "Eq. (1) — LIPM 지배 동역학", "latex": "\\ddot{p}_{com} = \\omega^2 (p_{com} - p_{zmp})", "description": "일정 CoM 높이 하의 선형 도립진자 모델의 지배 방정식으로, $p_{com}, p_{zmp} \\in \\mathbb{R}^2$는 $x,y$ 방향에서의 CoM 및 영-모멘트점(zero-moment-point) 위치이고 $\\omega = \\sqrt{g/z_c}$는 로봇의 고유 진동수이다."}, {"type": "bullet", "text": "캡처 포인트(CP) 기반 보행 전략은 CoM 위치와 속도로부터 CP를 유도한다. CP에 디딤하면 로봇이 멈추므로, 보행 속도를 유지하기 위해 지지 발을 CP 오프셋 벡터 b로 배치한다."}, {"type": "formula", "label": "Eq. (2) — 캡처 포인트", "latex": "p_{cp} = p_{com} + \\dot{p}_{com}/\\omega", "description": "캡처 포인트 $p_{cp}$는 CoM 위치 $p_{com}$과 고유 진동수 $\\omega$로 스케일된 CoM 속도 $\\dot{p}_{com}$로부터 계산되며, 로봇이 완전히 정지하기 위해 발이 착지해야 할 위치를 나타낸다."}, {"type": "bullet", "text": "외부 외란이나 모델 불일치가 실제 CP를 참조 궤적에서 벗어나게 하고 수동 발목이 이러한 CP 오차의 최소화를 요구하므로, 저자들은 CP 오차를 발 배치 조정(δu)과 스텝 타이밍 조정(δT)에 결합하는 비선형 관계를 갖는 스텝 타이밍 적응 보행 전략을 채택한다."}, {"type": "formula", "label": "Eq. (3) — 스텝 타이밍 적응 관계", "latex": "\\delta u + \\delta b + p^{err}_{cp}\\, e^{\\omega(T^{ref}_k - t)}\\,(1 - e^{\\omega \\delta T}) = (p^{ref}_{cp} - p_{zmp})\\, e^{\\omega(T^{ref}_k + \\delta T - t)} + p_{zmp}", "description": "CP 오차 $p^{err}_{cp}$, 발 배치 변화 $\\delta u$, 스텝 타이밍 변화 $\\delta T$ 사이의 비선형 관계로, $t$는 매 발 디딤의 시작에서 0으로 재설정되고 $T^{ref}_k$는 k번째 발 디딤의 참조 스텝 시간이며, 그 비선형성이 NMPC의 사용을 동기화한다."}, {"type": "bullet", "text": "비선형 모델 예측 제어기(NMPC)는 Stilt-bot을 균형 잡히고 LIPM 가정에 가깝게 유지하기 위해 발 디딤 타이밍과 배치를 실시간으로 최적으로 조정하며, 최적화 해결을 위해 qpSWIFT를, 기울기와 헤시안 계산을 위해 CasADi를 사용하여 구현된다.", "figure_refs": [5]}]}, "experiment": {"content": [{"type": "bullet", "text": "시뮬레이션은 Table III에 요약된 제어기 가중치 인자와 파라미터를 사용하여 MuJoCo에서 수행되었으며, 예측 지평 H = 10과 MPC 샘플링 시간 Δt_MPC = 0.01 s를 사용했다."}, {"type": "bullet", "text": "푸시 회복 시험은 Stilt-bot이 0.02 m 보폭과 0.2 s 스텝 주기로 보행하는 동안 45 Ns 외란(0.003 s에 걸친 135 N)을 가했다. 4.006 s에 외란이 CoM 편차와 우측 흔들림을 야기했고, 로봇은 지지를 증가시키고 CP를 재정렬하기 위해 왼발 배치를 조정하여 이를 상쇄했다.", "figure_refs": [6]}, {"type": "bullet", "text": "하향식 CP/CoM/발 배치 도표의 번호가 매겨진 회복 단계 (1)-(9)는 제어기가 안정성을 유지하기 위해 발 배치를 동적으로 조정하는 방식을 보여주어, 갑작스러운 외부 힘을 처리하는 능력을 검증한다.", "figure_refs": [6]}, {"type": "bullet", "text": "실세계 배치를 위해, 제어기는 ICM-42605 IMU와 OptiTrack Flex V100 모션 캡처 시스템으로부터 간접 칼만 필터를 통해 융합된 상태 추정과 함께 3.00 GHz PC에서 실행되었다. qpSWIFT는 지평 H = 6, 샘플링 시간 Δt_MPC = 0.02 s, 전체 제어 루프 5 ms, 실시간 작동을 위해 5회로 제한된 SQP 반복으로 NMPC QP를 해결했다."}, {"type": "bullet", "text": "실세계 실험은 무거운 전원 케이블과 그 길이가 전진 보행을 제한했기 때문에 0.3 s 스텝 주기의 제자리 보행에 초점을 맞췄다.", "figure_refs": [7]}, {"type": "bullet", "text": "외부 외란은 주로 예측 불가능한 힘을 가하는 전원 및 센서 케이블 상호작용에서 발생했다. 강건성을 평가하기 위해 무작위 외란을 도입하면서 수동 보조가 제공되었고, Stilt-bot은 발 배치와 신체 자세를 동적으로 조정하여 균형을 유지했다.", "figure_refs": [7]}, {"type": "bullet", "text": "CoM과 CP 궤적은 로봇이 가해진 힘을 보상하고 CP를 지지 영역 내에 유지함을 확인했으며, 왼발과 오른발 배치는 평형을 유지하기 위해 지지 기반이 어떻게 변조되는지를 보여, 시뮬레이션 결과를 검증했다.", "figure_refs": [7]}]}, "discussion": {"content": [{"type": "bullet", "text": "시뮬레이션된 푸시 회복 결과는 제어기가 갑작스러운 외부 힘을 처리하는 능력을 검증하여, 외란 하에서 강건하고 적응적인 보행을 보장한다.", "figure_refs": [6]}, {"type": "bullet", "text": "실세계 실험은 무거운 전원 케이블과 그 길이가 전진 보행을 제한했기 때문에 제자리 보행으로 제약되어, 현 프로토타입의 실질적 테더링 제약을 나타낸다."}, {"type": "bullet", "text": "케이블 상호작용(전원 및 센서 케이블)은 예측 불가능한 외란의 지배적 원천이었으며, 로봇의 강건성을 평가하면서도 케이블 간섭을 완화하기 위해 수동 보조가 사용되었다."}, {"type": "bullet", "text": "이러한 과제에도 불구하고, Stilt-bot은 외란에 대응하여 발 배치와 신체 자세를 동적으로 조정함으로써 균형과 안정성을 유지했다.", "figure_refs": [7]}, {"type": "bullet", "text": "CoM과 CP 궤적은 로봇이 가해진 힘을 보상하고 CP를 지지 영역 내에 유지함을 확인하며, 이는 시뮬레이션에서 보인 CP 조절 거동과 일치한다.", "figure_refs": [7]}, {"type": "bullet", "text": "실세계 결과는 시뮬레이션을 검증하여, NMPC 기반 제어기가 예측 불가능한 조건 하의 안정적 보행을 위해 보행과 발 배치 전략을 동적으로 적응시켜 실세계 섭동을 효과적으로 처리함을 입증한다."}, {"type": "bullet", "text": "종합하면 결과는 무릎 없는 수동 발목 3-0-0 설계가 캡처 포인트 플러스 NMPC 제어로 안정적 평지 보행을 달성할 만큼 LIPM을 충분히 근접하게 근사함을 보여, 단순화된 AI/RL 테스트베드라는 Stilt-bot의 의도된 역할을 뒷받침한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 초경량 무릎 없는 이족 로봇 Stilt-bot의 개발 및 연구 결과를 제시하고, 시뮬레이션 및 실세계 보행 실험을 통해 평지에서 안정적으로 보행하는 능력을 검증한다."}, {"type": "bullet", "text": "예비 시험은 로봇 설계의 기본 기능을 확인하고 그 동적 성능을 탐구했다."}, {"type": "bullet", "text": "단순한 6자유도 구성과 직동 슬라이딩 메커니즘을 갖춘 Stilt-bot은 민첩하고 경량이며, 높이, 무게, 힘과 같은 손쉽게 조정 가능한 파라미터로 AI 기반 보행 제어 알고리즘을 시험하기 위한 직관적 플랫폼 역할을 한다."}, {"type": "bullet", "text": "미래 연구에는 Stilt-bot을 완전히 비테더링으로 만들기 위한 상체 설계가 포함된다."}, {"type": "bullet", "text": "미래 연구에는 각각 크기에 맞는 액추에이터를 갖춘 소형(30-40 cm), 중형(50-70 cm), 대형(80-90 cm) 버전 개발도 포함된다."}, {"type": "bullet", "text": "저자들은 Stilt-bot에 RL 기반 제어기를 탑재하여 실세계 환경에서 기술 전이 가능 AI 테스트베드로서의 잠재력을 시험하는 것을 목표로 한다."}, {"type": "bullet", "text": "궁극적 목표는 로봇이 재훈련 없이 다양한 과제와 환경에 적응하는 상태에 도달하는 것으로, 이는 자율 이족 보행의 중대한 진전을 나타낸다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "무거운 전원 케이블과 그 길이가 전진 보행을 제한했기 때문에 실세계 검증은 제자리 보행으로 제한되었다.", "source_quote": "The real-world experiment focused on in-place walking with a step period of 0.3 seconds due to the heavy power cable and its length constraints, which limited forward locomotion.", "source_section": "discussion"}], "future_works": [{"claim": "Stilt-bot을 완전히 비테더링으로 만들기 위한 상체를 설계한다.", "source_quote": "Future work includes designing an upper body for Stilt-bot to make it fully untethered and developing small, medium, and large versions—small (30-40 cm tall), medium (50-70 cm), and large (80-90 cm)—with actuators suited to each size.", "source_section": "conclusion"}, {"claim": "각 크기에 맞는 액추에이터를 갖춘 Stilt-bot의 소형(30-40 cm), 중형(50-70 cm), 대형(80-90 cm) 버전을 개발한다.", "source_quote": "Future work includes designing an upper body for Stilt-bot to make it fully untethered and developing small, medium, and large versions—small (30-40 cm tall), medium (50-70 cm), and large (80-90 cm)—with actuators suited to each size.", "source_section": "conclusion"}, {"claim": "Stilt-bot에 RL 기반 제어기를 탑재하여 실세계 환경에서 기술 전이 가능 AI 테스트베드로서의 잠재력을 시험한다.", "source_quote": "Leveraging this, we aim to equip Stilt-bot with an RL-based controller to test its potential as a skill-transferable AI test bed in real-world environments.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["다리 로봇을 위한 기계학습 방법은 상당한 훈련 노력을 요구하고 로봇의 운동학이나 동역학이 변할 때마다 재훈련을 필요로 하여, 플랫폼 간 효율적 기술 전이를 막는다.", "AI 보행 제어 시스템은 포괄적이고 제어된 실세계 테스트베드가 부족하며, 대부분의 평가는 새로운 사용 사례로 일반화되지 않을 수 있는 제한된 데이터셋에 의존한다.", "기존의 무릎/발목 구동 이족 로봇은 LIPM 동역학에 부정확성을 도입하는 다리 무게와 관성을 추가하며, 선행 무릎 없는 설계는 여전히 LIPM 실현을 복잡하게 하는 발목 액추에이터에 의존한다."], "addressed_by_this_work": ["Stilt-bot은 높이, 무게, 힘이 손쉽게 조정 가능한 단순화되고 모듈식이며 확장 가능한 이족 플랫폼을 제공하여, 기술 전이 연구를 지원하고 플랫폼 간 재훈련을 줄이도록 의도되었다.", "이 로봇은 MuJoCo 시뮬레이션과 실세계 실험 모두에서 평지를 안정적으로 보행하는 접근 가능한 AI/RL 테스트베드로 제시되고 검증된다.", "수동 발목, 점 발, 집중된 질량을 갖춘 무릎 없는 3-0-0 구성은 LIPM을 근접하게 근사하며, 캡처 포인트 플러스 NMPC 제어기가 발목 액추에이터 없이 안정적 보행과 45 Ns 푸시 회복을 달성한다."], "remaining_unresolved": ["주장된 재훈련 없는 기술 전이 능력은 아직 입증되지 않았다: 본 논문에는 RL 제어기가 구현되지 않았으며, Stilt-bot에 이를 탑재하는 것은 미래 연구로 미뤄진다.", "실세계 검증은 예비적이고 테더링된 제자리 보행에 제한되어, 비테더링 전진 보행은 아직 보여야 할 과제로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

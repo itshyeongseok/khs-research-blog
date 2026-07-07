@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Trust Region Policy Optimization</title>
+    <meta name="keywords" content="trust region policy optimization, TRPO, policy gradient, monotonic improvement, KL divergence constraint, surrogate objective, natural policy gradient, conjugate gradient, continuous control">
+    <meta name="paper-authors" content="John Schulman, Sergey Levine, Philipp Moritz, Michael Jordan, Pieter Abbeel">
+    <meta name="paper-journal" content="Proceedings of the 31st International Conference on Machine Learning (ICML), Lille, France, 2015. JMLR: W&CP volume 37 (arXiv:1502.05477) · DOI: 10.48550/arXiv.1502.05477">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Trust Region Policy Optimization</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">John Schulman, Sergey Levine, Philipp Moritz, Michael Jordan, Pieter Abbeel</div>
+            <div class="journal">Proceedings of the 31st International Conference on Machine Learning (ICML), Lille, France, 2015. JMLR: W&CP volume 37 (arXiv:1502.05477) · DOI: 10.48550/arXiv.1502.05477</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 <span class="term">단조 개선이 보장되는(guaranteed monotonic improvement)</span> 제어 정책 최적화 절차를 유도하고, 일련의 원리적 근사를 통해 이를 <span class="term">Trust Region Policy Optimization (TRPO)</span>라는 실용 알고리즘으로 변환한다. 정책 개선 항등식에서 출발하여, 저자들은 기대 수익을 국소적으로 근사하는 <span class="term">대리 목적(surrogate objective)</span> $L_\pi$를 구성하고, 새 정책을 옛 정책에 가깝게(<span class="term">KL 발산(KL divergence)</span>으로 측정) 유지하면서 대리 목적을 개선하면 참 목적의 개선이 보장됨을 보이는 하한을 증명한다. 이론이 권고하는 벌점 계수는 실용적으로 너무 작은 보폭을 주므로, TRPO는 벌점을 평균 KL 발산에 대한 <span class="term">신뢰 영역 제약(trust-region constraint)</span>(상한 $\delta$)으로 대체하고, 그 제약 문제를 (피셔 정보 행렬을 이용한) <span class="term">켤레 경사(conjugate gradient)</span> 단계와 이후의 직선 탐색으로 푼다. 두 표집 방식 — <span class="term">단일 경로(single path)</span>와 <span class="term">덩굴(vine)</span> — 가 몬테카를로로 목적을 추정한다. TRPO는 신경망 같은 대규모 비선형 정책에 효과적이다. 최소한의 튜닝으로 모의 로봇의 수영·도약·보행 걸음을 학습하고, 원시 화면 이미지로부터 아타리 게임을 플레이한다.</div>
+            <div class="keywords"><span class="keyword-chip">trust region policy optimization</span><span class="keyword-chip">TRPO</span><span class="keyword-chip">policy gradient</span><span class="keyword-chip">monotonic improvement</span><span class="keyword-chip">KL divergence constraint</span><span class="keyword-chip">surrogate objective</span><span class="keyword-chip">natural policy gradient</span><span class="keyword-chip">conjugate gradient</span><span class="keyword-chip">continuous control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 정책 최적화 방법을 정책 반복, 정책 경사, 미분 없는(derivative-free) 범주로 분류하고, CEM·CMA 같은 미분 없는 방법이 약한 표본 복잡도 보장에도 불구하고 흔히 선호됨을 지적한다. 경사 기반 최적화의 성공을 강화학습으로 확장하면 복잡한 정책의 효율적 학습이 가능해진다고 주장하며, TRPO를 예고한다: 먼저 대리 목적 개선 보장을 증명한 뒤, 이를 단일 경로 및 덩굴 변형을 가진 실용적 신뢰 영역 알고리즘으로 근사한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">선행 연구와의 연결 절은 TRPO의 갱신이 여러 기존 방식을 특수 또는 극한 경우로 통합함을 보인다. 자연 정책 경사는 대리 목적의 선형 근사와 KL 제약의 이차 근사에서 나오고, 표준 정책 경사는 L2 제약에서, 정책 반복은 제약 없는 대리 목적에서 나온다. 또 TRPO를 REPS 및 KL 제약 안내 정책 탐색과 대비하며, TRPO가 행동 조건부를 제약하고 매 갱신마다 제약을 강제함을 강조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법론은 먼저 정책 개선 항등식과 참 수익을 1차까지 일치시키는 국소 대리 목적 $L_\pi$를 정립한 뒤, KL 발산을 한계 짓는 동안 대리 목적을 개선하면 참 목적이 개선됨을 보장하는 하한(정리 1)을 증명한다. 이는 단조 개선하는 최소화-최대화 방식을 정당화한다. 이론의 벌점이 작은 보폭을 주므로, TRPO는 이를 평균 KL 발산에 대한 신뢰 영역 제약 하에 대리 목적을 최대화하는 것으로 재구성한 뒤, 목적을 몬테카를로(단일 경로 또는 덩굴)로 추정하고 제약 단계를 켤레 경사와 직선 탐색으로 푼다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 단일 경로 대 덩굴 절차, TRPO의 고정 KL 제약 대 기존 고정 벌점 방법, 그리고 대규모 문제로의 확장을 조사한다. 모의 MuJoCo 보행(수영로봇, 호퍼, 워커)에서 TRPO는 범용 신경 정책과 단순 보상으로 모든 걸음을 처음부터 학습하여, 자연 경사·CEM·CMA 및 기타 기준선을 능가한다. 원시 이미지로부터의 일곱 개 아타리 게임에서, 동일한 구조와 파라미터를 가진 같은 방법이 합리적 점수를 달성하여 매우 다른 영역에 걸친 일반성을 보인다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 TRPO를 확률적 정책에 대한 신뢰 영역 방법으로 해석한다: KL 벌점을 가진 대리 목적에 대해 단조 개선을 증명한 뒤, KL 제약 근사가 정책 경사 및 정책 반복 방법을 극한 경우로 통합하면서 강한 경험적 결과를 달성함을 보인다. 저자들은 TRPO가 범용 신경망과 최소 정보 보상으로 보행 제어기를 처음부터 학습했음을 강조하고, 모델 학습·순환 정책·시각이 이를 어떻게 확장할 수 있는지 개괄한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">TRPO는 단조 개선 보장에 이론적으로 근거하고, 켤레 경사와 직선 탐색으로 푸는 KL 신뢰 영역 제약을 통해 실용적으로 실현되는 반복 정책 최적화 절차를 제공한다. 거의 초매개변수 튜닝 없이 매우 다른 영역 — 모의 보행과 이미지 기반 아타리 — 에 걸쳐 대규모 비선형(신경망) 정책을 강건하게 훈련하며, 여러 기존 정책 갱신 방식을 특수 경우로 통합한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "정책 최적화 알고리즘은 세 범주로 나뉜다: 정책 반복(가치 추정과 정책 개선을 번갈음), 정책 경사(기대 수익의 표본 궤적 경사 추정 사용), 그리고 수익을 블랙박스로 다루는 미분 없는 방법(CEM, CMA)."}, {"type": "bullet", "text": "미분 없는 방법은 단순하고 효과적이어서 흔히 선호되지만, 경사 기반 방법과 달리 표본 복잡도가 파라미터 수에 대해 불리하게 증가한다."}, {"type": "bullet", "text": "경사 기반 방법이 경사 없는 무작위 탐색을 일관되게 이기지 못하는 것은 불만족스럽다. 경사 기반 최적화는 훨씬 더 나은 표본 복잡도 보장을 누리기 때문이다."}, {"type": "bullet", "text": "이 논문은 먼저 특정 대리 목적 함수를 최소화하면 비자명한 보폭으로 정책 개선이 보장됨을 증명한다."}, {"type": "bullet", "text": "이론적으로 정당화된 알고리즘에 대한 일련의 근사가 실용적 Trust Region Policy Optimization (TRPO)을 낳으며, 단일 경로(모델 없음)와 덩굴(재설정 필요) 변형으로 설명된다."}, {"type": "bullet", "text": "실험은 동일한 TRPO 방법이 수영·도약·보행을 위한 복잡한 정책을 학습하고 원시 이미지로부터 직접 아타리 게임을 플레이함을, 거의 초매개변수 튜닝 없이 보인다."}]}, "related_works": {"content": [{"type": "bullet", "text": "자연 정책 경사(Kakade, 2002)는 $L$의 선형 근사와 KL 발산 제약의 이차 근사를 사용하여 얻어지는 TRPO 갱신의 특수 경우이다."}, {"type": "bullet", "text": "고정 벌점/보폭 계수를 사용하는 자연 경사와 달리, TRPO는 매 갱신마다 KL 제약을 강제하는데, 실험은 이것이 더 큰 문제에서 성능을 크게 개선함을 보인다."}, {"type": "bullet", "text": "표준 정책 경사 갱신은 KL 제약 대신 파라미터 변화에 대한 $\\ell_2$ 제약이나 벌점을 사용하면 회복된다."}, {"type": "bullet", "text": "정책 반복 갱신은 대리 목적 $L_{\\pi_{old}}(\\pi)$를 최대화하는 제약 없는 문제를 풀면 회복된다."}, {"type": "bullet", "text": "상대 엔트로피 정책 탐색(REPS)은 상태-행동 주변 분포 $p(s,a)$를 제약하는 반면, TRPO는 조건부 $p(a|s)$를 제약하며 REPS와 달리 내부 루프에서 비싼 비선형 최적화가 필요 없다."}, {"type": "bullet", "text": "Levine & Abbeel(2014)도 KL 발산 제약을 사용하지만 정책을 유효한 추정 동역학 모델 안에 유지하기 위함인 반면, TRPO는 시스템 동역학을 추정하려 하지 않는다. Pirotta 등(2013)도 마찬가지로 Kakade & Langford의 결과를 다른 알고리즘으로 일반화한다."}]}, "method": {"content": [{"type": "bullet", "text": "새 정책 $\\tilde\\pi$의 기대 할인 수익은 옛 정책 $\\pi$의 그것에, $\\tilde\\pi$에서 표집된 궤적에 걸쳐 누적된 $\\tilde\\pi$의 기대 할인 이점을 더한 것과 같다(식 1) — 기초적인 정책 개선 항등식이다."}, {"type": "formula", "label": "식 (1) — 정책 개선 항등식", "latex": "\\eta(\\tilde\\pi) = \\eta(\\pi) + \\mathbb{E}_{s_0,a_0,\\dots\\sim\\tilde\\pi}\\!\\left[ \\sum_{t=0}^{\\infty} \\gamma^t A_\\pi(s_t, a_t) \\right]", "description": "새 정책의 성능은 옛 성능에, 옛 정책의 이점 함수 $A_\\pi$의 기대 할인 합(상태와 행동은 새 정책에서 추출)을 더한 것으로 분해된다. 이 정확한 항등식이 전체 유도의 출발점이다."}, {"type": "bullet", "text": "새 정책의 상태 방문 빈도 $\\rho_{\\tilde\\pi}$가 식 1을 직접 최적화하기 어렵게 만들므로, 저자들은 대신 옛 정책의 방문 빈도 $\\rho_\\pi$를 사용하는 국소 근사 $L_\\pi$(식 3)를 도입하여 $\\pi$에서 $\\eta$를 1차까지 일치시킨다."}, {"type": "formula", "label": "식 (3) — 대리 목적(국소 근사)", "latex": "L_\\pi(\\tilde\\pi) = \\eta(\\pi) + \\sum_s \\rho_\\pi(s) \\sum_a \\tilde\\pi(a \\mid s)\\, A_\\pi(s, a)", "description": "대리 목적은 다루기 어려운 새 정책 방문 밀도 $\\rho_{\\tilde\\pi}$를 옛 것 $\\rho_\\pi$로 대체하여, 정책 변화가 상태 방문을 어떻게 이동시키는지 무시한다. $\\pi=\\pi_\\theta$에서 $\\eta$와 값 및 경사가 일치하므로 $L$을 개선하는 작은 보폭은 $\\eta$도 개선하지만, 그 자체로는 보폭을 주지 않는다."}, {"type": "bullet", "text": "정리 1은 Kakade & Langford의 한계를 혼합 정책에서 일반 확률적 정책으로 확장하여, 전변동/KL 부등식 $D_{TV}^2 \\le D_{KL}$을 사용해 $C = 4\\epsilon\\gamma/(1-\\gamma)^2$(식 9)와 함께 $\\eta(\\tilde\\pi) \\ge L_\\pi(\\tilde\\pi) - C\\, D_{KL}^{\\max}(\\pi,\\tilde\\pi)$를 증명한다."}, {"type": "formula", "label": "식 (9) — 단조 개선 하한", "latex": "\\eta(\\tilde\\pi) \\ge L_\\pi(\\tilde\\pi) - C\\, D_{KL}^{\\max}(\\pi, \\tilde\\pi), \\qquad C = \\frac{4\\epsilon\\gamma}{(1-\\gamma)^2}", "description": "참 수익은 대리 목적에서 옛 정책과 새 정책 간 최대 KL 발산에 비례하는 벌점을 뺀 값으로 하한된다. 이 우변(최소화-최대화 단계)을 최대화하면 참 목적 $\\eta$가 비감소임이 보장된다 — 핵심 이론적 보장이다."}, {"type": "bullet", "text": "벌점화된 한계를 직접 최적화하면 지나치게 작은 보폭이 나오므로, TRPO는 대신 평균 KL 발산을 $\\delta$로 한계 짓는 신뢰 영역 제약 하에 대리 목적을 최대화한다(식 12) — 더 큰 보폭을 취하는 강건한 발견법이다."}, {"type": "formula", "label": "식 (12) — TRPO 신뢰 영역 제약 목적", "latex": "\\max_{\\theta}\\; L_{\\theta_{old}}(\\theta) \\quad \\text{subject to} \\quad \\bar{D}_{KL}^{\\rho_{\\theta_{old}}}(\\theta_{old}, \\theta) \\le \\delta", "description": "TRPO 갱신의 정의: 옛 정책과 새 정책 간 기대(평균) KL 발산을 신뢰 영역 반경 $\\delta$로 제약하면서 대리 목적을 최대화한다. 이론의 최대 KL 벌점 대신 평균 KL에 대한 경성 제약을 사용하면 보폭이 신경 정책에 강건하고 실용적이 된다."}, {"type": "bullet", "text": "대리 목적을 전개하고 행동에 대한 합을 중요도 표집 추정량으로 대체하면, 목적과 KL 제약을 표집된 궤적으로부터 추정할 수 있는 기댓값 형태(식 14)가 된다."}, {"type": "formula", "label": "식 (14) — 중요도 표집된 제약 목적", "latex": "\\max_{\\theta}\\; \\mathbb{E}_{s\\sim\\rho_{\\theta_{old}},\\, a\\sim q}\\!\\left[ \\frac{\\pi_\\theta(a \\mid s)}{q(a \\mid s)} Q_{\\theta_{old}}(s, a) \\right] \\quad \\text{s.t.} \\quad \\mathbb{E}_{s\\sim\\rho_{\\theta_{old}}}\\!\\left[ D_{KL}\\!\\left( \\pi_{\\theta_{old}}(\\cdot \\mid s) \\,\\|\\, \\pi_\\theta(\\cdot \\mid s) \\right) \\right] \\le \\delta", "description": "표본 기반 형태: 표집 분포 $q$ 하의 중요도 가중 Q값 목적을 평균 KL 제약 하에 둔다. 단일 경로 추정은 전체 궤적을 따라 $q=\\pi_{\\theta_{old}}$를 사용하고, 덩굴 추정은 롤아웃 집합을 만들어 상태당 여러 행동을 표집해 더 낮은 분산의 이점 추정을 얻는다."}, {"type": "bullet", "text": "두 추정 방식이 식 14에 입력된다: 단일 경로는 전체 궤적을 표집하고(모델 없음, 재설정 없음), 덩굴은 롤아웃 집합을 구성하고 공통 난수로 상태당 여러 행동을 수행해 훨씬 낮은 분산의 이점 추정을 얻는다(단, 재설정 필요).", "figure_refs": [1]}, {"type": "bullet", "text": "제약 단계는 피셔 정보 행렬(해석적 KL 헤시안)을 이용한 켤레 경사 알고리즘으로 탐색 방향을 계산한 뒤, KL 제약을 강제하는 직선 탐색으로 풀린다 — 경사 자체를 계산하는 것보다 약간만 더 비싸다."}]}, "experiment": {"content": [{"type": "bullet", "text": "보행은 MuJoCo 시뮬레이터와 세 개의 2D 로봇 — 수영로봇(10차원 상태), 호퍼(12차원), 워커(18차원) — 을 사용하며, 이들의 부족 구동과 접촉 불연속성이 어려움을 만든다. 제어는 관절 토크이다.", "figure_refs": [2]}, {"type": "bullet", "text": "비교 알고리즘에는 단일 경로 TRPO, 덩굴 TRPO, CEM, CMA, 자연 경사(고정 벌점), 경험적 FIM, 최대 KL이 포함된다. 모든 보행 실험은 $\\delta = 0.01$을 사용한다.", "figure_refs": [3]}, {"type": "bullet", "text": "단일 경로와 덩굴 TRPO 모두 모든 보행 문제를 풀고 최고의 해를 산출했다. 자연 경사는 더 쉬운 두 과제만 풀었고 전진하는 도약이나 보행 걸음을 만들지 못했다.", "figure_refs": [4]}, {"type": "bullet", "text": "결과는 KL 발산을 제약하는 것이 고정 벌점보다 보폭을 선택하는 더 강건한 방법이며, 평균 KL 제약이 이론적으로 정당화된 최대 KL 제약과 유사하게 작동한다는 경험적 증거를 준다."}, {"type": "bullet", "text": "TRPO는 균형과 스텝을 부호화한 손수 설계된 정책 종류에 의존하는 기존 보행 방법과 달리, 범용 정책과 단순 보상 함수로 최소한의 사전 지식만으로 모든 걸음을 학습했다."}, {"type": "bullet", "text": "일곱 개 아타리 게임(원시 이미지, 약 33,500개 파라미터의 합성곱 정책, 두 합성곱 층 + 20유닛 완전 연결 층 하나)에서, 동일한 구조와 파라미터를 가진 같은 단일 경로·덩굴 알고리즘이 모든 게임에서 합리적 점수를 달성했다.", "figure_refs": [3]}, {"type": "bullet", "text": "TRPO가 일부 게임에서만 기존 방법(DQN, UCC-I)을 능가했지만, 그 과제를 위해 특별히 설계되지 않았으며, 보행과 이미지 기반 게임처럼 다양한 영역에 같은 방법을 적용한 것이 일반성을 보여준다."}]}, "discussion": {"content": [{"type": "bullet", "text": "이 논문은 기대 수익의 국소 근사를 KL 발산 벌점과 함께 반복 최적화하는 알고리즘에 대해 단조 개선을 증명했고, KL 제약 근사가 좋은 경험적 결과를 줌을 보였다."}, {"type": "bullet", "text": "이 분석은 정책 경사와 정책 반복 방법을 통합하여, 이들이 신뢰 영역 제약 하에 목적을 최적화하는 알고리즘의 특수한 극한 경우임을 보인다."}, {"type": "bullet", "text": "로봇 보행에서 수영·보행·도약 제어기가 범용 신경망과 최소 정보 보상으로 처음부터 학습되었다 — 저자들이 아는 한 이 모든 과제에 대해 범용 정책 탐색 방법으로는 처음이다."}, {"type": "bullet", "text": "아타리에서는 원시 이미지로 훈련된 합성곱 정책이 극도로 고차원인 정책을 최적화해야 했는데, 이는 단 두 개의 기존 방법만이 성공을 보고한 영역이다."}, {"type": "bullet", "text": "이 방법은 강한 이론적 기반과 함께 확장 가능하므로, 저자들은 이를 어려운 문제에서 크고 풍부한 함수 근사기를 훈련하는 출발점으로 제안한다."}, {"type": "bullet", "text": "향후 방향에는 표본 복잡도를 줄이기 위한 TRPO와 모델 학습의 결합, 부분 관측성을 위한 순환 정책, 그리고 로봇을 위한 시각-제어 통합 정책이 포함된다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "TRPO는 이론적으로 정당화된 단조 개선 절차를, 소수의 원리적 근사 — 가장 주목할 만하게는 벌점 대신 경성 평균 KL 제약 — 를 통해 실용 알고리즘으로 바꾼다."}, {"type": "bullet", "text": "신뢰 영역 단계는 해석적 피셔 정보 행렬을 이용한 켤레 경사와 이후의 직선 탐색으로 효율적으로 풀려, 수만 개 파라미터의 신경 정책으로 확장된다."}, {"type": "bullet", "text": "이론에서 벗어나는 근사에도 불구하고, TRPO는 초매개변수를 거의 튜닝하지 않고도 단조 개선을 주는 경향이 있다."}, {"type": "bullet", "text": "단일 범용 방법이 로봇의 수영·도약·보행 걸음을 학습하고 원시 이미지로부터 아타리를 플레이하여 강건성과 일반성을 보인다."}, {"type": "bullet", "text": "이 방법은 자연 정책 경사, 표준 정책 경사, 정책 반복을 신뢰 영역 제약 최적화의 특수/극한 경우로 통합한다."}, {"type": "bullet", "text": "Isaac Lab에서 RL 이족 보행을 구현하는 입문자에게 TRPO는 PPO의 개념적 부모이다. 여기서 신뢰 영역/KL 제약 아이디어(옛 정책에 가깝게 머무는 것이 온폴리시 학습을 어떻게 안정화하는지)를 이해한 뒤, 실무에서는 PPO의 더 단순한 클리핑된 대리 목적을 사용하라 — TRPO는 '이유'를 설명하고 PPO는 실용적 기본값이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "덩굴(vine) 표집 절차는 시스템을 임의의 상태로 재설정할 수 있는 능력을 요구하는데, 이는 보통 물리 시스템이 아니라 시뮬레이션에서만 가능하다.", "source_quote": "Furthermore, the vine method requires us to generate multiple trajectories from each state in the rollout set, which limits this algorithm to settings where the system can be reset to an arbitrary state.", "source_section": "Sample-Based Estimation of the Objective and Constraint (Vine)"}, {"claim": "실용 알고리즘은 이론에서 벗어나는 여러 근사(이론적으로 정당화된 벌점을 경성 제약으로, 최대 KL을 평균 KL로 대체)를 하므로, 단조 개선 보장이 더 이상 엄밀히 보장되지 않는다.", "source_quote": "Despite its approximations that deviate from the theory, TRPO tends to give monotonic improvement, with little tuning of hyperparameters.", "source_section": "Abstract / Optimization of Parameterized Policies"}], "future_works": [{"claim": "TRPO를 모델 학습과 결합하면 표본 복잡도를 크게 낮춰, 표본이 비싼 실세계 환경에 적용할 수 있다.", "source_quote": "By combining our method with model learning, it would also be possible to substantially reduce its sample complexity, making it applicable to real-world settings where samples are expensive.", "source_section": "Discussion"}, {"claim": "은닉 상태를 가진 순환 정책을 포함한 더 정교한 정책은, 부분 관측 환경에서 상태 추정과 제어를 하나의 정책으로 통합할 수 있다.", "source_quote": "The use of more sophisticated policies, including recurrent policies with hidden state, could further make it possible to roll state estimation and control into the same policy in the partially-observed setting.", "source_section": "Discussion"}, {"claim": "동일한 방법으로 시각 및 원시 감각 데이터를 입력으로 사용하는 로봇 제어 정책을 학습할 수 있어, 지각과 제어를 함께 수행하는 제어기를 위한 통합 방식을 제공한다.", "source_quote": "there is the possibility of learning robotic control policies that use vision and raw sensory data as input, providing a unified scheme for training robotic controllers that perform both perception and control.", "source_section": "Discussion"}], "motivation_resolution": {"motivating_problems": ["정책 경사 및 근사 동적 계획법은 흔히 경사 없는 무작위 탐색을 일관되게 이기지 못하는데, 경사 기반 최적화의 더 나은 표본 복잡도 보장을 고려하면 이는 불만족스럽다.", "대부분의 정책 최적화 방법은 단조 개선을 보장하지 않으므로 갱신이 정책을 악화시킬 수 있고 어려운 문제에서 학습이 불안정하다.", "얼마나 큰 보폭을 취할지가 불분명하다. 대리 목적을 개선하는 충분히 작은 보폭은 참 수익도 개선하지만, 이론만으로는 보폭에 대한 지침을 주지 않는다.", "이론적으로 정당화된 정책 개선 한계는 혼합 정책에만 적용되는데, 이는 실용적으로 다루기 어렵고 제약적인 정책 종류이다.", "이론이 권고하는 벌점 계수를 사용하면 보폭이 지나치게 작아져 원리적 알고리즘이 비실용적이 된다."], "addressed_by_this_work": ["이 논문은 KL 발산 벌점을 가진 대리 목적을 최대화하면 일반 확률적 정책에 대해 참 기대 수익의 단조 개선이 보장됨을 증명한다(Kakade & Langford의 혼합 정책 결과를 확장).", "최대 KL 벌점을 평균 KL 발산에 대한 신뢰 영역 제약(상한 $\\delta$)으로 대체하여, 이론에 가깝게 머무르면서도 강건하게 큰 보폭을 허용한다.", "제약 문제는 해석적으로 계산된 피셔 정보 행렬(KL 헤시안)을 이용한 켤레 경사 단계와 이후의 직선 탐색으로 효율적으로 풀려, 수만 개 파라미터의 신경 정책으로 확장된다.", "두 몬테카를로 추정 방식(단일 경로와 덩굴)이 중요도 표집 및 자기 정규화 추정량으로 목적과 제약을 표본 평균으로 바꾼다.", "경험적으로 TRPO는 최소한의 사전 지식으로 수영·도약·보행 걸음을 처음부터 학습하고, 단일 범용 방법으로 원시 이미지로부터 아타리 게임을 플레이한다."], "remaining_unresolved": ["TRPO는 모델 기반 방법에 비해 여전히 표본 비효율적이다. 표본 복잡도 감소는 향후 모델 학습과의 결합에 맡겨진다.", "덩굴 추정량의 더 낮은 분산은 시스템 재설정을 요구하는 대가를 치르므로 시뮬레이션에 제한된다.", "실용 알고리즘의 근사(평균 KL, 경성 제약, 유한 표본 추정)는 엄밀한 단조 개선 보장을 깨뜨리며, 이는 경험적으로만 성립하는 것으로 관찰된다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

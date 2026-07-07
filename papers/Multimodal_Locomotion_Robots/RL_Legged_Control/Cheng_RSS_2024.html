@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Expressive Whole-Body Control for Humanoid Robots</title>
+    <meta name="keywords" content="humanoid robot, whole-body control, reinforcement learning, motion imitation, human motion capture, sim-to-real transfer, legged locomotion, Unitree H1">
+    <meta name="paper-authors" content="Xuxin Cheng, Yandong Ji, Junming Chen, Ruihan Yang, Ge Yang, Xiaolong Wang">
+    <meta name="paper-journal" content="Robotics: Science and Systems (RSS) 2024 (arXiv:2402.16796v2) · project page: expressive-humanoid.github.io · first two authors contributed equally">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Expressive Whole-Body Control for Humanoid Robots</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Xuxin Cheng, Yandong Ji, Junming Chen, Ruihan Yang, Ge Yang, Xiaolong Wang</div>
+            <div class="journal">Robotics: Science and Systems (RSS) 2024 (arXiv:2402.16796v2) · project page: expressive-humanoid.github.io · first two authors contributed equally</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 단일 목표 조건부(goal-conditioned) RL 정책으로, 사람 크기의 휴머노이드(Unitree H1, 19 DoF)가 강건하게 보행하면서 실제 환경에서 풍부하고 표현력 있는 전신 동작을 수행하게 해주는 <span class="term">표현형 전신 제어(Expressive Whole-Body Control, ExBody)</span>를 제시한다. 핵심 아이디어는 참조 동작을 정확히 모방하지 않는 것이다: 상체는 표현력을 위해 다양한 인간 모션캡처 클립을 모방하도록 장려되는 반면, 다리 모방 제약은 완화되어 다리는 루트 이동 명령(속도, 방향, 높이)만 강건하게 따르면 된다. 대규모 병렬 시뮬레이션(Isaac Gym, PPO), 참조 상태 초기화, 그리고 고도로 무작위화된 지형과 함께 CMU MoCap 데이터셋의 선별된 부분집합(약 780 클립)으로 학습되어, 이 정책은 하드웨어로 직접 전이되어 다양한 스타일로 걷고, 악수하고, 사람과 춤춘다. 절제(ablation) 실험은 다리 모방 완화가 전신 추적을 능가하며, AMP 정규화만으로는 sim-to-real에 부적합한 곧은 다리, 낮은 발 들림, 비틀거리는 보행을 낳음을 보여준다. 다중모드 로봇의 RL 지상 보행 서브시스템에 대해, ExBody는 표현형/페이로드 상체 거동을 보행으로부터 분리하면서 대규모 동작 데이터로부터 강건한 속도 추적 이족 보행을 학습하는 강력한 템플릿이다.</div>
+            <div class="keywords"><span class="keyword-chip">humanoid robot</span><span class="keyword-chip">whole-body control</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">motion imitation</span><span class="keyword-chip">human motion capture</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">Unitree H1</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 휴머노이드 로봇이 풍부하고 다양하며 표현력 있는 실제 동작을 생성할 수 있는지 묻는다. 사족 로봇과 휴머노이드에 대한 표준 전신 제어는 우아함 없는 단조로운 패턴을 만드는 반면, 인간/동물 동작은 의도와 감정을 표현하며, 속도/방향/보행 목적함수로 기술되지 않는 동작 부분공간을 점유한다. 저자들은 그래픽스의 대규모 인간 MoCap 데이터를 시뮬레이션의 심층 RL과 결합하여 실제 사람 크기 로봇에 배치 가능한 제어기를 학습한다. 그래픽스 방법을 직접 도입하는 데에는 두 가지 장애물이 있다: 비현실적으로 큰 액추에이터 게인과 하드웨어보다 훨씬 많은 DoF이다. ExBody는 표현력을 위해 상체를 모방하면서 다리 모방을 강건한 루트 이동 추종으로 완화하여 이를 해결한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 연구는 다리형 로봇의 전신 제어(역사적으로 동역학 모델링과 제어를 통해, 최근에는 학습을 통해), 도전적 지형에서의 다리 보행(보상 명세, 모방, 비전 기반), 그리고 그래픽스의 물리 기반 캐릭터 애니메이션을 연결한다. 적대적 방법(AMP, ASE)은 동작이 늘어남에 따라 모드 붕괴를 겪고, 모방 기반 추적 제어기는 대규모 데이터셋을 다루지만 비현실적 캐릭터 모델과 특권 정보에 의존하여 실제 휴머노이드로 전이하기 어렵다. ExBody는 단일 네트워크로 대규모 동작 데이터셋으로부터 사람 크기 실제 로봇에서 표현형 전신 제어를 가능하게 한다는 점에서 다르다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">휴머노이드 동작 제어는 목표 공간 G = Ge x Gm 상의 목표 조건부 정책 학습으로 정식화된다: 전신에 대한 루트 이동 목표 Gm = <v, rpy, h>와 상체에 대한 표현 목표 Ge = <q, p>(상체 9개 관절과 어깨, 팔꿈치, 손의 18개 키포인트 좌표). 결정적으로, 하체 관절과 키포인트는 형태가 다른 로봇을 과도하게 제약하지 않도록 Ge에서 제외된다. 인간 MoCap 데이터는 (상호작용/무거운 물체/거친 지형을 제외하여) 선별되고 H1 골격으로 재타겟되며, 구면 고관절/어깨 관절은 축-각(axis-angle)을 통해 세 개의 회전 DoF로 매핑된다. 정책은 참조 상태 초기화와 행동으로서의 PD 제어 관절 목표를 사용하여 Isaac Gym에서 학습된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">광범위한 시뮬레이션과 실세계 실험이 ExBody가 ge와 gm을 얼마나 잘 추적하는지, 대규모 데이터셋으로부터의 학습이 탐색과 강건성에 어떻게 도움이 되는지, 그리고 그래픽스 방법이 실제 로봇에서 왜 실패하는지에 답한다. ExBody는 학습 루트 이동 분포를 재현하고 무작위로 샘플링된 명령으로 일반화하여 조이스틱 제어를 가능하게 한다. 베이스라인들(ExBody+AMP, AMP NoReg, Random Sample, No RSI, Full Body Tracking) 대비, ExBody는 최고의 선속도 추적(MELV)을 달성하는 반면, 전신 추적은 모든 지표를 악화시키고 AMP는 곧은 다리, 낮은 발 들림, 비틀거리는 보행을 낳는다. H1 로봇은 다양한 실세계 표현형 동작과 텍스트-투-모션 확산 재생에서 검증된다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 방법은 휴머노이드가 실세계에서 강건한 보행을 유지하면서 표현형 상체 동작을 추적하게 하며, 광범위한 동작을 모방하고 무작위 샘플링된 루트 명령을 강건하게 실행하기 위해 대규모 데이터셋 학습과 RSI의 이점을 누린다. 평가는 시뮬레이션과 실세계 환경에 걸쳐 있으며, 설계 선택은 시뮬레이션에서 정량적으로, 실세계에서 정성적으로 분석된다. 저자들은 이것이 신뢰할 수 있고 다재다능한 다기능 휴머노이드로 가는 길을 닦는다고 주장하면서, 재타겟팅 손실과 하드웨어 취약성으로 인한 열린 문제를 언급한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">ExBody는 휴머노이드 로봇이 강건한 보행을 유지하면서 표현형 상체 동작을 추적하게 하는 방법으로 소개되며, RSI와 함께 대규모 동작 데이터셋으로 학습되고 시뮬레이션과 실세계 모두에서 평가된다. 저자들은 두 가지 주요 한계를 식별한다: 더 낮은 DoF의 H1로 관절 각도를 재타겟하면 정보가 손실되고 실행된 동작이 참조에서 벗어날 수 있는데 이는 더 높은 충실도의 재타겟팅으로 완화할 수 있다는 점, 그리고 무겁고 비싼 로봇이 낙상 중 부품이 파손될 수 있어 신뢰할 수 있는 보호 및 복구 시스템을 동기 부여한다는 점이다. 이들은 신뢰할 수 있고 다재다능한 휴머노이드를 향한 직접적인 다음 단계를 정의한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "이 논문은 휴머노이드 로봇이 실제 환경에서 풍부하고 다양하며 표현력 있는 동작을 생성할 수 있는지 묻고, 인간 동작을 가능한 한 사실적으로 모방하는 전신 제어 정책을 학습한다.", "figure_refs": [1]}, {"type": "bullet", "text": "사족 로봇과 휴머노이드에 대한 기존 전신 제어는 우아함과 개성이 결여된 단조로운 동작 패턴을 만드는 경향이 있는데, 이는 최적화나 학습을 쉽게 하기 위해 추가된 제약의 부산물이다."}, {"type": "bullet", "text": "인간과 동물의 동작은 풍부하고 다양하며 의도나 감정을 표현하고, 신체 속도, 방향, 보행 패턴 같은 일반적인 목적함수로 기술되지 않는 큰 동작 부분공간을 점유한다."}, {"type": "bullet", "text": "이 방법은 그래픽스 커뮤니티의 대규모 인간 모션캡처 데이터를 시뮬레이션의 심층 RL과 결합하여 실제 로봇에 직접 배치 가능한 전신 제어기를 만든다.", "figure_refs": [2]}, {"type": "bullet", "text": "물리 기반 캐릭터 애니메이션은 자연스러운 반응형 정책을 만들지만, 흔히 실현 가능한 하드웨어보다 한 자릿수 더 큰 약 60 kg/m의 액추에이터 게인을 사용한다."}, {"type": "bullet", "text": "인간 참조 동작은 로봇 하드웨어(예: Unitree H1의 19 DoF)보다 훨씬 많은 DoF(예: 69 DoF)를 수반하여, 그래픽스 기법의 직접 전이를 불가능하게 만든다."}, {"type": "bullet", "text": "ExBody의 핵심 아이디어는 참조를 정확히 모방하지 않는 것이다: 상체는 다양한 인간 동작을 모방하는 반면 다리는 루트 이동 명령만 강건하게 따르며, 강건한 sim2real을 위해 고도로 무작위화된 지형에서 학습된다."}, {"type": "bullet", "text": "Unitree H1과 약 780개의 CMU MoCap 참조 동작을 사용하여, 저자들은 다양한 동작을 가진 최초의 학습 기반 실세계 휴머노이드 제어라고 주장하며, 일반화 가능한 휴머노이드 전신 조작 및 내비게이션에 기여하기를 희망한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "다리형 로봇의 전신 제어는 전통적으로 동역학 모델링과 제어로 달성되었는데, 고DoF 휴머노이드의 경우 상당한 엔지니어링을 요구하고 실세계 동역학 변화에 민감하다."}, {"type": "bullet", "text": "최근 학습 기반 방법은 사족 로봇의 전신 보행과 조작을 달성하여 더 나은 학습 기반 휴머노이드 제어를 가능하게 했지만, 대부분 보행에 집중하거나 비교적 작은 데이터셋을 사용한다."}, {"type": "bullet", "text": "도전적 지형에서의 시각 없는(blind) 다리 보행은 보상 명세, 모방 학습, 보행 휴리스틱을 통해 연구되었고, 비전 기반 보행은 계단과 파쿠르를 정복했다."}, {"type": "bullet", "text": "기존 보행 연구는 시연 데이터를 충분히 활용하지 못했다. 재타겟된 동물 동작이나 사전 최적화된 궤적을 사용하는 연구조차 이 대규모 데이터 프레임워크와 달리 매우 작은 데이터셋을 사용한다."}, {"type": "bullet", "text": "그래픽스에서 전신 휴머노이드 애니메이션을 위한 적대적 방법(AMP, ASE)은 동작이 늘어남에 따라 모드 붕괴를 겪는다. ASE는 187개 동작에 단위 구면 잠재 공간과 스킬 발견 목적함수를 사용했지만 여전히 모드 붕괴한다."}, {"type": "bullet", "text": "모방 기반 방법은 제어를 동작 생성으로부터 분리하며(추적 제어기와 동작 생성기), 전문가 혼합(mixture-of-experts)이나 점진적 네트워크로 전체 CMU MoCap 데이터셋까지 확장한다."}, {"type": "bullet", "text": "이러한 그래픽스 방법은 비현실적 캐릭터 모델(SMPL: 69 DoF, 23개 구면 관절, 보통 토크 제한 없음)과 특권 시뮬레이션 정보 때문에 실제 휴머노이드로 전이하기 어렵다. ExBody는 대신 실제 사람 크기 로봇에서 표현형 전신 제어를 가능하게 한다."}]}, "method": {"content": [{"type": "bullet", "text": "휴머노이드 제어는 목표 조건부 모터 정책 pi: G x S -> A로 정식화되며, 목표 공간 G는 거동을 명세하고, 관측 공간 S, 그리고 관절 위치와 토크의 행동 공간 A를 갖는다.", "figure_refs": [2]}, {"type": "bullet", "text": "루트 이동 제어는 Gm = <v, rpy, h>(선속도, 롤/피치/요, 신체 높이)를 사용한다. 정책은 현재 속도, 절대 높이, 요를 관측하지 않는데 이들은 실제 로봇에서 특권 정보이기 때문이며, 대신 요 오차를 관측한다.", "figure_refs": [3]}, {"type": "bullet", "text": "일반 목표 공간 G = Ge x Gm은 원하는 관절 각도와 3D 키포인트 위치를 갖는 표현 목표 ge를 추가한다. 하체 관절/키포인트는 Ge에서 제외되는데, 이를 포함하면 비율이 다른 로봇을 과도하게 제약하여 취약한 정책을 낳기 때문이다."}, {"type": "bullet", "text": "정식으로 Ge = <q, p>이며 q는 R^9(상체 9개 액추에이터), p는 R^18(두 어깨, 두 팔꿈치, 좌/우 손의 3D 키포인트)이다. 정책은 gm(전신)과 ge(상체)를 동시에 추적한다."}, {"type": "bullet", "text": "선별된 CMU MoCap 부분집합(물리적 상호작용, 무거운 물체, 거친 지형 제외)이 780개의 학습 클립을 제공한다. 자연스러운 인간 데이터 분포는 일반적으로 충돌/지면 관통 제약을 만족하여, 수동으로 설계된 샘플 공간보다 정책 학습에 더 도움이 된다.", "figure_refs": [3]}, {"type": "bullet", "text": "재타겟팅은 국소 관절 회전을 H1 골격(51.5 kg, 1.8 m, 19 DoF)에 매핑한다. 구면 고관절/어깨 관절(쿼터니언)은 축-각(theta = 2 arccos(q_w))을 통해 세 개의 회전 관절로 재매핑되고, 1-DoF 관절은 자신의 축에 투영된 회전을 취한다.", "figure_refs": [4]}, {"type": "bullet", "text": "참조 상태 초기화(RSI)는 Isaac Gym의 각 병렬 환경에 대해 동작 데이터셋에서 초기 상태를 샘플링하여 탐색을 장려한다. 보상은 표현 목표 추적, 루트 이동 추적, 정규화 항을 결합한다.", "figure_refs": [3]}, {"type": "bullet", "text": "표현형 보상(Table III)은 DoF 위치, 키포인트 위치, 선속도, 롤/피치, 요에 대한 지수 항을 포함하며, 속도 추적에 가장 큰 가중치를 둔다. 행동은 19개 관절에 대한 PD 목표 위치이다."}]}, "experiment": {"content": [{"type": "bullet", "text": "ExBody는 학습 데이터와 유사한 루트 이동 상태 분포를 재현하고 데이터셋을 넘어선 무작위 샘플링 명령으로 일반화하여, 동작 클립을 선택하지 않고도 직관적인 조이스틱 제어를 가능하게 한다.", "figure_refs": [5]}, {"type": "bullet", "text": "학습된 정책의 손 위치 분포는 재타겟된 데이터셋과 거의 일치하여, 상체 표현이 정확하게 추적됨을 보여준다.", "figure_refs": [6]}, {"type": "bullet", "text": "ExBody는 최고의 선속도 추적 보상(motion-sample에서 MELV 318.67)을 달성하여, 핵심 보행 지표에서 ExBody+AMP(205.60)와 AMP NoReg(87.83)를 능가한다.", "figure_refs": [7]}, {"type": "bullet", "text": "No RSI는 치명적으로 실패하는데(MEL 0.23), 정책이 양의 보상 상태를 발견하지 못하고 조기 종료를 학습하기 때문이다. 동작 데이터셋으로부터의 RSI는 자연스러운 커리큘럼(예: 서기 후 걷기)을 제공한다."}, {"type": "bullet", "text": "Random Sample 베이스라인은 안정성을 최대화하기 위해 모든 목표에 대해 무릎을 꿇어 gm을 포기하는데, 이는 동작 데이터셋의 Gm 분포가 균일 샘플링보다 학습에 더 유리함을 나타낸다.", "figure_refs": [8]}, {"type": "bullet", "text": "전신 추적(하체 관절/키포인트도 추적)은 모든 지표를 낮추고, 참조에서 한 걸음이었던 곳에서 여러 걸음을 밟는 등 하체 아티팩트를 일으켜, 다리 모방 완화의 이점을 확인한다."}, {"type": "bullet", "text": "AMP 정규화기를 추가하면 MEL/MERP는 향상되지만 MELV를 크게 해쳐, 무릎 굽힘이 적고, 발 들림이 부족하며, 발끝이 수평이 아니고, 비틀거리는 보행을 만들어 sim-to-real을 어렵게 한다. AMP NoReg는 실현 불가능한 고주파 떨림을 보인다.", "figure_refs": [7]}, {"type": "bullet", "text": "실세계에서 H1은 CMU MoCap 궤적과 텍스트 프롬프트 확산(MDM) 동작을 재생한다. 보행이 사전 정의되지 않은 상태에서 로봇은 스텝 빈도를 상체 자세와 자율적으로 동기화하며, 롤/피치 편차는 ExBody가 ExBody+AMP보다 낮게 유지된다(평균 0.051 대 0.087).", "figure_refs": [9]}]}, "discussion": {"content": [{"type": "bullet", "text": "ExBody는 휴머노이드가 실세계에서 강건한 보행을 유지하면서 표현형 상체 동작을 추적하고 무작위 샘플링된 루트 이동 명령을 실행하게 한다."}, {"type": "bullet", "text": "대규모 동작 데이터셋 학습에 RSI를 더하면 로봇이 광범위한 동작을 반응적으로 모방하도록 갖추어지며, 탐색을 돕는 자연스러운 커리큘럼을 제공한다."}, {"type": "bullet", "text": "전신 루트 이동 목표를 위해 하체 추적 목적함수를 완화하면, 형태가 다른 로봇에서 전신 추적을 취약하게 만드는 과도한 제약을 피한다."}, {"type": "bullet", "text": "단일 네트워크가 모든 동작을 처리하며, CMU MoCap 부분집합에서 선택된 걷기와 일상적 표현 거동을 포괄한다."}, {"type": "bullet", "text": "적대적(AMP) 정규화는 그러한 복잡한 시스템에 단독으로는 불충분하여, 스타일을 위해 보행 품질을 희생하고 sim-to-real에 부적합한 보행을 만든다."}, {"type": "bullet", "text": "설계 선택은 시뮬레이션에서 정량적으로, 실세계 시나리오에서 정성적으로 엄밀히 분석되어, 강건하고 다재다능한 휴머노이드 거동 주장을 뒷받침한다."}, {"type": "bullet", "text": "저자들은 이 방법이 여러 기능을 효과적으로 수행할 수 있는 신뢰할 수 있고 다재다능한 휴머노이드 로봇으로 가는 길을 닦는다고 믿는다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "ExBody는 휴머노이드 로봇이 실세계에서 강건한 보행을 보장하면서 표현형 상체 동작을 추적하게 한다."}, {"type": "bullet", "text": "이 방법은 대규모 동작 데이터셋에 대한 광범위한 학습과 참조 상태 초기화(RSI) 사용의 이점을 누린다."}, {"type": "bullet", "text": "광범위한 동작을 반응적으로 모방하고 무작위 샘플링된 루트 이동 명령을 강건하게 실행하며, 시뮬레이션과 실세계에서 검증된다."}, {"type": "bullet", "text": "관절 각도를 더 낮은 DoF의 H1로 직접 재타겟하면 정보 손실과 원래 동작으로부터의 편차를 일으킨다."}, {"type": "bullet", "text": "고충실도 동작 재타겟팅 방법을 적용하면 이러한 불일치를 완화하는 상당한 개선을 얻을 수 있다."}, {"type": "bullet", "text": "낙상이 무겁고 비싼 휴머노이드의 부품을 파손시킬 수 있으므로, 값비싼 수리를 최소화하기 위한 신뢰할 수 있는 보호 및 복구 시스템이 필요하다."}, {"type": "bullet", "text": "저자들은 이 연구가 여러 기능을 효과적으로 수행할 수 있는 신뢰할 수 있고 다재다능한 휴머노이드 로봇으로 가는 길을 닦는다고 믿는다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "MoCap 데이터셋의 관절 각도를 더 낮은 DoF의 H1 로봇에 직접 매핑하면 정보가 손실되어, 재타겟된 거동이 원래 동작에서 벗어날 수 있다.", "source_quote": "In the process of retargeting, the direct mapping of joint angles from the MoCap dataset to the H1 robot, which possesses fewer DoF, leads to a loss of information. Consequently, this can result in the retargeted behavior deviating from the original motion.", "source_section": "conclusion"}, {"claim": "휴머노이드의 상당한 무게와 비용은 낙상이 부품을 파손시킬 수 있음을 의미하므로, 신뢰할 수 있는 보호 및 복구 시스템이 필요하다.", "source_quote": "given the considerable weight and cost associated with the humanoid robot, the occurrence of falls can sometimes result in broken parts. Therefore, the implementation of a reliable protective and recovery system is imperative to minimize the need for costly repairs.", "source_section": "conclusion"}, {"claim": "하체 동작은 전신 추적 하에서 아티팩트를 보이는데, 예를 들어 참조가 한 걸음으로 설계한 곳에서 안정화를 위해 여러 걸음을 실행한다.", "source_quote": "while the reference motion is designed for a single step, the robot executes multiple steps in an attempt to stabilize.", "source_section": "experiment"}], "future_works": [{"claim": "더 낮은 DoF 로봇으로의 매핑이 도입하는 정보 손실과 동작 편차를 줄이기 위해 고충실도 동작 재타겟팅 방법을 적용한다.", "source_quote": "To mitigate these discrepancies, the application of high-fidelity motion retargeting methods could yield significant improvements.", "source_section": "conclusion"}, {"claim": "낙상 후 값비싼 수리의 필요성을 최소화하기 위해 신뢰할 수 있는 보호 및 복구 시스템을 구현한다.", "source_quote": "the implementation of a reliable protective and recovery system is imperative to minimize the need for costly repairs.", "source_section": "conclusion"}, {"claim": "이 접근법을 일반화 가능한 휴머노이드 전신 조작 및 내비게이션 연구로 확장한다.", "source_quote": "we hope our approach can also shed some light on studying generalizable humanoid whole-body manipulation and navigation.", "source_section": "introduction"}], "motivation_resolution": {"motivating_problems": ["다리형 로봇과 휴머노이드의 전신 제어 방법은 우아함과 개성이 결여된 단조로운 동작 패턴을 만드는 경향이 있어, 신체 속도, 방향, 보행 패턴 같은 목적함수로 포착되지 않는 표현형 동작의 큰 부분공간을 놓친다.", "그래픽스 물리 기반 캐릭터 애니메이션 기법을 실제 휴머노이드로 직접 전이하는 것은 실현 불가능한데, 이들이 하드웨어보다 한 자릿수 큰 액추에이터 게인(약 60 kg/m)과 실제 로봇(Unitree H1의 19 DoF)보다 훨씬 많은 자유도(예: SMPL의 69 DoF)를 가정하기 때문이다.", "모션캡처 데이터셋에 대해 단순하게 모방 학습을 수행하는 것은 자유도와 물리적 능력의 큰 격차 때문에 실제 휴머노이드에서 작동하지 않으며, 이는 문제를 과도하게 제약하여 취약하고 성능이 낮은 정책을 낳는다."], "addressed_by_this_work": ["ExBody는 표현력을 위해 상체가 다양한 인간 동작을 모방하도록 장려하는 한편 다리 모방 항을 완화하여, 다리는 정확한 관절 각도를 맞추기보다 루트 이동 명령만 강건하게 따르면 되도록 한다.", "참조 상태 초기화, 대규모 병렬 Isaac Gym 시뮬레이션, PPO, 그리고 고도로 무작위화된 도전적 지형과 함께 선별된 대규모 CMU MoCap 부분집합(약 780 클립)으로 학습하면, 데이터셋 궤적을 넘어 일반화하는 강건한 sim-to-real 전이를 갖춘 단일 정책이 생성된다.", "배치된 정책은 Unitree H1을 제어하여 다양한 스타일로 걷고, 다양한 지형에서 속도와 방향을 바꾸고, 악수하고, 사람과 춤추게 하며, 저자들은 이것이 다양한 동작을 가진 최초의 학습 기반 실세계 휴머노이드 제어라고 밝힌다."], "remaining_unresolved": ["더 낮은 DoF 로봇으로의 재타겟팅은 정보를 손실하고 실행된 동작이 참조에서 벗어나게 할 수 있다.", "하체 거동은 여전히 아티팩트(예: 추가 걸음)를 보이며, 정책의 롤/피치 상태 분포는 명령된 것보다 좁은데, 이는 로봇의 무거운 상체에 기인한다.", "낙상 하의 하드웨어 취약성은 다루어지지 않아, 아직 구현되지 않은 보호/복구 시스템을 필요로 한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

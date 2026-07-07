@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Sim-to-Real Transfer of Robotic Control with Dynamics Randomization</title>
+    <meta name="keywords" content="dynamics randomization, sim-to-real transfer, reality gap, recurrent policy, non-prehensile manipulation, hindsight experience replay, deep reinforcement learning, system identification">
+    <meta name="paper-authors" content="Xue Bin Peng, Marcin Andrychowicz, Wojciech Zaremba, Pieter Abbeel">
+    <meta name="paper-journal" content="2018 IEEE International Conference on Robotics and Automation (ICRA), pp. 3803-3810 · arXiv:1710.06537 · DOI: 10.1109/ICRA.2018.8460528">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Sim-to-Real Transfer of Robotic Control with Dynamics Randomization</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Xue Bin Peng, Marcin Andrychowicz, Wojciech Zaremba, Pieter Abbeel</div>
+            <div class="journal">2018 IEEE International Conference on Robotics and Automation (ICRA), pp. 3803-3810 · arXiv:1710.06537 · DOI: 10.1109/ICRA.2018.8460528</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 고충실도 시뮬레이터를 구축하거나 물리 시스템에 보정하는 대신, 학습 중 저충실도 시뮬레이터의 <span class="term">dynamics</span>를 무작위화하여 <span class="term">reality gap</span>을 메운다. 95개의 물리 파라미터(질량, 감쇠, 마찰, 제어기 게인, 행동 지연, 관측 잡음)를 매 에피소드마다 새로 샘플링함으로써, 저자들은 상태·행동의 이력으로부터 현재 동역학을 추론하고 그에 맞춰 행동을 적응시키는 <span class="term">recurrent (LSTM) policy</span>를 학습시킨다. 이 정책은 <span class="term">Hindsight Experience Replay</span>와 전지적(omniscient) critic을 사용하는 <span class="term">Recurrent Deterministic Policy Gradient</span>로, 희소 이진 보상으로 전적으로 시뮬레이션에서 학습된다. 7-DOF Fetch 팔의 퍽 밀기 과제에서, 정책은 거의 보정 없이 실제 로봇으로 직접 전이되고(성공률 0.89 대 시뮬레이션 0.91), 퍽의 접촉 동역학이 바뀌어도 견고하며, 메모리 없는 피드포워드 정책과 무작위화 없이 학습된 정책(실제 로봇에서 완전히 실패)을 크게 능가한다.</div>
+            <div class="keywords"><span class="keyword-chip">dynamics randomization</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">reality gap</span><span class="keyword-chip">recurrent policy</span><span class="keyword-chip">non-prehensile manipulation</span><span class="keyword-chip">hindsight experience replay</span><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">system identification</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 sim-to-real 전이를, 강력하지만 샘플을 많이 쓰고 안전하지 않은 심층 RL 알고리즘을 하드웨어에서 실행하지 않고 활용하는 방법으로 규정한다. 장벽은 시뮬레이터 모델링 오차가 야기하는 reality gap이다. 고충실도 시뮬레이터를 구축하는 대신, 저자들은 저충실도 시뮬레이터에서의 dynamics 무작위화를 제안하고, 실제 Fetch 팔로 직접 전이되는 객체 밀기 과제에서 이를 시연한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 이전 sim-to-real 노력을 domain adaptation, domain randomization, 그리고 비파지(non-prehensile) 조작(밀기)의 특정 도전으로 조직한다. 이 논문을 동역학(시각만이 아닌) 영역의 domain-randomization 방법으로 위치시키며, 대부분의 선례와 달리 타깃 도메인 데이터도 세심한 보정도 필요 없고, 시뮬레이터 간이 아닌 실제 로봇으로 전이함을 강조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 방법은 매 에피소드마다 95개 물리 파라미터를 샘플링하여, 동역학 모델의 분포 전반에 걸친 기대 수익을 최대화하는 범용 목표 조건부 정책을 학습시킨다. 희소 이진 보상은 Hindsight Experience Replay로 학습 가능해지고, off-policy recurrent 학습은 참 동역학 파라미터를 보는 전지적 critic을 사용하는 RDPG로 이뤄진다. 정책은 과거 상태·행동에 대한 LSTM 메모리를 통해 동역학을 암묵적으로 추론하며, 현재 상태와 목표를 위한 별도의 피드포워드 분기를 갖는다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 퍽을 미는 7-DOF Fetch 팔을 사용하며, 52차원 상태와 7차원 행동 공간으로 MuJoCo 시뮬레이션과 실제 로봇에서 평가한다. LSTM 정책은 하드웨어에서 시뮬레이션 성공률에 필적하고(0.89 대 0.91), 메모리 없는 및 무작위화 없는 베이스라인을 압도하며, 퍽의 접촉 동역학이 바뀌어도 견고하고, ablation은 행동 타임스텝과 관측 잡음 무작위화를 가장 중요한 요인으로 식별한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문에는 별도의 토론 절이 없다. 해석적 논점은 구조 비교, 견고성, ablation 분석에 나타난다. 핵심 통찰은 내부 메모리가 온라인 적응을 가능하게 한다는 것이다: 무작위화에 recurrence를 더하면 하나의 정책이 보지 못한 동역학을 추론하고 수용할 수 있는 반면, 메모리 없는 무작위화는 불충분하고 무작위화 없음은 완전히 실패한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 dynamics 무작위화가, 저렴한 시뮬레이션 데이터와 강력한 RL을 활용하여, 런타임에 낯선 동역학에 적응하고 부실한 보정에도 물리 로봇에 직접 배치되는 recurrent 정책을 학습시킨다고 요약한다. 향후 연구는 더 풍부한 과제와 비전 같은 추가 양식을 목표로 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "<span class=\"term\">Deep reinforcement learning</span>은 많은 복잡한 시뮬레이션 제어 문제를 풀었지만, 높은 샘플 복잡도와 실세계 탐험의 안전 위험 때문에 물리 로봇에 직접 적용하는 것은 대체로 불가능하다."}, {"type": "bullet", "text": "시뮬레이션에서의 학습은 이 장애물을 우회하지만 <span class=\"term\">reality gap</span>을 도입한다: 단순 전이를 막는 시뮬레이션과 실제 환경 사이의 불일치이다."}, {"type": "bullet", "text": "더 높은 충실도의 시뮬레이터에 투자하는 대신, 이 논문은 저충실도 시뮬레이터에서의 <span class=\"term\">dynamics randomization</span>이 전이 가능한 정책을 개발하는 효과적 방법임을 보인다."}, {"type": "bullet", "text": "학습 중 시뮬레이터의 동역학을 무작위화하면, 학습에서 본 것과 크게 다른 동역학까지 포함하여 매우 다른 동역학에 적응하는 정책이 산출되어, 물리 시스템 학습 없이 실세계로 일반화된다.", "figure_refs": [1]}, {"type": "bullet", "text": "이 접근은 로봇 팔의 퍽 밀기 과제에서 시연된다. 전적으로 시뮬레이션에서 학습했음에도, 정책은 무작위 초기 구성에서 실제 로봇 위의 객체를 목표 위치로 안정적으로 옮긴다."}, {"type": "bullet", "text": "결과 정책은 상당한 보정 오차에 견고함이 보여져, 세심한 시뮬레이터-하드웨어 맞춤의 필요를 없앤다."}]}, "related_works": {"content": [{"type": "bullet", "text": "sim-to-real은 <span class=\"term\">domain adaptation</span>으로 던져질 수 있다. 방법들은 불변 특징을 학습하거나 쌍별/적대적 손실을 사용하지만, 보통 학습 중 타깃 도메인의 일부 데이터를 여전히 요구한다."}, {"type": "bullet", "text": "Christiano 등은 학습된 역동역학 모델로 정책을 전이했고 Rusu 등은 <span class=\"term\">progressive networks</span>로 물리 시스템 데이터를 줄였지만, 둘 다 여전히 실세계 데이터를 필요로 한다."}, {"type": "bullet", "text": "<span class=\"term\">Domain randomization</span>은 소스-타깃 불일치를 소스 도메인의 변동성으로 모델링한다. 시각 무작위화(Sadeghi & Levine, Tobin 등)는 저충실도 렌더링만으로 비전 정책을 전이했다."}, {"type": "bullet", "text": "무작위화된 동역학은 견고성을 위해 사용되어 왔다: Mordatch 등은 모델 앙상블에 걸쳐 계획했고(다만 오프라인), 적대적 학습과 명시적 system-identification 모듈(Yu 등)도 탐구되었으나 대부분 sim-to-sim 전이에서만 시연되었다."}, {"type": "bullet", "text": "가장 가까운 이전 연구인 Antonova 등은 마찰과 지연을 무작위화하여 회전(pivoting) 정책을 Baxter로 전이했지만, 내부 상태의 부재가 적응을 제한하는 메모리 없는 피드포워드 정책을 사용했다."}, {"type": "bullet", "text": "밀기는 잡기에 너무 큰 객체에 유용한 비파지 조작이지만, 접촉 동역학(예: 공간적으로 변하는 마찰)을 모델링하기 어려워 까다롭다. 이전 모델 기반 및 데이터 주도 방법들은 단순화 가정이나 대규모 실세계 데이터셋에 의존했다."}, {"type": "bullet", "text": "셰이핑된 보상과 세심한 보정으로 밀기를 실제 PR2로 전이한 Clavera 등과 달리, 이 연구는 큰 보정 오차를 견디는 희소 보상만으로 시뮬레이션에서 적응적 정책을 학습한다."}]}, "method": {"content": [{"type": "bullet", "text": "에이전트는 정책 하의 기대 다단계 수익을 최대화한다. 무작위화를 도입하기 전에 표준 RL 목적함수를 검토한다."}, {"type": "formula", "label": "다단계 할인 수익", "latex": "R_t = \\sum_{t'=t}^{T} \\gamma^{t'-t} r_{t'}", "description": "에이전트의 목적은 기대 수익, 즉 할인 인자 $\\gamma \\in [0,1]$로 지평 $T$의 에피소드에 걸쳐 미래 보상을 할인하여 합한 것을 최대화하는 것이다. 그러면 $J(\\pi)=\\mathbb{E}[R_0\\mid\\pi]$가 정책에 대해 최대화된다."}, {"type": "bullet", "text": "<span class=\"term\">universal policy</span> $\\pi(a\\mid s,g)$는 목표 $g$를 추가 입력으로 받는다. 밀기에서 $g$는 각 에피소드 시작에 샘플링되어 고정되는 무작위 목표 위치이다."}, {"type": "bullet", "text": "셰이핑된 보상 대신, 목표 달성 여부만 나타내는 희소 <span class=\"term\">binary reward</span>가 사용된다."}, {"type": "formula", "label": "희소 이진 목표 보상", "latex": "r(s,g) = \\begin{cases} 0, & \\text{if } g \\text{ is satisfied in } s \\\\ -1, & \\text{otherwise} \\end{cases}", "description": "퍽 밀기 보상은 퍽이 목표의 고정 거리 이내일 때 0, 그렇지 않으면 -1이다. 보상 셰이핑의 편향과 노력을 피하며, 결과로 나타나는 미세 조정 전략은 순전히 이 희소 신호로부터 떠오른다."}, {"type": "bullet", "text": "희소 보상은 대부분의 RL 알고리즘에 어려우므로, <span class=\"term\">Hindsight Experience Replay (HER)</span>가 실패한 궤적을 실제로 달성된 목표로 재라벨링하여 성공 예시로 바꾸며, off-policy 학습을 요구한다(HER 확률 $k=0.8$)."}, {"type": "bullet", "text": "핵심 변화는 단일 모델 $\\hat p(s_{t+1}\\mid s_t,a_t)$ 대신 동역학 모델 분포 $\\rho_\\mu$ 전반에 걸쳐 하나의 정책을 학습시키는 것이며, 그래서 정책은 현재 마주한 어떤 동역학에든 적응해야 한다."}, {"type": "formula", "label": "dynamics 무작위화 목적함수", "latex": "\\mathbb{E}_{\\mu \\sim \\rho_\\mu} \\left[ \\mathbb{E}_{\\tau \\sim p(\\tau \\mid \\pi, \\mu)} \\left[ \\sum_{t=0}^{T-1} r(s_t, a_t) \\right] \\right]", "description": "학습 목적함수는 동역학 파라미터 $\\mu$(시뮬레이터 $\\hat p(s_{t+1}\\mid s_t,a_t,\\mu)$를 파라미터화)의 분포 $\\rho_\\mu$에 대해 평균낸 기대 수익을 최대화한다. 이 변동성에 적응하는 것이 정책을 실세계 동역학으로 일반화시키는 것이다."}, {"type": "bullet", "text": "동역학은 명시적 system identification이 아니라, 과거 상태·행동의 이력을 내부 메모리 $z_t=z(h_t)$로 요약하는 recurrent 정책 $\\pi(a_t\\mid s_t,z_t,g)$를 통해 암묵적으로 추론되며, end-to-end로 학습된다."}, {"type": "bullet", "text": "학습은 <span class=\"term\">Recurrent Deterministic Policy Gradient (RDPG)</span>를 사용하는데, 이는 HER이 off-policy 데이터를 만들기 때문에 필요한 DDPG의 recurrent off-policy 확장이다. <span class=\"term\">omniscient critic</span> $Q(s_t,a_t,y_t,g,\\mu)$는 (학습 시에만 사용되는) 참 동역학 파라미터 $\\mu$를 받아 그래디언트 분산을 줄이는 반면, 정책은 결코 $\\mu$를 보지 않는다."}, {"type": "bullet", "text": "무작위화 파라미터는 총 95개이다: 링크별 질량, 관절별 감쇠, 퍽 질량/마찰/감쇠, 테이블 높이, 제어기 게인, 행동 타임스텝(지연 모델), 관측 잡음. 질량과 감쇠는 에피소드당 일정하고 행동 타임스텝과 관측 잡음은 매 스텝 변한다.", "figure_refs": []}, {"type": "formula", "label": "무작위화된 행동 타임스텝 (지연 모델)", "latex": "\\Delta t \\sim \\Delta t_0 + \\mathrm{Exp}(\\lambda)", "description": "연속 정책 질의 사이의 간격은 매 스텝 기본 제어 타임스텝 $\\Delta t_0 = 0.04\\,$s 주위에서 비율 $\\lambda$의 지수 추출로 변하여, 물리 제어기 지연의 단순한 확률 모델을 제공한다. ablation은 이 항이 실세계 전이에 가장 중요한 것 중 하나임을 보인다."}, {"type": "bullet", "text": "네트워크는 피드포워드 분기(즉각 행동 계산을 위한 현재 상태 $s_t$와 목표 $g$)와 recurrent 분기(동역학 관련 입력 $s_t$, $a_{t-1}$만 받는 128유닛 임베딩과 128 LSTM 유닛)를 갖는다. 둘은 연결되어 ReLU 활성화의 128유닛 계층 두 개를 통과한다.", "figure_refs": [4]}]}, "experiment": {"content": [{"type": "bullet", "text": "과제는 7-DOF Fetch 팔로 테이블 위 무작위 목표로 퍽을 미는 것이다. 52차원 상태는 관절 위치/속도, 그리퍼 위치, 퍽 자세/속도를 담고, 7차원 행동은 상대 목표 관절 각도를 명시한다.", "figure_refs": [2]}, {"type": "bullet", "text": "시뮬레이션은 MuJoCo를 0.002 s 타임스텝으로 사용하며 제어 스텝당 20 시뮬레이션 스텝을 둔다. 에피소드는 ~100 제어 스텝(~4 s)이고, 학습은 Adam(보폭 5e-4), 128 에피소드 배치, ~8000 업데이트, ~1억 샘플(100코어 클러스터에서 ~8시간)을 사용한다."}, {"type": "bullet", "text": "보정은 거의 하지 않았다. 동일한 목표 궤적을 실제와 시뮬레이션 로봇에서 실행하면 크게 다른 관절 궤적이 나와, 정책이 극복해야 할 동역학 불일치를 보여준다.", "figure_refs": [5]}, {"type": "bullet", "text": "구조 비교: LSTM 정책은 메모리 없는 피드포워드(FF), 8스텝 이력을 가진 피드포워드(FF+Hist), 무작위화 없는 피드포워드(FF no Rand)보다 더 빨리 학습하고 더 높은 성공률에 도달한다.", "figure_refs": [6]}, {"type": "bullet", "text": "실제 로봇에서 LSTM은 0.89±0.06 성공(시뮬레이션 0.91±0.03 대비)을, FF+Hist는 0.70, FF는 0.67, FF-no-Rand는 0.0을 달성했다 — 무작위화 없는 정책은 전이에 완전히 실패한다.", "figure_refs": [7]}, {"type": "bullet", "text": "견고성 시험: 퍽 바닥에 과자 봉지를 붙여(마찰과 접촉 동역학 변경) LSTM의 실세계 성공률은 거의 변하지 않았다(0.91±0.04 대 0.89±0.06).", "figure_refs": [3]}, {"type": "bullet", "text": "파라미터 부분집합을 고정한 ablation은 행동 타임스텝 무작위화(0.29)와 관측 잡음 무작위화(0.25)를 끄는 것이 실세계 성능을 가장 해친다고 보여, 제어기 지연과 센서 잡음에 대처하는 것이 전이에 결정적임을 시사한다."}, {"type": "bullet", "text": "정교한 미세 조정 전략(퍽을 부분적으로 세우기, 위나 옆에서 밀기, 오버슈트 교정)이 희소 이진 보상만으로부터 자연스럽게 떠올랐다."}]}, "discussion": {"content": [{"type": "bullet", "text": "메모리가 결정적이다: LSTM은 이력으로부터 현재 동역학을 추론할 수 있어 피드포워드 변형보다 실제 동역학에 훨씬 잘 일반화하는 반면, 무작위화를 가진 메모리 없는 정책은 견고하지만 여전히 일관성이 없다."}, {"type": "bullet", "text": "무작위화는 전이에 필요하다: 무작위화 없이 학습된 피드포워드 정책은 낯선 동역학에 대처할 수 없어 실제 로봇에서 완전히 실패한다."}, {"type": "bullet", "text": "지연과 센서 잡음 무작위화가 가장 중요하여, 기계적 파라미터뿐 아니라 제어기 타이밍과 관측 불확실성을 모델링하는 것이 reality gap을 건너는 열쇠임을 시사한다."}, {"type": "bullet", "text": "전지적 critic(학습 중 참 동역학 파라미터가 주어진 가치 함수)은 policy-gradient 분산을 줄이고 그 특권 정보 없는 critic보다 더 의미 있는 피드백을 제공한다."}, {"type": "bullet", "text": "희소 이진 보상은 HER과 결합될 때 충분하여, 셰이핑된 보상의 편향과 엔지니어링 노력을 피하면서도 정교한 조작 전략을 산출한다."}, {"type": "bullet", "text": "변경된 퍽에 대한 견고성은, 그 적응성이 고정된 실세계 구성의 단순 암기가 아니라 변경된 물리에 대한 진정한 온라인 적응임을 입증한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "dynamics 무작위화는 런타임에 낯선 동역학에 적응할 수 있는 recurrent 정책을 학습시켜, 부실한 보정에도 물리 로봇에 직접 배치할 수 있게 한다."}, {"type": "bullet", "text": "전적으로 시뮬레이션에서 학습하면, 아직 하드웨어에서 직접 실행하기 불가능한 강력한 RL 기법이 필요로 하는 대량의 데이터를 생성할 수 있다."}, {"type": "bullet", "text": "실세계 밀기 실험은 시뮬레이션에 필적하는 성능과 접촉 동역학 변화에 적응하는 능력을 보였다."}, {"type": "bullet", "text": "설계 결정 연구는 recurrent 구조의 중요성과 어떤 파라미터를 무작위화할지를 명확히 했다."}, {"type": "bullet", "text": "저자들은 이 접근이 시뮬레이션에서 숙련된 에이전트를 개발해 물리 세계에 배치하는 더 많은 기회를 연다는 희망을 표한다."}, {"type": "bullet", "text": "향후 연구는 더 풍부한 과제 레퍼토리로 확장하고 비전 같은 더 많은 양식을 통합할 것이다. RL 입문 독자에게 이 논문은 dynamics 무작위화의 정전적 기원이며, Tobin의 시각 무작위화의 물리-파라미터 대응물이자 현대 Isaac Lab sim-to-real 파이프라인의 표준 구성 요소이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "완전 상태 관측을 가진 단일 객체 밀기 과제만 시연되며, 더 풍부한 과제와 비전 같은 지각 양식은 다루지 않는다.", "source_quote": "We intend to extend this work to a richer repertoire tasks and incorporate more modalities such as vision.", "source_section": "conclusion"}, {"claim": "이 방법은 대량의 시뮬레이션 경험(~1억 샘플, 정책당 100코어 클러스터에서 ~8시간)을 요구하며, 이는 학습이 시뮬레이션에서 이뤄지기에만 가능하다.", "source_quote": "Each policy is trained for approximately 8000 update iterations using about 100 million samples, which requires approximately 8 hours to simulate on a 100 core cluster.", "source_section": "experiment"}], "future_works": [{"claim": "밀기를 넘어 더 풍부한 과제 레퍼토리로 접근을 확장한다.", "source_quote": "We intend to extend this work to a richer repertoire tasks", "source_section": "conclusion"}, {"claim": "비전 같은 추가 감지 양식을 dynamics 무작위화 정책에 통합한다.", "source_quote": "and incorporate more modalities such as vision.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["심층 RL 에이전트가 시뮬레이션에서 학습한 행동은 시뮬레이터에 특화되며, 모델링 오차 때문에 실세계로 전이하지 못하는 경우가 많다(reality gap).", "심층 RL 알고리즘은 샘플 복잡도가 높고 안전 우려를 야기하여, 물리 로봇에서 직접 학습하는 것이 많은 과제에 비현실적이다.", "이전 전이 방법들은 학습 중 타깃 도메인의 데이터를 요구하거나, 시뮬레이터를 물리 시스템에 세심하게 보정할 것을 요구한다.", "메모리 없는 피드포워드 정책은 시뮬레이션과 실제 동역학 사이의 불일치에 온라인으로 적응할 수 없다."], "addressed_by_this_work": ["dynamics 무작위화는 sim-to-real 불일치를 소스 도메인 내의 변동성으로 취급하므로, 시뮬레이션에서만 학습한 정책이 어떤 실세계 학습도 없이 직접 전이된다.", "학습은 전적으로 저충실도 시뮬레이터에서 이뤄져, 풍부하고 저렴한 데이터를 활용하고 위험한 실세계 탐험을 피한다.", "recurrent 정책은 상태·행동 이력으로부터 동역학을 추론하여, 런타임에 적응하고 타깃 도메인 데이터 없이 큰 보정 오차를 견딘다.", "LSTM 정책은 피드포워드와 무작위화 없는 베이스라인이 실패하는 실제 동역학과 변경된 접촉 동역학으로 일반화된다."], "remaining_unresolved": ["완전 상태 관측을 가진 단일 저차원 밀기 과제만 보이며, 고차원·비전 기반·접촉이 많은 과제는 아직 다루지 않는다.", "적응은 recurrent 메모리를 통해 암묵적이다. 정책은 기저 동역학 파라미터를 명시적으로 식별하거나 보고하지 않는다.", "이 접근은 하드웨어에서 수집하기 비현실적일 무거운 시뮬레이션 연산에 의존한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Thruster-assisted Center Manifold Shaping in Bipedal Legged Locomotion</title>
+    <meta name="keywords" content="thruster-assisted locomotion, bipedal robot, Harpy, zero dynamics, center manifold shaping, limit cycle, hybrid legged-aerial robot, unilateral contact forces">
+    <meta name="paper-authors" content="Arthur C. B. de Oliveira, Alireza Ramezani">
+    <meta name="paper-journal" content="IEEE/ASME International Conference on Advanced Intelligent Mechatronics (AIM), 2020 (arXiv:2006.03748v1) · venue unmatched in venue_tiers.yaml -> default Tier 3">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Thruster-assisted Center Manifold Shaping in Bipedal Legged Locomotion</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">Arthur C. B. de Oliveira, Alireza Ramezani</div>
+            <div class="journal">IEEE/ASME International Conference on Advanced Intelligent Mechatronics (AIM), 2020 (arXiv:2006.03748v1) · venue unmatched in venue_tiers.yaml -> default Tier 3</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 하이브리드 다리-공중 로봇 <span class="term">Harpy</span>에 대해 온보드 추력기가 이족 보행 보행(gait)을 견고화하고 형성할 수 있는 방법을 연구한다. 저자들은 추력기 증강 이족 로봇의 <span class="term">영동역학(zero dynamics)</span>을 유도하고, 일정하거나 순간적으로 변하는 추력이 충격 전후 상태를 바꾸지 않고도 보행 <span class="term">극한 주기(limit cycle)</span>(중심 다양체)를 재형성할 수 있음을 보인다. 두 시간 척도(two-time-scale) 분석은 빠른 추력기 동역학을 느린 보행 동역학과 분리하여 다루어, 종속(cascade) 시스템에서 안정 극한 주기의 존재를 보장한다. 연속 및 충격 단계 모두에서의 일방향(unilateral) 지면 접촉력 실현 가능성은 추력에 대해 아핀(affine)인 제약으로 표현되어 최적 제어 기법에서 강제된다. 결과는 단순한 3-링크 평면 보행기 시뮬레이션으로 시연되며, 이론은 로봇 차원에 무관하다고 주장된다. 참고: 이는 미등록 발표처의 arXiv/학회 사전 출판본으로, 정량적 주장은 이상화된 모델에서만 검증된다.</div>
+            <div class="keywords"><span class="keyword-chip">thruster-assisted locomotion</span><span class="keyword-chip">bipedal robot</span><span class="keyword-chip">Harpy</span><span class="keyword-chip">zero dynamics</span><span class="keyword-chip">center manifold shaping</span><span class="keyword-chip">limit cycle</span><span class="keyword-chip">hybrid legged-aerial robot</span><span class="keyword-chip">unilateral contact forces</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 수색·구조와 우주 탐사 같은 응용을 위해 비정형 육상-공중 환경을 헤쳐 나가도록 추력기 보조 이동으로 역량을 강화한 다리 로봇의 동기를 제시한다. 추력기는 본래 넘어지기 쉬운 이족 보행의 견고성을 높일 수 있는 제어 잉여성을 더한다고 주장한다. 기여는 추력기가 보행 극한 주기에 미치는 영향을 연구하고 강한 엽층(strong foliation)을 갖춘 중심 다양체 형성을 제안하는 것이며, 일방향 접촉력 실현 가능성을 최적 제어에서 강제한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">기존 하이브리드 이동 시스템(다리-바퀴 궤도, 비행-기어가기 설계)을 검토하고 두 이동 양식을 통합하는 경우가 드물다는 점을 비판한다. 축소 차수 모델 문헌, 특히 스프링 부하 역진자(SLIP)는 끌어당기는 불변 부분다양체를 통해 다리 질량중심 동역학을 기술하는 토대로 상기된다. 견고한 다리 로봇(BigDog, Raibert의 호퍼)과 보행 휴머노이드(ASIMO, Mahru III)가 맥락으로 인용되며, 그러한 모든 시스템이 여전히 넘어지기 쉽다는 관찰이 함께 제시된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">로봇의 운동 방정식은 오일러-라그랑주로 유도되어 상대 좌표와 절대 좌표로 분할되며, 추력은 가상일(virtual work)로 유도된 입력 행렬을 통해 들어간다. 피드백 제어 법칙이 가상 제약을 강제하여 추력기 증강 영동역학을 얻으며, 이는 보행 타이밍 변수와 베지어 다항식 출력으로 매개변수화된다. 분석은 느린 보행 동역학 대 빠른 추력기 동역학을 두 시간 척도 종속으로 다루며, 그 안정 극한 주기는 횡단 수축(transverse-contraction) 결과로 보장되고, 이후 순간적 추력 변화를 사용해 중심 다양체를 형성한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">접근법은 추력기를 2차 시스템으로 모델링한 단순 3-링크 평면 보행기 시뮬레이션으로 시연된다. 천천히 변하는 추력은 극한 주기를 속도축 방향으로 이동시키고 그 둘러싼 면적을 축소함을 보이며, 여러 보행 타이밍 노드에서의 점별 순간 추력 변화는 푸앵카레 고정점을 재형성한다. 충격 및 유각(swing) 단계에서의 일방향 접촉력이 유도되어 추력에 대해 아핀임을 보이며, 온라인 최적화기에서 다항식 제약을 가능하게 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">두 시간 척도 관점은 내부 동역학과 추력기 동역학을 계층적으로 설계하게 한다: 기존 보행 설계 방법이 내부 동역학을 횡단 수축적으로 만들고, 이후 추력기가 영동역학 다양체 상의 제한 동역학을 조정한다. 추력기 기반 극한 주기 형성은 일방향 접촉력 실현 가능성에 의해 제약되며, 추력에 아핀인 다항식 제약이 이를 온라인에서도 강제한다. 분석은 의도적으로 모델 비의존적이며, 3-링크 예제를 넘어 더 복잡한 평면 보행기에도 성립한다고 주장된다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 추력기가 이족 로봇에 피드백 설계 유연성을 더하는 강력한 도구라고 결론지으며, 내부 동역학에 대해 느린 추력기 영역과 빠른 추력기 영역을 모두 다룬다. 강한 엽층을 갖춘 중심 다양체 형성을 통한 추력기 기반 보행 극한 주기 형성을 시연하고, 일방향 접촉력 실현 가능성을 최적 제어 기법에서 해결한다. 추력기 동역학이 로봇 영동역학보다 훨씬 빠를 때, 폐루프는 추력기 파라미터 변화가 극한 주기를 형성하는 두 시간 척도 문제로 환원된다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "장기 목표는 다리와 추력기를 협력적으로 활용하여 육상과 공중에 걸친 비정형 환경을 헤쳐 나가는 다리 로봇으로, 수색·구조, 우주 탐사, 패키지 처리, 디지털 농업 등에 적용된다.", "figure_refs": [1]}, {"type": "bullet", "text": "공중 드론은 재난 지역에서 규제적·실용적 한계에 직면하며(예: 허리케인 카트리나 이후 FAA 규정), 붕괴된 건물 내부에서는 공중 이동이 비실용적인 반면, 다리 시스템은 그러한 구조물을 기어가거나 걸어가 점검할 수 있다."}, {"type": "bullet", "text": "하이브리드 이동성은 로봇이 수색 임무에 적응하고 상황 인식을 제공하게 하지만, 이러한 로봇은 수색·구조 작전에서 현저히 간과되어 왔다."}, {"type": "bullet", "text": "이러한 로봇 연구는 공중 및 수중 이동을 위한 유체력 상호작용을 포함하는 축소 차수 모델(ROM)에 대한 지식을 확장할 수 있다."}, {"type": "bullet", "text": "추력기는 제어 입력의 집합(잉여성 / 가능한 과구동)을 늘리는데, 이는 실용적으로 유익하지만 피드백 설계에는 도전적이다."}, {"type": "bullet", "text": "본 연구는 추력기가 보행 극한 주기에 미치는 영향을 탐구하고, 강한 엽층을 갖춘 중심 다양체 형성에 기반한 설계 패러다임을 제안하며, 일방향 접촉력 실현 가능성을 최적 제어 기법에서 해결한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "관절형 궤도와 바퀴-다리 하이브리드는 바퀴의 민첩성과 다리의 다재다능함을 활용하지만, 다리-바퀴 시스템은 두 이동 양식 간 통합을 거의 활용하지 못한다."}, {"type": "bullet", "text": "비행-기어가기 설계에서 두 이동 모드는 흔히 독립적 수단으로 취급되어 거의 통합되지 않는다."}, {"type": "bullet", "text": "축소 차수 모델은 '창의적 무시(creative neglect)'로 동역학을 단순화하여 최소 변수로 기술되는 기본 다리 동역학 구조를 드러내며, 이는 상태 공간 내 끌어당기는 불변 부분다양체로 가정된다."}, {"type": "bullet", "text": "스프링 부하 역진자(SLIP)는 다양한 다리 동물의 질량중심 거동을 기술하는 고전적 ROM이며, 차원 붕괴는 강한 안정 엽층을 갖는 관성 다양체로부터 따라 나온다."}, {"type": "bullet", "text": "공중 또는 유체 기반 이동의 ROM은 복잡한 유체-구조 상호작용으로 인해 대체로 미해결로 남아 있어, 더 견고한 다리 시스템을 낳을 수 있는 연구의 동기가 된다."}, {"type": "bullet", "text": "보스턴 다이내믹스의 BigDog와 Raibert의 호핑 로봇 같은 견고한 다리 로봇은 외란 하에서도 견고하게 뛰거나 속보할 수 있고, ASIMO와 Mahru III 같은 휴머노이드는 걷고 달리고 계단을 오르지만, 모두 여전히 넘어지기 쉽다."}]}, "method": {"content": [{"type": "bullet", "text": "로봇의 운동 방정식은 오일러-라그랑주 정식화로 얻어지며, 상대 좌표 q_b와 절대 좌표 q_N로 분할되고, 추력 F_T는 가상일 입력 행렬 B_F를 통해 들어간다."}, {"type": "formula", "label": "식 (1) — 분할된 오일러-라그랑주 운동 방정식", "latex": "\\begin{bmatrix} D_{bb} & D_{bN} \\\\ D_{Nb} & D_{NN} \\end{bmatrix}\\begin{bmatrix} \\ddot{q}_b \\\\ \\ddot{q}_N \\end{bmatrix} + \\begin{bmatrix} \\Omega_b \\\\ \\Omega_N \\end{bmatrix} = \\begin{bmatrix} I_b & b_b \\\\ 0 & b_N \\end{bmatrix}\\begin{bmatrix} u \\\\ F_T \\end{bmatrix}", "description": "관성 D, 결합된 코리올리/중력 Omega, 관절 토크 u, 그리고 가상일 입력 행렬을 통해 특정 지점에 가해지는 추력 F_T를 갖는 고정(pinned) 시스템 동역학이다."}, {"type": "bullet", "text": "피드백 제어 법칙이 구동된 동역학을 상쇄하여 새 입력 v가 폐루프를 형성하게 하고, 지지발 둘레의 각운동량을 핵심 영동역학 상태로 남긴다."}, {"type": "formula", "label": "식 (2) — 부분 피드백 선형화 제어 법칙", "latex": "u = (D_{bb} - D_{bN}D_{NN}^{-1}D_{Nb})v + \\Omega_b - D_{bN}D_{NN}^{-1}\\Omega_N - b_b F_T", "description": "새 제어 입력 v와 추력 F_T를 관절 토크 u로 매핑하여, 상대 좌표 동역학을 비구동 각운동량 동역학으로부터 분리한다."}, {"type": "bullet", "text": "보행 타이밍 변수 alpha(형상 변수의 선형 결합)가 베지어 다항식 가상 제약 출력 y를 구동하며, y = 0을 강제하면 추력기 증강 영동역학이 얻어진다."}, {"type": "formula", "label": "식 (7) — 추력기 증강 영동역학", "latex": "\\dot{\\alpha} = \\kappa_1(\\alpha)\\sigma_N, \\qquad \\dot{\\sigma}_N = \\kappa_2(\\alpha) + b_N F_T", "description": "보행 타이밍 alpha와 지지발 각운동량 sigma_N으로 표현되는 영동역학 다양체 상의 제한 동역학이며, 추력 F_T가 가산적으로 들어가 추력기 동역학에 대한 어떠한 가정도 하지 않는다."}, {"type": "bullet", "text": "추력기는 보통 보행 동역학보다 훨씬 빠르므로 시스템은 두 시간 척도 종속으로 분석되며, 접촉 없는 영동역학이 이미 극한 주기를 가질 때 횡단 수축 결과가 안정 극한 주기를 보장한다.", "figure_refs": [4]}]}, "experiment": {"content": [{"type": "bullet", "text": "시뮬레이션은 지지발이 지면에 고정되고 보행 타이밍 변수 alpha를 갖는 3-링크 보행 모델을 사용하며, 추력기는 2차 선형 시스템으로 모델링된다.", "figure_refs": [3]}, {"type": "bullet", "text": "추력을 0에서 -50 N까지(−10 N 단위) 천천히 변화시키면 극한 주기에 두 가지 효과가 나타난다: 속도축 방향 이동과 둘러싼 면적 감소이다.", "figure_refs": [2, 4]}, {"type": "bullet", "text": "면적 감소는 보행의 위치 에너지 장벽이 추력기 작용과 무관하기 때문에 발생하며, 더해진 추력기 에너지가 명목 속도 손실을 총 에너지에 덜 유의미하게 만든다."}, {"type": "formula", "label": "식 (11) — 점별 추력 변화 하의 푸앵카레 고정점", "latex": "\\zeta^* = \\zeta_0^* + \\sum_{j=1}^{n-1} b_F(\\alpha_{j+1},\\alpha_j)\\,T_j", "description": "보행 타이밍 노드에서 가해지는 순간 추력 크기 T_j가 b_F-가중되어 푸앵카레 고정점을 이동시키며, 선형 제약 하에서 임의의 원하는 고정점을 허용한다."}, {"type": "bullet", "text": "형성은 네 보행 지점(n=4)에서 추력 크기를 0에서 50 N까지 단계적으로 조정하여 시연하며, 시작/끝 고정점이 일치하도록 노드를 선택한다.", "figure_refs": [5, 6]}, {"type": "bullet", "text": "충격력은 반발 없음과 미끄러짐 없음으로 비고정(unpinned) 충격 동역학을 적분하여 계산하며, 추력기는 충격성 신호를 만들 수 없으므로 충격 시점의 추력 값은 충격력에 영향을 주지 않는다."}, {"type": "formula", "label": "식 (21a) — 추력에 아핀인 지지 접촉력", "latex": "F_r = \\Lambda_2(\\alpha)F_T + \\Lambda_1(\\alpha)\\zeta^* + \\Lambda_0(\\alpha)", "description": "유각 단계 지지발 접촉력은 추력 F_T에 대해 아핀이고 zeta에 대해 선형이며, Lambda 함수는 alpha의 다항식으로 근사되어 온라인 최적화기에서 실현 가능성 제약으로 사용된다."}]}, "discussion": {"content": [{"type": "bullet", "text": "계층적 설계는 먼저 표준 보행 설계 방법으로 내부 동역학을 횡단 수축적으로 만든 뒤, 추력기를 적용하여 제한 영동역학을 조정한다.", "figure_refs": [4]}, {"type": "bullet", "text": "보행 극한 주기는 위상 초상(phase portrait) 내 각 보행 타이밍 포락선에 제한된 벡터장의 추력기 보조 변형으로 조정 가능하다."}, {"type": "bullet", "text": "추력기가 일방향 접촉력 제약을 쉽게 위반할 수 있어 특별한 주의가 필요하므로, 연속 및 이산(충격) 단계 모두에서의 접촉력을 분석한다."}, {"type": "bullet", "text": "제약 함수는 명목 보행에 대해 사전 계산할 수 있으므로, 추력기로 명목 보행을 개선하는 온라인 제어 프레임워크에서도 접촉력 실현 가능성을 강제할 수 있다."}, {"type": "bullet", "text": "이론적 극한 주기 존재 결과는 로봇 차원에 무관하다고 주장되며, 단순한 시연 모델에도 불구하고 5-링크 이상 더 복잡한 평면 보행기에도 유효하다."}, {"type": "bullet", "text": "느린 보행에서는 추력기 동역학이 내부 동역학에 비해 빠르지만, 민첩한 달리기/점프는 비슷한 시간 척도의 기술을 요구하며, 이는 추력기 동역학을 일반 시간 함수로 다루어 처리한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 연구는 추력기 보조 이동으로 역량이 강화된 다리 로봇 설계에 기여하여, 육상과 공중을 헤쳐 나가는 로봇을 지향한다."}, {"type": "bullet", "text": "추력기는 피드백 설계 유연성을 더하는 강력한 도구로 시연되며, 두 시나리오로 고려된다: 내부 동역학에 비해 느린 추력기 또는 빠른 추력기이다."}, {"type": "bullet", "text": "추력기가 보행 극한 주기에 미치는 영향을 탐구하고, 강한 엽층을 갖춘 중심 다양체 형성에 기반한 새로운 설계 패러다임을 제안한다."}, {"type": "bullet", "text": "일방향 접촉력 실현 가능성 조건이 최적 제어 기법에서 해결된다."}, {"type": "bullet", "text": "추력기 동역학이 로봇 영동역학보다 훨씬 빠를 때, 폐루프 시스템은 추력기 파라미터 변화가 극한 주기를 형성하는 두 시간 척도 문제로 다룰 수 있다."}, {"type": "bullet", "text": "명시된 장기 목표는 다리와 추력기를 협력적으로 활용하여 비정형 육상-공중 환경을 헤쳐 나가는 로봇의 개발이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "느린 추력기 두 시간 척도 처리는 두 하위 시스템 모두에 대한 비슷한 동역학 기술을 요구하는 달리기와 점프 같은 빠르고 민첩한 기동을 직접 다루지 못한다.", "source_quote": "While the thruster dynamics are considerably fast when compared to the internal dynamics for slow walking feats, faster and agile maneuvers such as running and jumping demand reasonably comparable dynamical descriptions of both sub-systems.", "source_section": "method"}], "future_works": [{"claim": "다리와 추력기를 협력적으로 활용하여 육상과 공중에 걸친 비정형 환경을 헤쳐 나갈 수 있는 로봇을 개발한다.", "source_quote": "Our long-term goal is the development of robots capable of negotiating unstructured environments, including land and air, by leveraging legs and thrusters collaboratively.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["하이브리드 다리-공중 이동성은 제한적 수준에서만 고려되어 왔으며, 다리-바퀴 또는 비행-기어가기 설계는 두 이동 양식을 거의 통합하지 못한다.", "공중 또는 유체 기반 이동의 축소 차수 모델은 복잡한 유체-구조 상호작용으로 인해 대체로 미해결로 남아 있다.", "성공적인 이족 및 휴머노이드 로봇조차 넘어지기 쉬우므로, 다리 이동의 견고성은 여전히 개선이 필요하다."], "addressed_by_this_work": ["추력기는 피드백 설계 유연성을 더하고 중심 다양체 형성을 통해 보행 극한 주기를 재형성하여 견고성을 개선하는 강력한 도구임이 입증된다.", "두 시간 척도 계층적 설계와 추력기 작용을 포함한 영동역학 유도가 추력기 증강 이족 로봇의 다루기 쉬운 모델을 제공한다.", "연속 및 충격 단계에서의 일방향 접촉력 실현 가능성 조건이 최적 제어 기법에서 추력에 아핀인 제약으로 해결된다."], "remaining_unresolved": ["유체/공기역학적 상호작용의 축소 차수 모델은 대체로 미해결로 남아 있으며, 본 연구는 완전한 유체-구조 모델 대신 단순화된 일정 또는 기구학적 추력 모델을 사용한다.", "검증이 단순 평면 시뮬레이션 모델에서만 이루어져, 실제 하이브리드 다리-공중 로봇에서의 견고성은 입증되지 않는다.", "비슷한 시간 척도의 추력기 모델링을 요하는 빠르고 민첩한 기동(달리기, 점프)은 완전히 다루어지지 않는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

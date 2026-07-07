@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Free as a Bird: Event-Based Dynamic Sense-and-Avoid for Ornithopter Robot Flight</title>
+    <meta name="keywords" content="event camera, ornithopter, flapping-wing robot, dynamic obstacle avoidance, sense-and-avoid, optical flow, reactive control, aerial robotics, collision avoidance, onboard perception">
+    <meta name="paper-authors" content="Juan Pablo Rodriguez-Gomez, Raul Tapia, Maria del Mar Guzman Garcia, Jose Ramiro Martinez-de Dios, Anibal Ollero">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters, Vol. 7, No. 2, pp. 5413-5420, 2022 · DOI: 10.1109/LRA.2022.3153904">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Free as a Bird: Event-Based Dynamic Sense-and-Avoid for Ornithopter Robot Flight</div>
+                <span class="tier-badge tier-1">Tier 1 — Top</span>
+            </div>
+            <div class="authors">Juan Pablo Rodriguez-Gomez, Raul Tapia, Maria del Mar Guzman Garcia, Jose Ramiro Martinez-de Dios, Anibal Ollero</div>
+            <div class="journal">IEEE Robotics and Automation Letters, Vol. 7, No. 2, pp. 5413-5420, 2022 · DOI: 10.1109/LRA.2022.3153904</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">Paper Summary</div>
+            <div class="summary">This paper presents the first fully onboard <span class="term">event-based dynamic sense-and-avoid</span> system designed specifically for large-scale <span class="term">ornithopter</span> (flapping-wing) robots, a platform category with severe payload and computational constraints that prior work had largely ignored. The system exploits the microsecond temporal resolution and high dynamic range of <span class="term">event cameras</span> to detect moving obstacles via spatio-temporal event filtering, estimate their optical flow, and evaluate collision risk using robot-geometry constraints — all running event-by-event on a single lightweight onboard computer at 250 Hz. A reactive <span class="term">tail control</span> law fuses a velocity-opposite evasion command with a linearized ornithopter model to produce fast, dynamics-aware deflection commands. Indoor and outdoor experiments on the GRIFFIN E-Flap robot with obstacles of varied sizes and lighting conditions demonstrate an average obstacle avoidance success rate of 89.7%, validating the practical viability of event-based perception for agile bio-inspired flight.</div>
+            <div class="keywords"><span class="keyword-chip">event camera</span><span class="keyword-chip">ornithopter</span><span class="keyword-chip">flapping-wing robot</span><span class="keyword-chip">dynamic obstacle avoidance</span><span class="keyword-chip">sense-and-avoid</span><span class="keyword-chip">optical flow</span><span class="keyword-chip">reactive control</span><span class="keyword-chip">aerial robotics</span><span class="keyword-chip">collision avoidance</span><span class="keyword-chip">onboard perception</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The introduction motivates event-based sense-and-avoid for ornithopters by highlighting the unique perception challenges of flapping-wing flight: severe mechanical vibrations, strict payload limits that preclude powerful hardware, and the need for fast onboard detection of unexpected dynamic obstacles. It contrasts ornithopters with multirotors to argue that existing quadrotor-oriented event-based avoidance methods cannot be directly applied, and positions this work as the first to address the gap.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The related work section surveys reactive obstacle avoidance approaches for MAVs, contrasting map-based and map-less strategies, then reviews prior event-camera applications in aerial robotics (optical flow, landing, visual servoing, intruder detection). It concludes by comparing the proposed method against three state-of-the-art event-based dynamic avoidance methods for quadrotors [8]–[10], systematically identifying why all three are unsuitable for ornithopters.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The method section describes a three-module pipeline (Dynamic Object Motion Estimation, Collision Risk Evaluation, Tail Control) that processes events asynchronously. The <span class="term">Time Filter</span> uses a velocity-adaptive threshold to isolate events from moving objects; <span class="term">ABMOF</span> optical flow with corner filtering estimates their motion direction; a geometry-based collision risk evaluator determines whether an evasive maneuver is necessary; and a reactive tail controller fuses a velocity-opposite command with a linearized ornithopter model to command efficient evasion.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Experiments are conducted on the GRIFFIN E-Flap ornithopter (95 cm length, 1.5 m wingspan, 510 g) equipped with a DAVIS346 event camera and Khadas VIM3 onboard computer in a 15 × 21 × 8 m OptiTrack indoor testbed and an outdoor soccer field. Evaluation covers obstacle detection accuracy (three object sizes, distances 0.5–6 m) and full sense-and-avoid success rate (indoor and outdoor, regular and dark lighting, with and without actual collision trajectories).</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The discussion is integrated within the experiment section and the conclusion rather than a separate section. Key points address the trade-offs of the time threshold design, the conservative geometry parameters, and the comparison of the proposed approach against prior quadrotor-based event methods in Table I, emphasizing the single-camera, single-board architecture and event-by-event latency advantages.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The conclusion reaffirms that this is the first event-based obstacle avoidance system for large-scale flapping-wing robots, summarizing the key results (89.7% average success rate, 250 Hz operation on low-power hardware) and the method's core enablers (event-by-event processing, single event camera, velocity-adaptive filtering). Two concrete future directions are stated: extension to other agile platforms, and development of a complementary map-based static obstacle avoidance module.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction",
+            related_works: "Related Works",
+            method:        "Method",
+            experiment:    "Experiment",
+            discussion:    "Discussion",
+            conclusion:    "Conclusion"
+        };
+
+        const FIG_PREFIX = "Fig";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "<span class=\"term\">Ornithopters</span> (flapping-wing robots) combine agile maneuvering with energy-efficient gliding modes and are constructed from soft materials, making them inherently safer than multirotors on collision. These properties motivate autonomous flight research, but also introduce unique perception challenges.", "figure_refs": []}, {"type": "bullet", "text": "The primary perception challenges for ornithopters are: (1) mechanical vibrations and abrupt body motions from the flapping stroke that corrupt onboard sensor data, and (2) strict payload and energy budgets that preclude carrying powerful processors, mechanical stabilizers (e.g., gimbals), or multiple sensors.", "figure_refs": []}, {"type": "bullet", "text": "Most reported ornithopter perception and control methods (e.g., [5], [6]) execute <span class=\"term\">offboard</span>, relying on external sensors such as motion capture systems, and thus cannot support true autonomous navigation in unstructured environments.", "figure_refs": []}, {"type": "bullet", "text": "<span class=\"term\">Event cameras</span> are identified as particularly suitable for ornithopter perception because they are robust to motion blur and lighting variations, have moderate weight and low energy consumption, and their microsecond temporal resolution is well-matched to the high-rate processing needed for fast-flight obstacle avoidance.", "figure_refs": []}, {"type": "bullet", "text": "This work targets specifically the avoidance of <span class=\"term\">unexpected dynamic obstacles</span> — objects not in any prior map — which require fast onboard detection and evasion that is fundamentally different from trajectory-planning-based static obstacle avoidance.", "figure_refs": []}, {"type": "bullet", "text": "The three stated main contributions are: (1) an event-based dynamic object motion estimation method designed for low-resource hardware; (2) a reactive obstacle avoidance method with low-latency onboard perception and control for large-scale ornithopters; and (3) experimental validation indoors and outdoors on a large-scale ornithopter.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "<span class=\"term\">Reactive obstacle avoidance</span> is categorized as map-based (builds a local obstacle-free map) or map-less (directly detects nearby obstacles and reacts). Map-less approaches are faster and more suitable for platforms with limited processing capacity, which motivates their use for ornithopters.", "figure_refs": []}, {"type": "bullet", "text": "Three key event-based dynamic avoidance methods for quadrotors are compared: [8] uses stereo event cameras with trajectory prediction; [9] (EvDodgeNet) uses deep learning with event images; and [10] uses motion compensation to detect moving objects and a potential field controller. None was designed for medium-to-high vehicle velocities.", "figure_refs": []}, {"type": "bullet", "text": "Methods [8]–[10] were validated only on hovering quadrotors or those moving at up to 1.5 m/s (for [10]), whereas ornithopters require a minimum flight speed of approximately 3 m/s, meaning the majority of triggered events originate from the robot's own motion rather than obstacle motion — substantially complicating detection.", "figure_refs": []}, {"type": "bullet", "text": "Hardware incompatibility is a decisive barrier: methods [9] and [10] require a powerful embedded computer plus a separate flight board and autopilot; [8]–[10] all use two event cameras. The combined computational and weight demands cannot be accommodated within the ornithopter payload envelope.", "figure_refs": []}, {"type": "bullet", "text": "Methods [9] and [10] use <span class=\"term\">event images</span> (accumulated event histograms) for moving object segmentation, which introduces a processing delay equal to or greater than the image accumulation window — a latency that is problematic at medium-high ornithopter speeds. The proposed work instead uses <span class=\"term\">event-by-event processing</span> to exploit the inherent asynchrony of event cameras.", "figure_refs": []}, {"type": "bullet", "text": "Prior ornithopter perception work includes optical flow for MAV flapping-wing robots [15], appearance-variation obstacle avoidance with monocular cameras offloaded to a ground station [16], and stereo-disparity obstacle avoidance for small-scale ornithopters [17]. None of these operates onboard a large-scale ornithopter using event cameras.", "figure_refs": []}, {"type": "bullet", "text": "Event cameras have been explored for ornithopter perception in dataset collection [23] and visual guidance [24], and for agile quadrotor applications including drone racing [20] and autonomous flight under rotor failure [21], demonstrating the sensor's suitability for high-speed aerial robots.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "Each event is defined by the tuple $e = (x, t_s, p)$, where $x = (u, v)$ are pixel coordinates, $t_s$ is the microsecond timestamp, and $p \\in \\{+1, -1\\}$ is the polarity. The <span class=\"term\">Surface of Active Events (SAE)</span> $S \\in \\mathbb{R}^2$ maps pixel coordinates to the timestamp of the most recent event at that location, providing a 2D representation of event activity.", "figure_refs": [3]}, {"type": "bullet", "text": "The <span class=\"term\">Time Filter</span> classifies an incoming event $e_k$ as belonging to a moving object if the time difference $\\Delta t_s$ between $t_{s_k}$ and $S(x_k)$ is less than the dynamic threshold $\\tau$. After each detection, $S(x_k)$ is updated to $t_{s_k}$ for future evaluations.", "figure_refs": [3, 4]}, {"type": "formula", "label": "Eq. (1) — velocity-adaptive time threshold tau", "latex": "\\begin{pmatrix} \\tau_{v_z} \\\\ \\tau_{\\omega_x} \\end{pmatrix} = \\begin{pmatrix} \\tau_H \\\\ \\tau_H \\end{pmatrix} - (\\tau_H - \\tau_L) \\begin{pmatrix} (v_z - v_L)(v_H - v_L)^{-1} \\\\ (\\omega_x - \\omega_L)(\\omega_H - \\omega_L)^{-1} \\end{pmatrix}", "description": "The time threshold $\\tau = \\alpha \\tau_{v_z} + (1-\\alpha)\\tau_{\\omega_x}$ combines contributions from the robot's forward velocity $v_z$ and pitch angular rate $\\omega_x$, linearly interpolated over operational ranges $[v_L, v_H]$ and $[\\omega_L, \\omega_H]$. The mixing parameter $\\alpha \\in [0,1]$ weights the two components; $\\alpha = 0.8$ was used in experiments since the robot primarily moves forward."}, {"type": "bullet", "text": "The <span class=\"term\">Corner Detector</span> module applies the *eFast event corner detector* [29] to the time-filtered events, providing stable feature points for optical flow computation. Processing only corners reduces the computational cost by more than 25% compared to processing all events, while maintaining stable flow estimates.", "figure_refs": [3]}, {"type": "bullet", "text": "Optical flow is computed using an adapted <span class=\"term\">ABMOF</span> (Adaptive Time-slice Block-Matching Optical Flow) algorithm [28], which operates on 2D event slices (histograms accumulated over time window $d$). The adaptation feeds ABMOF only with corner events from moving objects, reducing the processed event stream to less than 32% of the total, enabling real-time execution on resource-constrained hardware.", "figure_refs": [3]}, {"type": "bullet", "text": "Flow estimates are clustered using an adapted version of the event-by-event spatio-temporal clustering algorithm from [30]. Each cluster is characterized by its centroid $\\bar{x}$, average optical flow $\\bar{v}$, and a temporal list $\\Phi$ of assigned tuples. New samples update the running mean via an online averaging rule, and stale samples (timestamps older than lifetime $\\tau_c$, initially set to 5 ms) are removed.", "figure_refs": [3]}, {"type": "formula", "label": "Eq. (2) — online cluster flow mean update (add sample)", "latex": "\\bar{v} := \\frac{\\eta}{\\eta+1}\\bar{v} + \\frac{1}{\\eta+1}v", "description": "Incremental update rule for the cluster's mean optical flow $\\bar{v}$ when a new flow estimate $v$ is assigned to a cluster of size $\\eta$. This allows efficient online estimation without storing all historical samples."}, {"type": "formula", "label": "Eq. (3) — online cluster flow mean update (remove stale sample)", "latex": "\\bar{v} := \\frac{\\eta}{\\eta-1}\\bar{v} - \\frac{1}{\\eta-1}v^\\dagger", "description": "Removal rule for a stale sample $v^\\dagger$ (flow measurement with timestamp older than $\\tau_c$) from the cluster mean, where $\\eta$ is the current cluster size."}, {"type": "bullet", "text": "The <span class=\"term\">Collision Risk Evaluation Strategy</span> approximates the ornithopter as a $2W \\times 2H$ safety volume and each obstacle as a sphere of radius $R' = R + b$, where $b$ is a safety distance margin accounting for sensing uncertainty. Collision risk exists when the obstacle angular position $(\\psi, \\theta)$ falls within minimum avoidance angles computed from obstacle depth $z(t)$.", "figure_refs": [5]}, {"type": "formula", "label": "Eq. (4) — minimum avoidance angles psi* and theta*", "latex": "\\psi^*(t) = \\arctan\\frac{W + 2R'}{z(t) - 2R'}, \\quad \\theta^*(t) = \\arctan\\frac{H + 2R'}{z(t) - 2R'}", "description": "The minimum azimuth angle $\\psi^*$ and elevation angle $\\theta^*$ that the obstacle direction must exceed for the robot to pass safely. If $|\\psi(t_1)| \\leq |\\psi^*(t_1)|$ and $|\\theta(t_1)| \\leq |\\theta^*(t_1)|$, a collision may occur along the current trajectory and an evasive maneuver is activated."}, {"type": "bullet", "text": "Obstacle depth $z(t)$ can be obtained in three ways depending on available information: (1) direct measurement from a time-of-flight sensor when $z(t)$ and $R$ are known; (2) estimation via $z(t) = \\lambda R / L(t)$ when only $R$ is known (focal length $\\lambda$, bounding box side $L(t)$); or (3) any detected obstacle triggers evasion unconditionally when neither $z(t)$ nor $R$ is known.", "figure_refs": [5]}, {"type": "bullet", "text": "The <span class=\"term\">Tail Control</span> law produces a reactive control action $u_{\\text{react}}$ in the opposite direction of the detected obstacle optical flow $\\bar{v}$, with magnitude scaling controlled by gains $\\kappa_0$ and $\\kappa_1$. This is augmented by a model-based increment $\\Delta u_{\\text{model}}$ computed via a linearized ornithopter model [31] to select the tail deflection producing maximum acceleration in the evasion direction.", "figure_refs": []}, {"type": "formula", "label": "Eq. (5) — reactive tail control law", "latex": "u_{\\text{react}} = -(\\kappa_0 + \\kappa_1 \\|\\bar{v}\\|) \\circ \\bar{v}", "description": "The reactive evasion command $u_{\\text{react}} = [\\delta_e^{\\text{react}}, \\delta_r^{\\text{react}}]^T$ contains the elevator ($\\delta_e$) and rudder ($\\delta_r$) tail deflections. The Hadamard product $\\circ$ applies element-wise gain, with $\\kappa_0$ providing a base gain and $\\kappa_1$ scaling with obstacle speed $\\|\\bar{v}\\|$."}, {"type": "bullet", "text": "The final deflection command is $u = u_{\\text{react}} + \\Delta u_{\\text{model}}$, where $\\Delta u_{\\text{model}}$ is searched over a discretized $\\pm 10^\\circ$ range around $u_{\\text{react}}$ for both longitudinal and lateral axes using the linearized ornithopter model. Deflection values are constrained per [32] to avoid aerodynamic stall.", "figure_refs": []}, {"type": "bullet", "text": "<span class=\"term\">ASAP</span> (Adaptive Scheme for Asynchronous Processing) [26] dynamically adapts event package sizes to prevent computational overflow while ensuring the control loop closes at 250 Hz. Despite event-by-event processing logic, the camera driver delivers events in packages; ASAP ensures these are processed as fast as possible without queue buildup.", "figure_refs": [2]}]}, "experiment": {"content": [{"type": "bullet", "text": "The experimental platform, the <span class=\"term\">E-Flap robot</span>, has a total length of 95 cm, a wingspan of 1.5 m, and a weight of 510 g with a maximum payload of 520 g. The onboard computer is a Khadas VIM3 (low-cost ARM-based SBC), chosen to respect the weight balance required for stable ornithopter flight.", "figure_refs": []}, {"type": "bullet", "text": "Three obstacle sizes were tested: a Small Box (220 × 200 × 150 mm), a Stuffed Toy (400 × 450 × 400 mm), and a FitBall (750 mm diameter). Obstacles were thrown from distances ranging from 0.5 m to 6 m during forward ornithopter flight. Distances below 0.5 m caused the obstacle to fill a large image zone leading to invalid detections; distances above ~4 m caused small objects to trigger too few events.", "figure_refs": [6]}, {"type": "bullet", "text": "The time threshold parameters were empirically set to $\\tau_L = 15$ ms and $\\tau_H = 25$ ms, with velocity range $v_L = 3$ m/s, $v_H = 6$ m/s, $\\omega_L = 1.3$ rad/s, $\\omega_H = 3$ rad/s, and $\\alpha = 0.8$. This configuration provided obstacle detection distances up to 6 m while filtering 82% of background-triggered events.", "figure_refs": []}, {"type": "bullet", "text": "The single-obstacle detection evaluation (45 experiments per obstacle type, using APS sensor frames as ground truth) achieved an <span class=\"term\">overall accuracy of 91.7%</span>, an average Precision of 95.1%, a True Positive Rate (TPR) of 88.5%, and a False Positive Rate (FPR) of 4.2%. Performance was best at distances of 2–4 m (accuracy above 94.7%).", "figure_refs": [7]}, {"type": "bullet", "text": "Multi-obstacle experiments with three objects thrown simultaneously achieved an accuracy of 74.2%, with the main degradation caused by overlapping obstacle projections in the image plane merging clusters and producing False Positives. Despite this drop, the authors consider the result satisfactory for a single-camera system.", "figure_refs": []}, {"type": "bullet", "text": "Motion estimation accuracy was evaluated over 30 experiments with obstacles launched from 8 m distance. The <span class=\"term\">Root Mean Square Error (RMSE) of direction estimation was 11.2°</span>, with mean error 6.97°, mean standard deviation 3.89°, and maximum instantaneous error 19.54°. The safety distance margin $b$ was used to absorb this estimation uncertainty.", "figure_refs": [8]}, {"type": "bullet", "text": "Full sense-and-avoid experiments evaluated ISV (Intersection of Safety Volumes) scenarios — where an actual collision would occur without evasion — and non-ISV scenarios. For ISV tests (25 experiments per obstacle with regular and dark illumination), the average avoidance <span class=\"term\">success rate was 90.7%</span>. The FitBall yielded the best results due to its large size enabling earlier collision risk detection.", "figure_refs": []}, {"type": "bullet", "text": "Non-ISV experiments (20 experiments with the Small Box) showed that in 85% of flights without actual collision trajectories the system correctly performed no evasive maneuver; the remaining 15% triggered unnecessary evasion due to the conservative obstacle radius $R'$ enlargement, with false activations increasing further under dark illumination from noisy events.", "figure_refs": []}, {"type": "bullet", "text": "Outdoor experiments in a soccer field (48 × 54 m) without motion capture — with visual collision assessment — achieved a sense-and-avoid success rate of 92.0% under regular illumination and 85.3% under dark conditions, confirming the system's robustness to environment variations. The overall average across all scenarios was 89.7%.", "figure_refs": []}]}, "discussion": {"content": [{"type": "bullet", "text": "The time threshold $\\tau$ embodies a fundamental <span class=\"term\">trade-off</span>: a large $\\tau$ detects distant obstacles but admits more background noise; a small $\\tau$ filters aggressively but reduces detection range. The selected range $[\\tau_L, \\tau_H] = [15, 25]$ ms was validated to detect obstacles up to 6 m while filtering 82% of background events.", "figure_refs": []}, {"type": "bullet", "text": "The conservative choice of the safety radius $R' = R + b$ deliberately enlarges the effective obstacle volume to absorb the 11.2° RMSE motion direction error. While this improves collision safety, it also increases the rate of unnecessary evasive maneuvers in non-ISV scenarios (15% false activation rate).", "figure_refs": []}, {"type": "bullet", "text": "Compared with quadrotor event-based methods [8]–[10], the proposed system runs on a single lightweight onboard computer (Khadas VIM3) with one camera, versus the dual-camera, multi-board setups of competitors. This hardware efficiency is the direct enabler of ornithopter deployment.", "figure_refs": []}, {"type": "bullet", "text": "The event-by-event processing strategy is shown to provide shorter obstacle detection times than methods that wait for event image accumulation before processing. At ornithopter operating speeds (3–6 m/s), even small latency reductions translate to meaningful additional reaction distance.", "figure_refs": []}, {"type": "bullet", "text": "The motion direction RMSE of 11.2° is described as a <span class=\"term\">reasonable error</span> for guiding the robot into a collision-free direction, implying that exact obstacle velocity estimation is not required for effective reactive avoidance — geometric safety margins compensate for estimation inaccuracy.", "figure_refs": []}, {"type": "bullet", "text": "Dark illumination consistently degraded performance across all evaluation metrics (detection, ISV success, outdoor success) due to increased noise in the DVS signal. This is identified as a limitation of the current approach under adverse lighting, though the event camera's inherent high dynamic range ($\\sim$120 dB) provides better robustness than frame cameras in the same conditions.", "figure_refs": []}, {"type": "bullet", "text": "The multi-obstacle scenario accuracy of 74.2% represents a significant gap from the single-obstacle accuracy of 91.7%, and the authors acknowledge this is caused by cluster merging when obstacles overlap in the image — a structural limitation of the current single-camera 2D clustering approach that requires future attention.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "The paper claims the status of the <span class=\"term\">first event-based obstacle avoidance system for large-scale flapping-wing robots</span>, with experimental validation in both indoor and outdoor scenarios across multiple obstacle sizes, shapes, and lighting conditions.", "figure_refs": []}, {"type": "bullet", "text": "The system achieves an average avoidance success rate of 89.7% and operates at 250 Hz on low-power onboard hardware, demonstrating practical viability for real ornithopter deployment without offboard computation.", "figure_refs": []}, {"type": "bullet", "text": "Event-by-event processing is highlighted as the key differentiator enabling high-rate control loop closure even on resource-constrained hardware, as it eliminates the batch accumulation step present in frame-based and event-image-based methods.", "figure_refs": []}, {"type": "bullet", "text": "The velocity-adaptive time threshold $\\tau$ is described as the mechanism that makes the system generalize across ornithopter flight conditions — automatically adjusting detection sensitivity as the robot's speed and angular rate change during flight.", "figure_refs": []}, {"type": "bullet", "text": "Future work is explicitly directed toward two goals: (1) validating the method on other agile robots beyond the E-Flap, and (2) developing and integrating a map-based static obstacle avoidance method to complement the dynamic avoidance capability and form a complete obstacle avoidance system.", "figure_refs": []}, {"type": "bullet", "text": "The broader implication is that event cameras, combined with algorithm designs that respect the tight payload and computational constraints of bio-inspired aerial platforms, can enable autonomous obstacle avoidance capabilities previously thought impractical for ornithopters — advancing the state of the art in bio-inspired aerial robotics.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "The multi-obstacle detection accuracy degrades significantly when multiple obstacles overlap in the image plane, causing cluster merging and false positives.", "source_quote": "The performance reduction was caused by the generation of False Positive samples when the obstacles overlapped in the image plane, which tended to merge clusters hampering the individual detection of objects.", "source_section": "experiment"}, {"claim": "The system cannot predict collisions when neither the obstacle depth nor its physical size is known, forcing an unconditional evasive maneuver on any detection.", "source_quote": "If neither z(t) nor R are known, the collision risk cannot be predicted. Thus, any detected obstacle triggers an evasive maneuver.", "source_section": "method"}, {"claim": "Small obstacles at distances greater than 4 m trigger too few events to be reliably detected, limiting the effective sensing range for small objects.", "source_quote": "The distance directly affected the detection performance specially with small objects at distances >4 m. At such distances, small objects triggered few events hampering object detection.", "source_section": "experiment"}, {"claim": "The current system covers only dynamic obstacle avoidance; static obstacle avoidance is not addressed and is left for future work.", "source_quote": "the development of a map-based method for the avoidance of static obstacles and its integration in a complete obstacle avoidance system for static and dynamic objects are object of future research.", "source_section": "conclusion"}], "future_works": [{"claim": "The authors plan to validate the proposed method on other agile robot platforms beyond the E-Flap ornithopter.", "source_quote": "Future work includes the validation of our method in other agile robots.", "source_section": "conclusion"}, {"claim": "A map-based static obstacle avoidance method will be developed and integrated with the dynamic scheme to form a complete avoidance system.", "source_quote": "Further, the development of a map-based method for the avoidance of static obstacles and its integration in a complete obstacle avoidance system for static and dynamic objects are object of future research.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["Ornithopters have strict payload, energy, and computational constraints that make it difficult to mount powerful processing hardware or multiple sensors needed by existing avoidance methods.", "Flapping-wing flight induces strong mechanical vibrations and abrupt body movements that generate spurious events from the static background, complicating dynamic obstacle detection.", "Prior event-based obstacle avoidance methods were designed for quadrotors hovering or moving slowly (up to 1.5 m/s) and are unsuitable for ornithopters that must maintain a minimum speed of 3 m/s and have fundamentally different dynamics.", "Existing event-based methods accumulate events into images before processing, introducing latency that is problematic at the medium-to-high flight speeds of ornithopters.", "No prior work had demonstrated event-based dynamic obstacle avoidance on a flapping-wing robot."], "addressed_by_this_work": ["A lightweight pipeline using a single DAVIS346 event camera and a low-cost Khadas VIM3 computer satisfies ornithopter payload restrictions while closing the control loop at 250 Hz.", "A dynamic time threshold $\\tau$ parameterized by the robot's forward velocity and pitch angular velocity filters out background events caused by the ornithopter's own motion, enabling reliable moving-object detection.", "The full system — Time Filter, Corner Detector, ABMOF optical flow, clustering, collision risk evaluation, and tail control — is co-designed for ornithopter kinematics and dynamics, validated at flight speeds of 3–6 m/s.", "Event-by-event processing exploiting the asynchronous nature of event cameras eliminates the frame-accumulation latency of competing methods, providing shorter obstacle detection times.", "The system is experimentally validated on the GRIFFIN E-Flap ornithopter in indoor and outdoor scenarios achieving 89.7% average avoidance success rate, constituting the first reported event-based dynamic obstacle avoidance for flapping-wing robots."], "remaining_unresolved": ["Static obstacle avoidance is not addressed; the authors explicitly state that a map-based static avoidance method and its integration with the dynamic scheme are future work.", "Multi-obstacle scenarios where objects overlap in the image plane cause cluster merging and performance degradation (74.2% accuracy for three simultaneous obstacles vs. 91.7% single obstacle), and no solution is proposed.", "The method's generalizability to other agile robot types beyond the specific E-Flap platform has not yet been demonstrated."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "Limitations",
+            future_works:   "Future Works",
+            motivation:     "Motivation Resolution",
+            mot_problems:   "Motivating Problems",
+            mot_addressed:  "Addressed by This Work",
+            mot_remaining:  "Remaining Unresolved"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

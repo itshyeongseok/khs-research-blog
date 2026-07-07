@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning to Walk via Deep Reinforcement Learning</title>
+    <meta name="keywords" content="deep reinforcement learning, legged locomotion, maximum entropy RL, soft actor-critic, automatic temperature tuning, sample efficiency, real-world robot learning, Minitaur">
+    <meta name="paper-authors" content="Tuomas Haarnoja, Sehoon Ha, Aurick Zhou, Jie Tan, George Tucker, Sergey Levine">
+    <meta name="paper-journal" content="Robotics: Science and Systems (RSS) XV, 2019 · arXiv:1812.11103">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning to Walk via Deep Reinforcement Learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Tuomas Haarnoja, Sehoon Ha, Aurick Zhou, Jie Tan, George Tucker, Sergey Levine</div>
+            <div class="journal">Robotics: Science and Systems (RSS) XV, 2019 · arXiv:1812.11103</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 모델이나 시뮬레이션 없이 실세계 4족 <span class="term">Minitaur</span> 로봇에서 약 두 시간 만에 처음부터 보행 걸음새를 학습하는 샘플 효율적 심층 강화학습 알고리즘을 제시한다. 이는 탐험과 활용을 절충하는 온도 파라미터를 자동으로 조정함으로써 <span class="term">maximum entropy RL</span>(soft actor-critic)을 확장하여, 가장 민감한 과제별 하이퍼파라미터를 제거한다. 온도는 목표 기대 엔트로피를 향한 경사 하강으로 조정되며, 이는 이중 경사 하강으로 푸는 제약 MDP로 형식화된다. 비동기 학습 시스템은 데이터 수집, 보상 계산, 학습을 분리하여 하드웨어 고장에 견고하게 만든다. 평지에서만 학습된 결과 정책은 본 적 없는 지형으로 일반화되고 교란에 적당히 견고하며, 단일 하이퍼파라미터 집합으로 시뮬레이션 벤치마크에서도 최첨단 성능을 달성한다.</div>
+            <div class="keywords"><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">maximum entropy RL</span><span class="keyword-chip">soft actor-critic</span><span class="keyword-chip">automatic temperature tuning</span><span class="keyword-chip">sample efficiency</span><span class="keyword-chip">real-world robot learning</span><span class="keyword-chip">Minitaur</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">다리 보행 제어기 설계는 관례적으로 전문성과 정확한 동역학 모델을 요하는 오랜 난제이다. 이 논문은 자동 온도 조정으로 maximum entropy RL을 확장하여 실세계에서 직접 걸음새를 학습하는, 샘플 효율적이고 하이퍼파라미터에 견고한 심층 RL 알고리즘을 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 자신의 모델 프리 실세계 학습을, 상당한 사전 지식을 요하는 파이프라인 제어기, reality gap을 겪는 시뮬레이션 기반 심층 RL, 그리고 자신의 엔트로피 제약이 관련된 제약 MDP·KL 제약 형식화와 대비한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">알고리즘은 maximum entropy 목적함수를 최대화하고, 최소 기대 엔트로피를 제약으로 취급함으로써 온도를 자동 조정한다. 그 라그랑지안 완화는 이중 변수가 온도 역할을 하는 soft actor-critic 목적함수를 복원한다. soft Q 함수는 Bellman 형태의 회귀 손실 최소화로 학습되며, 비동기 시스템이 데이터 수집·보상 계산·학습을 별도 기계에서 실행한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">프레임워크는 Minitaur를 실세계에서 직접 걷도록 학습시키고 시뮬레이션 연속 제어 과제에서 벤치마킹하여 평가되었다. 실세계 학습은 약 두 시간 만에 견고한 걸음새를 산출했고, 시뮬레이션 결과는 단일 하이퍼파라미터 집합으로 이전 maximum entropy RL에 필적하거나 능가했다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 연구는 샘플 효율성, 견고성, 하이퍼파라미터 비민감성이 실세계 로봇 학습에 공동으로 필요하며, 자동 조정되는 온도로 기대 엔트로피를 제약하는 것이 이 셋을 모두 제공한다고 주장한다. 또한 확장성을 위한 최소 사전·종단간 기법의 가치를 짚으면서 재설정과 외부 감지에 대한 실용적 의존을 인정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 자동 온도 조정을 갖춘 maximum entropy 심층 RL 알고리즘이 시뮬레이션 없이 약 두 시간 만에 물리 로봇에서 직접 다리 보행을 학습할 수 있으면서도, 단일 구성으로 시뮬레이션 벤치마크에서 최첨단 결과에 도달할 만큼 하이퍼파라미터에 견고함을 입증한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "최첨단 보행 기법은 파이프라인 접근(상태 추정, 접촉 스케줄링, 궤적 최적화, 발 배치 계획, 모델 예측 제어)을 사용하며, 전문성과 로봇의 정확한 동역학 모델을 요구한다."}, {"type": "bullet", "text": "종단간 심층 RL은 걸음새나 로봇 동역학에 대한 사전 지식을 가정하지 않으며, 원칙적으로 명시적 system identification 없이 적용되어 제어기 설계를 자동화할 수 있다."}, {"type": "bullet", "text": "그러나 심층 RL을 실세계 걸음새 학습에 적용하는 것은 어렵다: 현재 알고리즘은 흔히 수만 회의 시도를 필요로 하고 하이퍼파라미터에 매우 민감하여 샘플 복잡도를 더욱 키운다."}, {"type": "bullet", "text": "저자들은 최첨단 샘플 효율과 견고성을 달성하지만 탐험과 활용을 절충하는 온도 파라미터에 민감한 maximum entropy RL(soft actor-critic, soft Q-learning)을 확장한다."}, {"type": "bullet", "text": "그들의 확장은 방문한 상태들에 대한 목표 기대 엔트로피를 향해 온도를 경사 기반으로 최적화함으로써 온도를 수동 조정할 필요를 없앤다."}, {"type": "bullet", "text": "이 방법은 상태별 엔트로피는 달라질 수 있게 두면서 상태에 대한 기대 엔트로피만 제어하여, 결정론적으로 행동하는 것이 선호되는 곳에서 정책이 자동으로 더 결정론적이 되게 한다."}, {"type": "bullet", "text": "주된 기여는 물리 로봇에서의 다리 보행을 위한 종단간 RL 프레임워크로, Minitaur를 평지에서 약 두 시간(약 400회 롤아웃) 만에 걷도록 학습시키되 본 적 없는 지형으로 일반화되는 정책으로 입증된다.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "MIT Cheetah와 ANYmal 같은 파이프라인 제어기는 상태 기계, 참조 궤적, 모델 예측 제어, 작업 공간 제어를 사용하여 효과적 걸음새를 제공하지만, 과제와 로봇 동역학에 대한 상당한 사전 지식을 요구한다."}, {"type": "bullet", "text": "대조적으로 제안 기법은 걸음새나 동역학 어느 쪽의 사전 지식도 없이 로봇을 제어하는데, 모든 학습이 전적으로 실세계 상호작용을 통해 이뤄지기 때문이다. 유일한 요구사항은 상태·행동 공간의 차원과 경계이다."}, {"type": "bullet", "text": "심층 RL은 시뮬레이션에서 보행을 학습하고 실제 로봇으로 전이하는 데 광범위하게 쓰였지만, 전이는 시뮬레이션 불일치로 인한 성능 손실을 불가피하게 수반하고 정확한 system identification을 요구한다."}, {"type": "bullet", "text": "실세계 RL 응용은 보통 단순하고 본질적으로 안정적인 로봇이나 저차원 걸음새 매개화에 의존한다. 이 연구는 대신 신경망 정책을 사용해 실세계에서 직접 보행 기술을 획득한다."}, {"type": "bullet", "text": "maximum entropy RL은 역강화학습부터 최적 제어까지 쓰여왔다. 그 이점은 학습 중 구조화된 잡음 주입이 더 넓은 탐험을 유발하여 비교적 견고한 정책을 낳는다는 것이지만, 엔트로피 가중치(온도)는 보통 휴리스틱하게 선택된다."}, {"type": "bullet", "text": "이 형식화는 제약 MDP의 한 사례로, 최근 제약 MDP 연구 및 반복 간 정책 변화를 제한하는 KL 발산 제약과 관련되되, 여기서는 제약이 현재 정책의 엔트로피에 직접 적용된다는 점이 다르다."}]}, "method": {"content": [{"type": "bullet", "text": "maximum entropy RL은 기대 수익과 정책의 엔트로피를 모두 최적화한다. 유한 지평 MDP의 경우 목적함수는 매 스텝 보상에 엔트로피 항을 더한다."}, {"type": "formula", "label": "Eq. (1) — maximum entropy objective", "latex": "J(\\pi) = \\sum_{t=0}^{T} \\mathbb{E}_{\\tau \\sim \\rho_\\pi}\\big[ r(s_t,a_t) - \\alpha \\log \\pi(a_t \\mid s_t) \\big]", "description": "온도 파라미터 $\\alpha$는 보상 대비 엔트로피 항의 상대적 중요도를 정하여 최적 정책의 확률성을 제어한다. 관례적 최대 보상 목적함수는 $\\alpha \\to 0$에서 복원된다."}, {"type": "bullet", "text": "최적 엔트로피가 (변화하는) 보상 크기에 의존하므로, 저자들은 대신 상태별 엔트로피는 달라지게 두면서 정책의 기대 엔트로피를 제약하여 제약 최적화 문제로 형식화한다."}, {"type": "formula", "label": "Eq. (2) — entropy-constrained objective", "latex": "\\max_{\\pi \\in \\Pi} \\; \\mathbb{E}_{\\tau \\sim \\rho_\\pi}\\Big[ \\sum_{t=0}^{T} r(s_t,a_t) \\Big] \\quad \\text{s.t.} \\quad \\mathbb{E}_{(s_t,a_t)\\sim\\rho_\\pi}\\big[ -\\log \\pi(a_t \\mid s_t) \\big] \\geq \\mathcal{H}, \\; \\forall t", "description": "매 시간 스텝의 기대 엔트로피가 적어도 목표 최솟값 $\\mathcal{H}$ 이상이라는 제약 하에 기대 수익을 최대화한다. 완전 관측 MDP의 수익 최적 정책은 결정론적이므로 제약은 보통 빠듯하게 작동한다."}, {"type": "bullet", "text": "라그랑지안 완화를 쓰고 이중 경사 하강으로 최적화하면, 고정된 이중 변수에 대해 라그랑지안이 maximum entropy 목적함수에서 상수를 뺀 것과 같음을 보일 수 있어, 임의의 기성 maximum entropy RL 알고리즘 — 구체적으로 soft actor-critic — 으로 최적화할 수 있다."}, {"type": "formula", "label": "Eq. (7) — automatic temperature update", "latex": "\\alpha_t \\leftarrow \\alpha_t + \\lambda_\\alpha\\, \\mathbb{E}_{(s_t,a_t)\\sim\\rho_{\\pi^{*}}}\\big[ \\log \\pi^{*}(a_t \\mid s_t) + \\mathcal{H} \\big]", "description": "온도는 학습률 $\\lambda_\\alpha$로 이중 목적함수의 음의 경사를 따라 이동한다. 이 자동 조정이 과제별 수동 온도 조정을 제거하는 핵심 기여이다."}, {"type": "formula", "label": "Eq. (8) — soft Q-function regression loss", "latex": "J_Q(\\theta_i) = \\mathbb{E}_{(s_t,a_t,s_{t+1})\\sim D}\\Big[ \\big( Q_{\\theta_i}(s_t,a_t) - (r(s_t,a_t) + \\gamma V_{\\theta_1,\\theta_2}(s_{t+1})) \\big)^2 \\Big]", "description": "두 매개화된 Q 함수가 재현 버퍼 $D$의 미니배치를 사용해 회귀 문제로 학습된다. 가치 함수는 Q 함수와 정책을 통해 암묵적으로 정의되어 가치 추정의 양의 편향을 완화한다."}, {"type": "bullet", "text": "비동기 학습 시스템은 세 구성요소를 서로 다른 기계에서 실행한다 — 최신 정책을 실행하는 데이터 수집 작업, 로봇의 측정 위치로부터 보상을 계산하는 모션 캡처 작업, 네트워크를 갱신하는 학습 작업 — 그래서 어느 하위 시스템도 다른 것에 영향 없이 일시 정지하거나 재시작할 수 있으며, 잦은 하드웨어·통신 오류를 감안하면 이는 유용하다."}]}, "experiment": {"content": [{"type": "bullet", "text": "Minitaur는 평지에서 직접 걷도록 학습되었다. 학습은 약 400회 롤아웃, 즉 실세계 시간 약 두 시간을 요했으며, 어떤 모델이나 시뮬레이션도 없었다."}, {"type": "bullet", "text": "평지에서만 학습되었음에도 학습된 정책은 본 적 없는 지형으로 일반화되고 교란에 적당히 견고하여, 학습 중 보지 못한 장애물도 처리한다.", "figure_refs": [1]}, {"type": "bullet", "text": "로봇의 관측은 관절 각도, IMU 측정치, 목표 모터 위치에 대응하며 행동은 목표 모터 위치이다. 유일한 요구사항은 상태·행동 공간의 차원과 경계에 대한 지식이다."}, {"type": "bullet", "text": "하드웨어·통신 오류가 잦기 때문에 비동기 설계가 실용적으로 필수임이 드러났다. 하위 시스템을 안전하게 재시작할 수 있고, 데이터 수집 작업을 추가하여 여러 로봇으로 확장된다.", "figure_refs": [2]}, {"type": "bullet", "text": "시뮬레이션 벤치마크 과제에서 알고리즘은 최첨단 성능을 달성하며, 이전 maximum entropy RL 연구와 달리 모든 과제에 정확히 동일한 하이퍼파라미터를 사용한다."}, {"type": "bullet", "text": "자동 온도 조정은 시뮬레이션 벤치마크와 로봇 보행 과제 양쪽에서 파라미터 조정의 수고를 극적으로 줄여, 핵심 설계 선택을 입증한다."}]}, "discussion": {"content": [{"type": "bullet", "text": "실세계에서 로봇 과제를 학습하려면 샘플 효율적이고 견고하며 하이퍼파라미터 선택에 둔감한 알고리즘이 필요하다. maximum entropy RL은 샘플 효율적이면서 견고하여 좋은 후보가 된다."}, {"type": "bullet", "text": "maximum entropy RL의 주된 난제 — 온도에 대한 민감성 — 은 학습 시점의 자동 온도 조정으로 극복되어, 심층 RL을 실세계 로봇 문제의 실행 가능한 해법으로 만든다."}, {"type": "bullet", "text": "엔트로피를 고정하는 대신 기대 엔트로피를 제약하면, 최적 행동이 불확실한 곳에서는 정책이 더 탐험하고 좋고 나쁜 행동이 명확히 구별되는 곳에서는 더 결정론적으로 남게 한다."}, {"type": "bullet", "text": "최소 사전 가정을 하는 종단간 기법은 폭넓게 적용 가능하다. 그러한 기법의 개발은 다양한 조건의 다양한 로봇에 대한 걸음새 획득을 확장 가능하게 하며, 학습을 가속하기 위해 추가 사전 지식을 더할 수도 있다."}, {"type": "bullet", "text": "실용적 유의점이 남는다: 학습은 로봇이 넘어지거나 자유 공간이 소진될 때 수동 재설정을 요하고, 보상은 외부 모션 캡처 시스템에 의존한다."}, {"type": "bullet", "text": "보상 척도가 온도의 역수이므로, 관례적 maximum entropy RL에서는 차선의 척도가 성능을 극적으로 저하시킬 수 있다 — 바로 자동 조정이 제거하도록 설계된 취약성이다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "주된 기여는 데이터 효율적 maximum entropy RL 알고리즘과 비동기 학습 시스템을 결합한, 물리 로봇에서의 다리 보행을 위한 종단간 RL 프레임워크이다."}, {"type": "bullet", "text": "자동 온도 조정은 과제별 하이퍼파라미터 조정을 사실상 제거하며, 저자들은 이것이 maximum entropy 프레임워크의 실세계 적용을 실용적으로 만드는 요소라고 주장한다."}, {"type": "bullet", "text": "Minitaur는 어떤 모델이나 시뮬레이션에도 의존하지 않고 실세계에서 직접 약 두 시간 만에 처음부터 안정적 걸음새를 획득하며, 결과 정책은 적당한 환경 변화에 견고하다."}, {"type": "bullet", "text": "시뮬레이션 벤치마크에서 동일 알고리즘이 단일 하이퍼파라미터 집합으로 최첨단 성능을 달성하여 과제 전반의 일반성을 입증한다."}, {"type": "bullet", "text": "온도가 기대 엔트로피 제약의 이중 변수인 제약 MDP 형식화가 자동 탐험 제어를 가능하게 하는 개념적 핵심이다."}, {"type": "bullet", "text": "Isaac Lab 2족 보행을 목표하는 RL 입문 독자에게 이 논문은 가장 직접적으로 관련된 사례 연구이다: 오늘날 다리 로봇이 학습되는 방식을 떠받치는 SAC 기반 자동 온도 레시피(와 그 sim-to-real 교훈)이며, 시뮬레이션에서 물리 플랫폼으로 옮길 때 무엇이 달라지는지를 보여준다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "maximum entropy RL은 온도 파라미터에 민감하며, 관례적으로 과제마다 수동으로 조정해야 한다.", "source_quote": "However, maximum entropy RL algorithms are sensitive to the choice of the temperature parameter, which determines the trade-off between exploration (maximizing the entropy) and exploitation (maximizing the reward).", "source_section": "introduction"}, {"claim": "이 방법은 실세계 학습 중 로봇이 넘어지거나 자유 공간이 소진될 때 로봇을 재설정하기 위한 수동 개입을 여전히 요구한다.", "source_quote": "Once training is started, minimal human intervention is needed, except for the need to reset the robot if it falls or runs out of free space.", "source_section": "method"}], "future_works": [{"claim": "추가적 사전 지식을 결합하여 학습을 가속할 수 있으며, 그러한 종단간 기법의 개발은 다양한 로봇의 걸음새 획득을 확장 가능하게 만들 것이다.", "source_quote": "While in practice, access to additional prior knowledge could be used to accelerate learning (see, e.g., [25]), end-to-end methods that make minimal prior assumptions are broadly applicable, and developing such techniques will make acquisition of gaits for diverse robots in diverse conditions scalable.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["다리 달린 로봇의 보행 제어기 설계는 보통 전문성과 획득하기 어려운 정확한 동역학 모델을 요구한다.", "심층 RL을 실세계 로봇 과제에 적용하는 것은 빈약한 샘플 복잡도 탓에 극히 어려워, 수만 회 규모의 시도를 요한다.", "심층 RL은 하이퍼파라미터 설정에 매우 민감하며, 광범위한 시행착오로 손상될 수 있는 물리 시스템에서 조정은 비용이 지나치게 클 수 있다.", "maximum entropy RL 기법은 특히 과제마다 조정해야 하는 온도 파라미터에 민감하다."], "addressed_by_this_work": ["종단간 maximum entropy RL 알고리즘이 모델이나 시뮬레이션 없이 실세계에서 직접 약 두 시간 만에 안정적 걸음새를 학습한다.", "이 알고리즘은 물리 Minitaur 로봇에서 약 400회 롤아웃으로부터 학습할 만큼 샘플 효율적이다.", "자동 경사 기반 온도 조정이 과제별 하이퍼파라미터 조정을 사실상 제거하여, 모든 시뮬레이션 벤치마크 과제에 동일한 하이퍼파라미터를 사용한다.", "온도를 기대 엔트로피 제약의 이중 변수로 형식화함으로써 수동 설정의 필요를 없앤다."], "remaining_unresolved": ["로봇이 넘어지거나 작업 공간을 벗어날 때 여전히 수동 재설정이 필요하다.", "학습을 더 가속하기 위한 사전 지식의 결합은 향후 과제로 남는다.", "보상 신호가 로봇 위치를 측정하기 위해 외부 모션 캡처 시스템에 의존한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

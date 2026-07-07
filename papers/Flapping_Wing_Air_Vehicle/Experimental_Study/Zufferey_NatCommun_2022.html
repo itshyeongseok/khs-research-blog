@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>How ornithopters can perch autonomously on a branch</title>
+    <meta name="keywords" content="ornithopter, flapping-wing robot, autonomous perching, bistable claw, close-range correction, flight control, bio-inspired robotics, branch perching, aerial physical interaction, line-scan sensor">
+    <meta name="paper-authors" content="Raphael Zufferey, Jesus Tormo-Barbero, Daniel Feliu-Talegon, Saeed Rafee Nekoo, Jose Angel Acosta, Anibal Ollero">
+    <meta name="paper-journal" content="Nature Communications, Vol. 13, 7713, 2022 · DOI: 10.1038/s41467-022-35356-5">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">How ornithopters can perch autonomously on a branch</div>
+                <span class="tier-badge tier-1">Tier 1 — Top</span>
+            </div>
+            <div class="authors">Raphael Zufferey, Jesus Tormo-Barbero, Daniel Feliu-Talegon, Saeed Rafee Nekoo, Jose Angel Acosta, Anibal Ollero</div>
+            <div class="journal">Nature Communications, Vol. 13, 7713, 2022 · DOI: 10.1038/s41467-022-35356-5</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">Paper Summary</div>
+            <div class="summary">This paper presents the first demonstrated method for a large flapping-wing robot (<span class="term">ornithopter</span>) to autonomously perch on a branch, addressing a long-standing gap in bio-inspired aerial robotics. The proposed three-component method jointly operates a <span class="term">pitch-yaw-altitude flight controller</span>, an optical <span class="term">close-range correction system</span> using a line-scan sensor on an active leg, and a <span class="term">bistable claw appendage</span> that mechanically grasps a branch within 25 milliseconds on contact. The system is validated on a 700 g, 150 cm wingspan robot (the P-Flap) in an indoor motion-capture arena, achieving 6 successful branch perchings out of 9 attempts at forward speeds of 2.5–3 m/s. Key design challenges overcome include impact resistance, tolerating altitude oscillations from the flapping gait, misalignment compensation via the active leg, and enabling re-opening of the claw without continuous power draw. This work opens the door to energy-saving long-duration missions, wildlife observation, and physical interaction tasks previously unattainable with large flapping-wing platforms.</div>
+            <div class="keywords"><span class="keyword-chip">ornithopter</span><span class="keyword-chip">flapping-wing robot</span><span class="keyword-chip">autonomous perching</span><span class="keyword-chip">bistable claw</span><span class="keyword-chip">close-range correction</span><span class="keyword-chip">flight control</span><span class="keyword-chip">bio-inspired robotics</span><span class="keyword-chip">branch perching</span><span class="keyword-chip">aerial physical interaction</span><span class="keyword-chip">line-scan sensor</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The introduction motivates branch perching for flapping-wing robots by highlighting their unique safety and ecological advantages for wildlife monitoring, physical interaction, and long-duration missions enabled by energy conservation on a branch. It surveys the landscape of perching solutions for fixed-wing and multirotor UAVs, identifies the gap that no large ornithopter had ever achieved branch perching, and frames the scaling physics that make this problem hard: impact kinetic energy scales as $L^3 v^2$ while appendage strength scales only as $L^2$, forcing large robots to land slowly yet above a minimum speed needed to sustain flight.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The related work section reviews the broad landscape of UAV perching solutions and contextualizes why each approach is insufficient for large forward-flying ornithopters. It highlights the progression from passive attachment mechanisms on multirotors to recent catapult-launched fixed-wing perching, and notes the complete absence of branch perching results for large flapping-wing robots despite growing interest in aerial physical interaction.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The method section details the three interlocking subsystems that together enable autonomous branch perching: the bistable claw appendage with an integrated re-opening mechanism, the active leg with line-scan close-range correction, and the triple-loop pitch-yaw-altitude flight controller, all hosted on a custom structural PCB within the P-Flap robot. A four-step experimental development process (launcher, flight-only, soft-branch, full perching) is proposed to safely validate and tune each subsystem iteratively before integration.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">Experiments follow the four-step development process: launcher-only claw impact tests establish robustness up to 4 m/s; flight-only tests tune the pitch-yaw-altitude controller; soft-branch tests validate the active leg close-range correction; and full perching on a real wooden branch achieves 6 successes out of 9 attempts at 2.5–3 m/s, replicated with a second robot without controller modification.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The discussion contextualizes the demonstration as the first large-scale autonomous branch perching by any flapping-wing robot, emphasizes the role of each subsystem in achieving it, and honestly identifies the controlled conditions that currently bound the result. It then outlines a clear roadmap from indoor controlled demonstration toward outdoor autonomous perching, claw material improvements, and future take-off from the branch.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion <span class="click-hint">(click for detail)</span></div>
+                <div class="section-summary">The conclusion summarizes the paper's main contribution as the first demonstration of autonomous branch perching by a large flapping-wing robot, achieved through the simultaneous operation of a flight controller, active leg with close-range correction, and bistable claw, and positions this result as a milestone enabling a broad class of future long-duration and interaction missions for ornithopters.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction",
+            related_works: "Related Works",
+            method:        "Method",
+            experiment:    "Experiment",
+            discussion:    "Discussion",
+            conclusion:    "Conclusion"
+        };
+
+        const FIG_PREFIX = "Fig";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "Birds universally possess perching systems because flight is energy-intensive; branch perching enables hunting, resting, territory monitoring, and reproductive observation. For robotic ornithopters, the same capability would open wildlife monitoring, physical interaction with vegetation, sample return, contact inspection of infrastructure, and solar recharging for extended missions.", "figure_refs": []}, {"type": "bullet", "text": "Flapping-wing robots are unrivaled in operational safety among unmanned aircraft due to their propeller-less design, making them suitable for interaction with humans, animals, plants, and industrial structures at close range.", "figure_refs": []}, {"type": "bullet", "text": "The fundamental challenge for large ornithopters is that they cannot hover: forward velocity is mandatory to maintain lift, so landing on a branch requires a grasping mechanism capable of stopping a fast-moving vehicle in a highly constrained corridor combining high-speed actuation, precise timing, and high impact resistance.", "figure_refs": []}, {"type": "bullet", "text": "<span class=\"term\">Scaling analysis</span> reveals that appendage strength scales with cross-sectional area $L^2$, while kinetic energy of the flying vehicle scales as $L^3 v^2$, implying $Lv^2 \\sim 1$. Larger robots therefore must land more slowly, yet forward speed has a lower bound set by aerodynamic stall, creating a narrow feasible landing velocity window.", "figure_refs": []}, {"type": "formula", "label": "Scaling relation — kinetic energy vs. appendage strength", "latex": "Lv^2 \\sim 1", "description": "This dimensional scaling relation states that for a perching ornithopter the product of characteristic length $L$ and the square of approach speed $v$ must remain approximately constant, constraining larger robots to lower landing speeds while approach speed still has a physical lower bound for sustained flight."}, {"type": "bullet", "text": "Once perched, the weight of the robot (scaling as $L^3$) must be supported by claw gripping force (scaling as $L^2$), further limiting how large a perching ornithopter can be. This double scaling penalty differentiates the large ornithopter perching problem from all prior demonstrations.", "figure_refs": []}, {"type": "bullet", "text": "Existing perching solutions surveyed include micro-spines, fiber adhesives, bistable clamps on quadcopters, and tendon-driven passive mechanisms on multirotors — all relying on hover capability not available to large flapping-wing robots. The only prior flapping-wing percher was the 100 mg Robobee, which used electrostatic adhesion under a flat ceiling, a fundamentally different regime.", "figure_refs": [1]}, {"type": "bullet", "text": "The paper proposes a three-phased simultaneous method comprising: (1) a pitch-yaw-altitude flapping flight controller, (2) an optical close-range correction system using an active leg and line-scan sensor, and (3) a bistable claw appendage mechanically triggered by branch contact. This combination is validated on a 150 cm wingspan, 700 g robot producing the first large-scale autonomous branch perching demonstration.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "Surface attachment approaches for UAVs include micro-spines, spine arrays, fiber-based adhesives, and nature-inspired mechanical grippers. These mechanisms have been demonstrated on multirotor platforms capable of hovering above the target and descending slowly, conditions that do not transfer to forward-flying ornithopters.", "figure_refs": []}, {"type": "bullet", "text": "Multirotor UAVs have demonstrated passive hanging from branches of various diameters, passive sitting on flat surfaces, and bistable clamping under beams. These demonstrations exploit hover and low-speed approach, luxuries unavailable to large ornithopters.", "figure_refs": []}, {"type": "bullet", "text": "The bird-inspired tendon-driven locking mechanism of Roderick et al. (Science Robotics, 2021) installs under a multirotor and achieves high graspability through a multi-joint claw without requiring accurate control, leveraging the hovering platform's inherent positioning accuracy.", "figure_refs": []}, {"type": "bullet", "text": "Stewart et al. (2022) demonstrated passive perching with energy storage for winged aerial robots from a catapult, achieving impressive grasping at up to 7.4 m/s, but perching from free flight was not demonstrated. Catapult-launched perching bypasses the challenge of maintaining controlled forward flight up to the perching moment.", "figure_refs": []}, {"type": "bullet", "text": "The Robobee (Graule et al., Science, 2016) is the only previously published flapping-wing robot capable of perching; at 100 mg it uses electrostatic adhesion to adhere to a flat ceiling, a mechanism fundamentally inapplicable to branch grasping or large-scale ornithopters.", "figure_refs": []}, {"type": "bullet", "text": "A flapping-wing perching mechanism using soft grippers (Broers and Armanini, IEEE RA-L, 2022) is noted as excellent recent research generating strong interest, but the present work is the first to achieve fully autonomous large-scale ornithopter perching on a real wooden branch from free flight.", "figure_refs": []}, {"type": "bullet", "text": "Fixed-wing prototypes capable of perching to walls (Kovac et al., 2009) represent a parallel thread of research focused on vertical surface attachment rather than branch grasping; attitude and approach trajectories for wall perching differ substantially from forward-flight branch landing.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "The <span class=\"term\">bistable claw appendage</span> stores mechanical energy in a tension spring (11 mm diameter, 111 N at 5 mm extension, 5 N/mm rate, 8 g mass). In the stable open position, the claw angle $\\psi_2 = -4^\\circ$ places the spring origins behind the rotation centers. Branch contact on either the central protrusions or the angled extremities triggers the claw; the spring crosses the pivot center and drives the claw closed, simultaneously acting as a shock absorber.", "figure_refs": [2]}, {"type": "bullet", "text": "Once fully closed, the claw continuously applies a contact force of 56.8 N on the branch with no power draw, enabling long-duration perching for manipulation or observation tasks. The bistable topology ensures the open and closed positions are both mechanically stable without active holding.", "figure_refs": [2]}, {"type": "bullet", "text": "The <span class=\"term\">claw geometry</span> is optimized with a straight segment $D_s$ followed by a rounded section of radius $D_r$ to maximize clamping force near the rotation center. The rotation points are spaced $D_e = 50$ mm apart, defining the minimum branch diameter; $R_c$ is set slightly larger than the nominal branch diameter to guarantee spike contact and accommodate larger branches.", "figure_refs": [2]}, {"type": "formula", "label": "Claw contact force at snap point", "latex": "F_{\\text{contact}} = 56.8 \\text{ N}", "description": "The continuous force applied by the fully-closed claw on the branch, derived from the spring's stored energy and geometry. This value is maintained passively without motor power after the snap-through bistable transition."}, {"type": "bullet", "text": "Claw re-opening uses a high-reduction pull lead-screw mechanism fully integrated within the leg tube (a 6 V DC motor with tendon), capable of pulling up to 200 N. Re-opening completes within 20 s at an average power draw of 3 W; an end-switch stops the motor when fully open, and the claws remain open passively in the bistable open state.", "figure_refs": [2]}, {"type": "bullet", "text": "The <span class=\"term\">active leg</span> is designed to perform three functions: (1) misalignment compensation during the final approach, (2) post-landing pose adjustment to maintain an erect stance on the branch, and (3) equilibrium maintenance during manipulation tasks. A 34 g servo motor drives rotation between 0° (vertical) and 90° (horizontal) about the elbow joint near the robot's center of gravity.", "figure_refs": [2]}, {"type": "bullet", "text": "<span class=\"term\">Particle swarm optimization (PSO)</span> is used to find the optimal leg geometry parameters (lengths $l_1$, $l_2$, angles $\\theta_1$, $\\theta_2$ as defined in Fig. 2F) by minimizing a cost function that jointly considers servo stress, angular momentum at the servo joint (related to gear tooth stress), and leg mass. A dynamic model and finite-element-based multi-body dynamics analysis validate the design under 700 g total mass and 2–4 m/s impact speed.", "figure_refs": [2]}, {"type": "bullet", "text": "Branch detection for close-range correction uses a <span class=\"term\">line-scan sensor</span> (TSL1401, 1×128 pixels) mounted on the claw. The signal is rectified with a cosine function and a dynamic threshold computed from average frame brightness; the highest dark line is accepted as the branch. Signal readout reaches 200 Hz in indoor lighting conditions with adequate signal-to-noise ratio.", "figure_refs": [3]}, {"type": "bullet", "text": "A <span class=\"term\">proportional-derivative (PD) controller</span> on the leg servo closes the loop: the peak pixel offset from the line sensor is fed directly as the error signal, and the leg servo rotates the claw to align it with the branch. This mechanically compensates for up to ±10–15 cm vertical inaccuracy inherent to flapping-wing flight altitude control.", "figure_refs": [3]}, {"type": "bullet", "text": "The avionics architecture splits control between a low-level custom microcontroller running at 120 Hz in C++ and a high-level NanoPi Neo Air companion computer. Three parallel control loops govern pitch $\\Theta$, yaw $\\Psi$, and height $Z$, with actuations via elevator $\\delta_e$, rudder $\\delta_r$, and flapping frequency $\\Xi_F$, respectively. A fourth loop for leg angle $\\beta$ activates during the approach phase.", "figure_refs": [3]}, {"type": "formula", "label": "Controlled states and actuation mapping", "latex": "\\{\\Theta, \\Psi, Z\\} \\rightarrow \\{\\delta_e, \\delta_r, \\Xi_F\\}", "description": "The three parallel control loops of the flight autopilot: pitch angle $\\Theta$ is controlled via elevator deflection $\\delta_e$, yaw $\\Psi$ via rudder deflection $\\delta_r$, and height $Z$ via flapping frequency $\\Xi_F$. A fourth leg-angle loop $\\beta$ activates during the final approach."}, {"type": "bullet", "text": "A custom full-body structural PCB (1.6 mm thick, doubling as a structural component paired with a carbon-fiber plate) integrates all connectors and electronics, minimizing cable length, reducing weight, and simplifying mechanical assembly and electrical troubleshooting.", "figure_refs": [3]}]}, "experiment": {"content": [{"type": "bullet", "text": "Launcher experiments use a 2 m double-rail ball-bearing carriage accelerated by a 2.3 kW brushless motor to a user-set final velocity of up to 4 m/s, imparting 5.6 J to the robot. The launcher enables repeatable initial conditions and decouples grasping performance from flight control during initial claw design validation.", "figure_refs": [5]}, {"type": "bullet", "text": "Claw impact tests demonstrate a 100% perching success rate at speeds up to 4 m/s on the real wooden branch with a fully flight-equipped robotic bird, with no structural damage observed. Claw locking occurs within 25 ms, slightly above the analytically predicted 20 ms but well within the 50 ms window before the bounce phase begins.", "figure_refs": [5]}, {"type": "bullet", "text": "Force measurements at impact show forces below 150 N across all misalignment offsets and test speeds up to 4 m/s (Fig. 5C–E). A combination of hard metal spike tips and soft Ecoflex silicone toe pads provides the highest friction interface; the claw remains effective (within 10% force) for branch diameters in the 4–11 cm range.", "figure_refs": [5]}, {"type": "bullet", "text": "<span class=\"term\">Perching success region</span> experiments characterize the joint effect of leg pitch angle and impact speed (Fig. 5F) and yaw deviation between velocity vector and branch axis (Fig. 5G). Successful erect perching (blue region) occurs over a velocity range of roughly 1.5–4 m/s at leg angles near 45–70°. The system tolerates yaw deviations of ±10–20° from perpendicular at 2.5 m/s.", "figure_refs": [5]}, {"type": "bullet", "text": "Three motion regimes are identified in leg-angle vs. velocity experiments: (1) forward fall at high impact velocity (excessive angular momentum overcoming friction), (2) successful perched stance, and (3) backward fall at low impact velocity (low angular momentum combined with high center-of-mass offset).", "figure_refs": [5]}, {"type": "bullet", "text": "Line-scan sensor close-range correction validation experiments demonstrate reliable 6 cm-diameter branch detection at distances up to 190 cm, confirmed experimentally. Three experiments test the PD controller: high-amplitude 2 Hz oscillations, low-amplitude 4 Hz oscillations, and in-flight launch at 2.5 m/s.", "figure_refs": [3]}, {"type": "bullet", "text": "Full flight experiments in a 20×14.5×8 m motion-capture arena with 28 Opti-track IR cameras show pitch stabilization at $\\Theta = 30°$ within 1 s without significant overshoot, forward velocity reduction from 4 m/s (launch) to 2.5–3 m/s (approach), and altitude regulation to a 2 m set-point within 8 m of flight distance with deviation within ±10 cm at branch location.", "figure_refs": [6]}, {"type": "bullet", "text": "Six successful full perching flights out of 9 attempts (66% success rate) are reported, with the following conditions at perching: forward velocity $V_x \\approx 2.07$–$2.8$ m/s, yaw $\\psi \\approx -8.3°$ to $4°$, pitch $\\theta \\approx 23.6°$ to $31.8°$, lateral deviation $Y \\approx -0.23$ to $0.02$ m, and altitude $Z \\approx 1.95$ to $2.06$ m. The 3 failed attempts narrowly missed the branch.", "figure_refs": [6]}, {"type": "bullet", "text": "Replication with a second robot (different manufacturing, no wing camber) is achieved without any modification to the flight controller or parameters, demonstrating robustness of the method to manufacturing variation and confirming the generalizability of the perching approach.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "The flight speed was regulated to a set-point of 2.5–3 m/s and position within 15 cm of the branch target, enabled by the combined pitch-altitude controller and fast tail action. The actively controlled claw-leg system with vision feedback delivered close-range correction, fast grasping within 25 ms, and a clamping torque of 2 Nm.", "figure_refs": []}, {"type": "bullet", "text": "The purely mechanical release-on-impact mechanism (no sensing required for claw closure) ensures reliable, fast grasping under the hard real-time constraints of a 50 ms impact-to-bounce window, reducing the system's dependency on sensor latency at the critical perching moment.", "figure_refs": []}, {"type": "bullet", "text": "A 66% success rate (6/9) is reported; the three failures all narrowly missed the branch, suggesting the limiting factor is absolute positioning accuracy rather than claw reliability or leg control. Supplementary data shows the distribution of conditions at the moment of perching.", "figure_refs": [6]}, {"type": "bullet", "text": "The indoor motion-capture system provides localization superior to outdoor GPS/IMU technology. Moving outdoors will degrade flight accuracy, requiring more complex control algorithms, more sophisticated sensing, and optimized bio-inspired flight paths to maintain reliability.", "figure_refs": []}, {"type": "bullet", "text": "New camera-based close-range sensing methods are identified as the key near-term enabler for outdoor perching, replacing the current line-scan sensor whose low visual acuity (28 arcmin/px) limits reliable detection to 2 m in practice.", "figure_refs": []}, {"type": "bullet", "text": "For the long-term roadmap, shape-memory alloy (SMA) or other soft-robotic claw materials are envisioned to improve branch conformability. Take-off from the branch is the primary unresolved challenge, with two candidate strategies: leg-actuated jump to forward velocity followed by maximum flapping thrust, or a controlled fall from the branch reaching flight speed.", "figure_refs": []}, {"type": "bullet", "text": "The perching capability fundamentally extends the operational envelope of large ornithopters by enabling energy conservation on a branch, opening applications including wildlife observation, sample return, contact inspection, and physical manipulation — all benefiting from the inherently safe nature of flapping-wing locomotion compared to propeller-driven platforms.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "The paper presents a complete autonomous perching method for large ornithopters validated on a 700 g, 150 cm wingspan P-Flap robot. The result constitutes the first indoor autonomous branch perching demonstration by a large flapping-wing robot, with the flight-perch maneuver performed without user input from launch through claw locking.", "figure_refs": []}, {"type": "bullet", "text": "The three-phased method — pitch-yaw-altitude flight control, line-scan close-range correction via active leg, and bistable claw — is validated through a rigorous four-step experimental development process, progressively integrating subsystems and demonstrating each independently before full integration.", "figure_refs": [4]}, {"type": "bullet", "text": "Perching was achieved in 6 out of 9 flight tests (66% success rate), with no damage to the robot in any successful perching. The system tolerates manufacturing variation, demonstrated by replication with a second robot without controller retuning.", "figure_refs": []}, {"type": "bullet", "text": "Key performance figures: claw closing within 25 ms, impact forces below 150 N at up to 4 m/s, claw holding force of 56.8 N (passive), re-opening within 20 s at 3 W. Flight approach at 2.5–3 m/s with pitch stabilized at 30° and altitude error within ±10 cm at branch location.", "figure_refs": []}, {"type": "bullet", "text": "With added perching capability, large ornithopters like the P-Flap can interrupt their power-intensive flight on a branch, saving energy and opening a broad range of applications: local wildlife observation, sample return, contact inspection, and aerial manipulation in natural and industrial environments.", "figure_refs": []}, {"type": "bullet", "text": "The safe, propeller-less nature of flapping-wing locomotion makes perching ornithopters uniquely suitable for deployment near animals, humans, and fragile structures, significantly easing authorization requirements compared to multirotor platforms and reducing environmental disturbance during extended perched observation missions.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "The perching experiments were conducted in a controlled indoor environment relying on a motion-capture system for localization, which provides accuracy exceeding what current satellite/IMU technology can deliver outdoors.", "source_quote": "the indoor tracking zone yields accurate and fast position/orientation, which exceeds what is currently obtainable with satellite/inertial-measurement-unit (IMU) technology. Both will inevitably degrade the flight accuracy in an outdoor scenario, with disturbances and lack of measurement accuracy, resulting in more difficult perching maneuvers, and hence, more complex control algorithms will be strongly needed.", "source_section": "discussion"}, {"claim": "The close-range branch detection relies on a single-row line-scan sensor with limited visual acuity, restricting reliable detection range to approximately 2 m and making it unsuitable for cluttered outdoor environments.", "source_quote": "Our first approach of local detection with a line-scan sensor would also be limited. New camera-based methods, which are currently being investigated, would greatly increase precision improvements in trajectory planning and close-range active control.", "source_section": "discussion"}, {"claim": "The robot cannot take off from the branch after perching because the absence of initial velocity impedes re-launching flight; the leg-claw re-opening mechanism alone does not provide the necessary thrust.", "source_quote": "While the leg-claw system can fully re-open from the branch, the absence of initial velocity currently impedes taking-off flight.", "source_section": "discussion"}, {"claim": "The linear flight controller was designed ad-hoc for a specific trajectory and has limited authority near the performance envelope boundaries; more complex control architectures are needed for robust operation.", "source_quote": "current and future work are underway to analyze more complex control architectures as e.g. those already implemented on a claw-less robot.", "source_section": "discussion"}], "future_works": [{"claim": "Outdoor perching using improved sensing methods such as 3D vision systems, stereo CMOS cameras, or event-based cameras is a planned next step.", "source_quote": "Future outdoor perching maneuvers in cluttered environments will benefit from improved sensing methods, e.g. 3D vision systems, stereo CMOS-based or event-based cameras.", "source_section": "discussion"}, {"claim": "New soft-robotic materials such as shape-memory alloys for the claw are envisioned to improve conformability around diverse branch sizes and shapes.", "source_quote": "new materials and soft-robotic methods for the claw, such as shape-memory alloy (SMA), will further improve the conformability around a different variety of branch sizes and shapes.", "source_section": "discussion"}, {"claim": "Taking off from the perched branch is identified as a primary future focus, with two envisioned strategies: postural correction followed by leg-actuated forward jump at maximum flapping thrust, or controlled flight recovery after falling from the branch once speed reaches 2.5 m/s.", "source_quote": "taking-off from the branch will be the focus of future work. While the leg-claw system can fully re-open from the branch, the absence of initial velocity currently impedes taking-off flight. Several strategies are envisioned. First, correct the posture once the system is perched to obtain a stable configuration where, with almost zero friction, the claw can re-open slowly... Then, the leg actuation should be improved to execute a jump forward, and with maximum flapping thrust. Secondly, given sufficient ground clearance, the vehicles could fall from the branch and perform a controlled flight recovery, once their speed reaches 2.5m/s.", "source_section": "discussion"}, {"claim": "More complex and bio-inspired flight path optimization is planned to improve perching reliability and reduce impact forces.", "source_quote": "Optimized bio-inspired flight paths would improve perching reliability and reduce impact forces.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["Large flapping-wing robots (ornithopters) cannot hover, requiring forward velocity to maintain flight, which makes landing on a branch extremely challenging due to the need for high-speed actuation, precise timing, and high impact resistance.", "No large flapping-wing robot had ever demonstrated autonomous perching on a branch prior to this work; the only known perching flapping-wing robot was the centimeter-scale Robobee using electrostatic adhesion on a flat ceiling.", "Flapping-wing flight produces altitude oscillations and unsteady aerodynamics that reduce positioning accuracy, making close approach to a branch-scale target (6 cm diameter vs. 150 cm wingspan) extremely difficult.", "Grasping mechanisms strong enough to hold a large robot's weight and resist perching impact forces must also be lightweight enough not to degrade flight performance, creating a conflicting design requirement.", "Existing perching solutions for multirotor UAVs rely on hovering capability and do not transfer to forward-flying flapping-wing platforms that face additional payload restrictions and oscillations."], "addressed_by_this_work": ["A bistable claw appendage is designed that stores elastic energy in a spring, enabling purely mechanical triggering on branch contact and closing within 25 ms at speeds up to 4 m/s, with no active power required to maintain the locked state.", "An active leg with a line-scan sensor and PD controller is introduced to compensate for altitude oscillations and misalignment during the final approach, bridging the gap between ±10–15 cm flight altitude accuracy and the 5 cm mechanical contact zone of the claw.", "A pitch-yaw-altitude flight controller is tuned to maintain a 30-degree pitch setpoint, reducing forward speed to 2.5–3 m/s for controlled approach while keeping the robot within its stable flight envelope.", "The full three-component system is integrated on a 700 g, 150 cm wingspan ornithopter (P-Flap) and demonstrated in 6 out of 9 successful autonomous indoor branch perching flights, establishing the first large-scale ornithopter branch perching result.", "A four-step experimental development process (launcher-only, flight-only, soft-branch, full perching) is proposed and validated, enabling safe iterative tuning of all subsystems."], "remaining_unresolved": ["Outdoor autonomous perching under GPS/IMU localization and in cluttered natural environments remains undemonstrated and requires more complex control algorithms and improved sensing.", "Autonomous take-off from the perched branch has not been achieved; the absence of initial velocity after perching currently prevents re-launch.", "The line-scan close-range sensing approach has limited acuity and range, and its replacement with camera-based or event-based sensing for outdoor use is still in investigation."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "Limitations",
+            future_works:   "Future Works",
+            motivation:     "Motivation Resolution",
+            mot_problems:   "Motivating Problems",
+            mot_addressed:  "Addressed by This Work",
+            mot_remaining:  "Remaining Unresolved"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

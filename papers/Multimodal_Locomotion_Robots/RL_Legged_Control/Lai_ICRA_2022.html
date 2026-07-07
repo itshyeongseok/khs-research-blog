@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Sim-to-Real Transfer for Quadrupedal Locomotion via Terrain Transformer</title>
+    <meta name="keywords" content="sim-to-real transfer, quadrupedal locomotion, Transformer policy, privileged learning, sequence modeling, two-stage training, online correction (DAgger), domain randomization, Decision Transformer, Unitree A1">
+    <meta name="paper-authors" content="Hang Lai, Weinan Zhang, Xialin He, Chen Yu, Zheng Tian, Yong Yu, Jun Wang">
+    <meta name="paper-journal" content="Proceedings of the IEEE International Conference on Robotics and Automation (ICRA) 2022. Preprint arXiv:2112.07740v2.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Sim-to-Real Transfer for Quadrupedal Locomotion via Terrain Transformer</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Hang Lai, Weinan Zhang, Xialin He, Chen Yu, Zheng Tian, Yong Yu, Jun Wang</div>
+            <div class="journal">Proceedings of the IEEE International Conference on Robotics and Automation (ICRA) 2022. Preprint arXiv:2112.07740v2.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 다양한 지형에 걸친 사족 이동을 위한 고용량 GPT 스타일 트랜스포머 컨트롤러인 Terrain Transformer(TERT)와, 트랜스포머를 특권 학습(privileged learning)과 통합하는 2단계 학습 프레임워크를 도입한다. 오프라인 사전학습 단계에서 트랜스포머는 과거 관측-행동 시퀀스로부터 특권 교사의 행동을 모방하고, 온라인 보정 단계에서 자신의 온-폴리시 롤아웃에 대해 DAgger 방식으로 보정되어 배치 분포 이동을 고친다. (RMA처럼) 교사의 특권 잠재 벡터를 온라인으로 추정하는 대신, TERT는 고유수용성 이력에 조건화하여 행동을 직접 예측하여 부정확한 잠재 추정에 대한 민감성을 피한다. 시뮬레이션에서 TERT는 수익, 에너지, 평활성에서 RMA, PPO, Stacked PPO, GRU 기준선을 능가하며, 실물 Unitree A1에서 RMA 기준선이 완전히 실패하는 모래 구덩이와 계단 내려가기를 포함한 아홉 개 지형을 제로샷으로 횡단한다.</div>
+            <div class="keywords"><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">quadrupedal locomotion</span><span class="keyword-chip">Transformer policy</span><span class="keyword-chip">privileged learning</span><span class="keyword-chip">sequence modeling</span><span class="keyword-chip">two-stage training</span><span class="keyword-chip">online correction (DAgger)</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">Decision Transformer</span><span class="keyword-chip">Unitree A1</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">다양한 지형에 걸친 다족 이동은 변화하는 동역학과 불규칙한 표면 때문에 어려우며, 지배적인 특권-학습 패러다임은 학생이 고유수용성 이력으로부터 교사의 특권 잠재 벡터를 복원하도록 학습시키는데 — 이 추정은 교사가 더 다재다능해질수록 취약해진다. 저자들은 고유수용성 시퀀스로부터 교사의 행동을 직접 예측함으로써 부호화된 잠재변수를 완전히 우회할 것을 제안하며, 이동을 트랜스포머에 적합한 시퀀스-예측 문제로 프레이밍한다. 기여는 Terrain Transformer(TERT)와 2단계(오프라인 사전학습 + 온라인 보정) 프레임워크로, 표준 학생이 실패하는 모래 구덩이와 계단 내려가기를 포함한 아홉 개 지형에 걸쳐 실물 Unitree A1에서 제로샷으로 검증된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 절은 다족 이동을 위한 sim-to-real RL(시뮬레이터 정확도, 도메인 무작위화, 귀납 편향, 시스템 식별을 통한 현실 간극 좁히기)과 NLP, 비전, RL에서의 트랜스포머의 부상(Decision Transformer, Trajectory Transformer, Gato)을 검토한다. TERT는 단순성과 계산 효율성 때문에 Decision Transformer에 기반하는데, 저자들은 이를 실세계 배치에 결정적이라고 본다. 다중-타임스텝 이력을 시퀀스 예측으로 모델링하고, 2단계 프레임워크를 통해 특권 학습을 물려받으며, 시각 입력 없이 더 어려운 지형을 횡단함으로써 가장 가까운 선행 연구(Yang et al.)와 차별화된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">사족 이동은 POMDP로 정식화되고 컨트롤러는 과거 관측-행동 쌍으로부터 다음 행동을 예측하는 인과 마스킹 자기 어텐션 층의 GPT 스타일 스택으로, returns-to-go는 제거된다. 학습은 두 단계를 가진다: 오프라인 사전학습은 MSE를 통해 트랜스포머를 PPO로 학습된 특권 교사의 행동에 회귀시키고, 온라인 보정은 트랜스포머 자신의 롤아웃에 DAgger 방식 재레이블링을 적용하여 배치 분포 이동을 고친다. 두 단계 모두 필수적이며, 예측 행동은 PD 컨트롤러로 토크로 변환되는 관절 목표이고, 도메인 무작위화가 제로샷 전이를 지원한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 수천 개의 병렬 Unitree A1 로봇을 가진 IsaacGym을 사용하여, 지형에 걸쳐 수익, 에너지, 평활성에서 TERT를 Teacher(오라클), RMA, PPO, Stacked PPO, GRU와 비교한다. TERT는 최고의 비-교사 수익, 최저 에너지, 가장 매끄러운 제어를 달성하며, 절제 실험은 트랜스포머 아키텍처가 주된 동인이고 두 학습 단계 모두 필요함을 확인한다. 미세조정 없는 실물 A1 하드웨어에서, TERT는 일곱 개 지형에서 RMA와 동등하지만 RMA가 완전히 실패하는 곳에서 성공한다(모래 구덩이 100% 대 0%, 계단 내려가기 60% 대 0%).</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">종단 간 행동-모방 방식은 RMA의 모래 구덩이와 계단 내려가기에서의 파국적 실패의 근본 원인인 정확한 온라인 잠재 추정에 대한 취약한 의존을 제거함으로써 RMA 같은 잠재-추정 접근법을 능가한다. 트랜스포머의 높은 용량과 긴 이력에 대한 자기 어텐션이 이점의 핵심 원천으로, 더 명확한 지형 분리와 먼 타임스텝의 효과적 사용으로 입증되며, 2단계 프레임워크가 모델을 학습 가능하고 배치 가능하게 만든다. 더 낮은 에너지와 더 매끄러운 제어가 명시적 벌점 없이 창발하지만, 남은 신뢰성 간극은 외수용성 감지의 부재로 거슬러 올라간다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">TERT는 다수 지형에 걸친 사족 이동을 위한 단순하지만 효과적인 트랜스포머 기반 컨트롤러로, 트랜스포머를 특권 학습에 통합하는 2단계 프레임워크와 함께 제시된다. 광범위한 시뮬레이션 및 실세계 실험은 그것이 도전적 지형에서 최첨단 기준선을 능가하며, 이 이점이 온라인 잠재 추정이 아니라 고용량 시퀀스 모델링과 자기 어텐션에 기인함을 보인다. 저자들은 본 연구를 사족 이동에 트랜스포머를 적용하는 중요한 한 걸음이자 잠재적 새 sim-to-real 패러다임으로 프레이밍하며, LiDAR/카메라 고도 통합과 다중 에이전트 확장을 향후 방향으로 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "다양한 지형에 걸친 다족 이동은 변화하는 동역학, 불규칙한 표면, 장애물 때문에 어렵다; 시뮬레이션에서 학습되어 하드웨어로 전이되는 심층 RL(<span class=\"term\">sim-to-real transfer</span>)은 매력적인 해법이다."}, {"type": "bullet", "text": "표준 <span class=\"term\">privileged learning</span> 프레임워크는 먼저 특권 정보(고도 지도, 물리 파라미터)를 저차원 잠재 벡터 l_t로 부호화하는 교사를 학습한 뒤, 학생이 TCN이나 RNN을 통해 고유수용성 이력으로부터 l_t를 복원하도록 학습한다."}, {"type": "bullet", "text": "이 패러다임의 두 가지 한계가 식별된다: 다재다능한 교사는 l_t를 너무 완전히 사용하여 온라인으로 추정하기 어려워지고, 학생은 추정된 l_t에 민감해져 l_t가 학습 분포를 벗어나면 파국적으로 저하된다."}, {"type": "bullet", "text": "저자들은 이전 고유수용성 시퀀스에 조건화하여 교사의 행동을 직접 예측함으로써 부호화된 l_t를 완전히 우회할 것을 제안하며, 이동을 트랜스포머 아키텍처에 이상적으로 적합한 <span class=\"term\">sequence prediction problem</span>으로 프레이밍한다."}, {"type": "bullet", "text": "트랜스포머는 그 높은 용량, 강건한 디코딩, 이력에 대한 자기 어텐션을 통한 신용 할당, 다양한 거동을 모델링하는 입증된 능력 — 모두 미관측 지형으로 전이하는 데 유용함 — 으로 동기 부여된다."}, {"type": "bullet", "text": "기여는 <span class=\"term\">Terrain Transformer (TERT)</span>와, sim-to-real을 위해 명시적으로 설계되어 트랜스포머를 특권 학습과 통합하는 2단계 학습 프레임워크(오프라인 사전학습 + 온라인 보정)다."}, {"type": "bullet", "text": "TERT는 실물 Unitree A1(~12 kg, 12개 모터)에서 검증되어 아홉 개 지형(잔디, 흙, 자갈, 경사, 모래 구덩이, 계단 내려가기 등)을 제로샷으로 횡단한다; 표준 학생은 모래 구덩이와 계단 내려가기에서 실패한다."}, {"type": "bullet", "text": "저자들은 이것이 트랜스포머 기반 시퀀스 모델링을 통해 다수의 도전적 지형에 걸친 sim-to-real 사족 이동을 다룬 최초의 연구라고 주장하며, 이를 새로운 sim-to-real 패러다임으로 제안한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "다족 이동을 위한 sim-to-real RL은 시뮬레이터 정확도를 개선하거나 학습 중 마찰과 질량 같은 물리 파라미터의 도메인 무작위화를 통해 현실 간극을 좁힌다."}, {"type": "bullet", "text": "귀납-편향 방법(동물 자세 모방, 생체에너지학 기반 보상 설계)과 시스템 식별(이력으로부터 원시 또는 부호화된 환경 파라미터 추정)은 저자들의 방법이 기반할 수 있는 보완적 갈래다."}, {"type": "bullet", "text": "트랜스포머는 NLP에서 돌파구를 이루고 비전과 RL로 확장되었다: Decision Transformer는 수익과 과거 상태-행동 쌍에 조건화하여 행동을 자기회귀적으로 생성하고; Trajectory Transformer는 전체 궤적을 토큰화하며; Gato 일반주의 에이전트는 수백 개 과제에 걸쳐 하나의 트랜스포머를 실행한다."}, {"type": "bullet", "text": "TERT는 단순성과 계산 효율성 때문에 Decision Transformer에 의존하는데, 저자들은 이를 실세계 배치에 결정적이라고 본다."}, {"type": "bullet", "text": "가장 가까운 선행 연구(Yang et al.)는 단일-타임스텝 다중모드 정보를 순수 온라인 RL로 학습된 트랜스포머와 융합한다; TERT는 (i) 다중-타임스텝 이력을 시퀀스-예측 문제로 모델링하고, (ii) 특권 학습을 물려받는 2단계 프레임워크를 사용하며, (iii) 시각 입력 없이 더 어려운 지형(모래 구덩이, 계단 내려가기)을 횡단함으로써 차별화된다."}, {"type": "bullet", "text": "이력으로부터 원시 또는 부호화된 환경 파라미터를 추정하는 시스템-식별 접근법 중, 특권-학습 교사-학생 방식이 지배적 템플릿이다; TERT는 이 템플릿의 교사를 유지하되 학생의 잠재-복원 목적함수를 직접 행동 예측으로 대체하며, 저자들은 그들의 방법이 동물-자세 모방과 생체에너지학 기반 보상 설계 같은 귀납-편향 기법과 직교하고 결합될 수 있음을 언급한다."}]}, "method": {"content": [{"type": "bullet", "text": "사족 이동은 부분 관측 MDP(S, O, A, T, r, gamma)로 정식화된다; 매 스텝 부분 관측 o_t만 가용하며, 목표는 기대 할인 수익을 최대화하는 관측-행동 사상 최적 정책이다."}, {"type": "formula", "label": "식 1", "latex": "\\pi^{*} := \\arg\\max_{\\pi}\\; \\mathbb{E}_{s_{t+1}\\sim T(\\cdot|s_t,a_t),\\, a_t\\sim\\pi(\\cdot|o_t)}\\left[\\sum_{t=0}^{\\infty}\\gamma^{t} r(s_t,a_t)\\right]", "description": "RL 목적함수: POMDP 전이 및 관측 모델 하에서 기대 할인 수익을 최대화하는 정책을 찾는다."}, {"type": "bullet", "text": "모델은 n개의 인과 마스킹 자기 어텐션 층을 쌓은 GPT 아키텍처를 채택한다; 궤적 tau = (o_1,a_1,...,o_T,a_T)가 위치 임베딩과 함께 임베딩되며, returns-to-go는 예비 실험에서 포함 시 성능이 약간 저하되어 제거된다."}, {"type": "formula", "label": "식 2", "latex": "z_i = \\sum_{j=1}^{i} \\operatorname{softmax}\\!\\big(\\{\\langle q_i,k_{j'}\\rangle\\}_{j'=1}^{i}\\big)_j \\cdot v_j", "description": "인과 마스킹 자기 어텐션: 출력 z_i는 앞선 토큰 j <= i에만 주의를 기울이며, 소프트맥스 정규화된 쿼리-키 닷-프로덕트로 값 v_j를 가중한다."}, {"type": "bullet", "text": "마지막 자기 어텐션 층은 앞선 관측-행동 시퀀스에 조건화하여 다음 행동을 예측하는 선형 헤드에 공급된다; 평가 시 트랜스포머는 마지막 T개 관측-행동 쌍을 소비하고 예측 행동을 실행한다."}, {"type": "formula", "label": "식 3", "latex": "\\hat{a}_t \\sim \\mathrm{Trans}(\\cdot \\mid o_1,a_1,\\dots,o_t), \\quad \\forall t\\in[1,T]", "description": "행동 예측: 트랜스포머가 이전 관측-행동 시퀀스에 조건화하여 행동 a_hat_t를 출력한다."}, {"type": "bullet", "text": "교사 정책이 먼저 특권 정보 — 베이스 주변 고도 지도, 지면 접촉력, 도메인 무작위화에 사용된 실제 물리 파라미터 — 에 접근하여 학습되며, 이는 MLP로 잠재변수 l_t로 부호화된다."}, {"type": "formula", "label": "식 4-5", "latex": "l_t = \\mu(e_t), \\qquad \\bar{a}_t = \\bar{\\pi}(o_t, l_t)", "description": "특권 정보 e_t가 MLP mu로 잠재변수 l_t로 부호화되고, 교사 정책 pi_bar가 고유수용성 o_t와 l_t로부터 행동을 산출한다; 교사와 인코더는 PPO로 공동 학습된다."}, {"type": "bullet", "text": "오프라인 사전학습: 교사가 다양한 지형에 걸쳐 롤아웃되어 (특권 정보 없이) 관측-행동 시퀀스를 수집하고, GPT 트랜스포머가 평균-제곱 오차를 최소화하여 교사의 행동을 회귀하도록 학습된다."}, {"type": "formula", "label": "식 6", "latex": "L = \\sum_{t=1}^{T} (\\hat{a}_t - \\bar{a}_t)^2, \\quad (\\hat{a}_1,\\dots,\\hat{a}_T)\\sim\\mathrm{Trans}(o_1,\\bar{a}_1,\\dots,o_T,\\bar{a}_T)", "description": "오프라인 사전학습 손실: 교사 자신의 관측-행동 궤적에 조건화한, 예측 행동과 교사의 행동 사이의 MSE."}, {"type": "bullet", "text": "온라인 보정: 트랜스포머의 온-폴리시 입력 분포가 배치 시 교사의 것에서 이동하므로, DAgger 방식 단계가 TERT를 시뮬레이터와 상호작용시키는 동안 교사가 목표 행동을 레이블링하고, TERT는 자신의 롤아웃에 조건화하여 그 행동을 맞추도록 재학습된다."}, {"type": "formula", "label": "식 7", "latex": "L = \\sum_{t=1}^{T} (\\hat{a}_t - \\bar{a}_t)^2, \\quad (\\hat{a}_1,\\dots,\\hat{a}_T)\\sim\\mathrm{Trans}(o_1,\\hat{a}_1,\\dots,o_T,\\hat{a}_T)", "description": "온라인 보정 손실: 동일한 교사-대상 MSE이지만 TERT 자신의 예측-행동 궤적에 조건화하여, 입력 분포 이동을 다룬다."}, {"type": "bullet", "text": "두 단계 모두 필수적이다: 오프라인 사전학습 없이는 초기 컨트롤러가 사용 불가능한 명령을 주고 저품질 온-폴리시 데이터를 산출하며; 온라인 보정 없이는 모델이 입력-분포-이동 문제를 겪는다(절제 실험은 V-C절)."}, {"type": "bullet", "text": "예측 행동은 PD 컨트롤러를 통해 모터 토크로 변환되는 관절 목표 위치다.", "figure_refs": [2]}, {"type": "formula", "label": "식 8", "latex": "\\tau = k_p (q_d - q) + k_d (\\dot{q}_d - \\dot{q})", "description": "예측 목표 관절 위치 q_d의 토크로의 PD 변환으로, 비례 게인 k_p와 미분 게인 k_d를 가진다."}]}, "experiment": {"content": [{"type": "bullet", "text": "설정: 수천 개의 병렬 로봇과 다중-지형 시뮬레이션(경사, 계단, 이산 장애물)을 가진 Rudin et al.의 오픈소스 IsaacGym 코드베이스 위에 구축; 플랫폼은 Unitree A1(~12 kg, 12개 모터)이다."}, {"type": "bullet", "text": "관측 o_t in R^48(베이스 선/각 속도, 중력 사영, 명령, 관절 속도, 마지막 행동); 행동 a_t in R^12 = 목표 관절 위치; 교사 잠재변수 l_t in R^12; 트랜스포머는 3개 자기 어텐션 층, 임베딩 크기 256, 드롭아웃 0.05, 궤적 길이 T=20을 사용한다."}, {"type": "bullet", "text": "시뮬레이션 비교(표 I): Teacher(오라클), RMA, PPO, Stacked PPO, GRU에 대해, TERT는 대부분 지형에서 최고의 비-교사 수익을 달성하고(평균 20.43 대 RMA 20.20, PPO 16.94), 특히 계단 오르기/내려가기에서 교사에 가장 가깝다."}, {"type": "bullet", "text": "TERT는 또한 보상에 명시적 에너지 벌점이 없음에도 최저 에너지 소비(평균 39.61)와 가장 매끄러운 제어(평균 평활성 1.29)를 달성한다."}, {"type": "bullet", "text": "절제 실험(그림 3): 온라인 보정 제거(TERT-w/o-OC) 또는 오프라인 사전학습 제거(TERT-w/o-OP)는 둘 다 성능을 낮추고; 트랜스포머 대체(TERT-TCN)는 심각한 저하를 야기하며; 잠재변수 추정에 트랜스포머 사용(TERT-Latent)은 TERT 이점의 대부분을 유지하여, 트랜스포머 아키텍처가 주된 동인임을 확인한다.", "figure_refs": [3]}, {"type": "bullet", "text": "표현 분석: 마지막 은닉층의 t-SNE(그림 4)는 RMA의 지형 군집이 크게 겹치는 반면 TERT가 더 명확한 경계를 유지함을 보여 RMA의 고르지 않은 지형별 성능을 설명한다; 어텐션 히트맵(그림 6)은 TERT가 보행 주기에 맞는 순환 패턴으로 긴 이력(t-19의 가중치가 최근 스텝에 필적)을 사용함을 보인다.", "figure_refs": [4, 6]}, {"type": "bullet", "text": "실세계(표 II): TERT와 RMA가 미세조정 없이 50 Hz(k_p=55, k_d=8)로 A1 하드웨어에서 실행된다; 둘 다 처음 일곱 개 지형을 100%로 통과하지만, RMA는 모래 구덩이(0%)와 계단 내려가기(0%)에서 실패하는 반면 TERT는 모래 구덩이에서 100%, 계단 내려가기에서 60% 성공한다.", "figure_refs": [5]}, {"type": "bullet", "text": "학습 세부(부록): 4096개 병렬 환경, 명령 속도 0.4 m/s, 제어 주기 0.02 s, 최대 1000 스텝 에피소드; 교사는 20k 반복 학습; 각 트랜스포머 단계는 2천만 타임스텝을 수집하고 배치 크기 64로 20만 갱신 실행; 마찰, 추가 질량, k_p, k_d에 대한 도메인 무작위화(표 III)."}, {"type": "bullet", "text": "시퀀스-길이 연구(그림 7): T=1은 1-스텝 행동 복제로 퇴화한다; 더 긴 T는 어느 지점까지 수익을 개선하지만 계산 비용이 들고 제어 주파수를 낮춰, T=20 선택을 동기 부여한다.", "figure_refs": [7]}]}, "discussion": {"content": [{"type": "bullet", "text": "종단 간 행동-모방 방식(교사 행동을 직접 예측)은 정확한 온라인 잠재 추정에 대한 취약한 의존을 제거하기 때문에 RMA 같은 잠재-추정 접근법을 능가하는데, 이것이 모래 구덩이와 계단 내려가기에서의 RMA 파국적 실패의 원인이다."}, {"type": "bullet", "text": "트랜스포머의 높은 용량과 긴 이력에 대한 자기 어텐션이 이점의 핵심 원천으로, 잠재 공간에서의 더 명확한 지형 분리와 먼 과거 타임스텝의 효과적 사용으로 입증된다."}, {"type": "bullet", "text": "2단계 프레임워크가 고용량 모델을 학습 가능하고 배치 가능하게 만드는 것이다: 오프라인 사전학습이 합리적 거동을 부트스트랩하고 온라인 보정이 온-폴리시 분포 간극을 메우며, 어느 것도 단독으로는 충분치 않다."}, {"type": "bullet", "text": "더 낮은 에너지와 더 매끄러운 제어가 명시적 에너지 벌점 없이 창발하여, 시퀀스 모델이 본질적으로 효율적인 보행을 찾음을 시사한다 — 전력 제한 플랫폼에 바람직한 속성이다."}, {"type": "bullet", "text": "어텐션 히트맵은 TERT가 보행 주기에 맞는 순환 패턴으로 먼 타임스텝(예: t-19가 최근 스텝에 필적)에 상당한 가중치를 둠을 보여, 모델이 짧은 윈도우로 붕괴하지 않고 진정으로 장기 지평 고유수용성 이력을 활용함을 나타낸다."}, {"type": "bullet", "text": "남은 신뢰성 간극은 외수용성 감지의 부재로 거슬러 올라간다: 실세계 계단 내려가기는 60%만 성공하고 계단 오르기는 고도 정보 없이 너무 어려워 실세계 비교에서 제외되어, 계획된 LiDAR/카메라 입력 통합을 동기 부여한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "TERT는 트랜스포머를 다수 지형에 걸친 사족 이동에 활용하는 단순하지만 효과적인 방법으로, 트랜스포머를 특권 학습에 통합하는 2단계 프레임워크와 함께한다."}, {"type": "bullet", "text": "광범위한 시뮬레이션 및 실세계 실험은 TERT가 도전적 지형에서 최첨단 기준선을 능가하며, 이 이점이 고용량 시퀀스 모델링과 자기 어텐션에 기인함을 보인다."}, {"type": "bullet", "text": "저자들은 본 연구를 사족 이동에 트랜스포머를 적용하는 중요한 한 걸음이자 로봇 제어에서 sim-to-real 전이를 위한 잠재적 새 패러다임으로 위치시킨다."}, {"type": "bullet", "text": "명시된 향후 방향은 LiDAR/카메라 고도 정보를 프레임워크에 통합하고 이를 다중 에이전트 제어 과제로 확장하는 것이다."}, {"type": "bullet", "text": "핵심 방법론적 주장은 특권 잠재 벡터를 추정하는 대신 고유수용성 이력으로부터 교사의 행동을 직접 예측하는 것이 TERT로 하여금 잠재-추정 기준선이 추정이 학습 분포를 벗어날 때 겪는 파국적 저하를 피하게 한다는 것이다."}, {"type": "bullet", "text": "2단계 레시피 — 오프라인 모방 사전학습에 이어 모델 자신의 롤아웃에 대한 DAgger 방식 온라인 보정 — 는 도메인 무작위화 하에서 고용량 트랜스포머를 학습 가능하고 배치 가능하게 만드는 데 필수적인 것으로 제시된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [{"claim": "고유수용성만으로 다룰 수 없는 지형을 처리하기 위해 LiDAR나 카메라로부터의 외수용성 고도 정보를 트랜스포머 프레임워크에 통합한다.", "source_quote": "For future work, it is appealing to integrate elevation information from LiDAR or camera into our framework and investigate its extension to multi-agent control tasks.", "source_section": "conclusion"}, {"claim": "트랜스포머 기반 시퀀스-모델링 접근법을 다중 에이전트 제어 과제로 확장한다.", "source_quote": "For future work, it is appealing to integrate elevation information from LiDAR or camera into our framework and investigate its extension to multi-agent control tasks.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["특권-학습 이동에 사용되는 전통적 시퀀스 모델(TCN, RNN/GRU)은 용량과 확장성이 제한적이어서, 더 복잡한 다중-지형 환경으로의 적용을 저해할 수 있다.", "다재다능한 교사 정책은 온라인으로 추정하기 어려운 특권 잠재 벡터 l_t를 완전히 사용한다; 학생은 추정된 l_t에 민감하여 l_t가 학습 분포를 벗어날 때 파국적 성능 저하를 겪을 수 있다.", "시뮬레이션에서 학습된 다족 정책을 실세계로 전이하는 것은 현실 간극(변화하는 동역학, 불규칙한 지형 프로파일, 장애물) 때문에 어렵다."], "addressed_by_this_work": ["TERT는 저용량 시퀀스 모델을 긴 고유수용성 이력을 자기 어텐션으로 활용하는 고용량 GPT 스타일 트랜스포머로 대체하여, 지형 특성과 다양한 거동의 모델링을 개선한다.", "l_t를 온라인으로 추정하는 대신, TERT는 과거 관측-행동 시퀀스에 조건화하여 교사의 행동을 직접 예측하여, 정밀한 잠재 추정에 대한 강한 의존을 제거하고 관련된 저하를 피한다.", "2단계 프레임워크(교사를 모방하는 오프라인 사전학습 + 트랜스포머 자신의 롤아웃에 대한 온라인 보정)와 도메인 무작위화의 결합이 현실 간극을 좁히고 아홉 개 지형에 걸쳐 실물 A1로의 제로샷 전이를 가능하게 한다."], "remaining_unresolved": ["외수용성 고도 입력 없이는 고유수용성-전용 정책이 가장 어려운 지형에서 완전히 신뢰할 수 없다: 실세계 계단 내려가기는 60%만 성공하고, 계단 오르기는 고도 정보 없이 너무 어려워 실세계 비교에서 제외된다.", "더 큰 궤적 길이 T는 성능을 개선하지만 계산 비용을 높이고 제어 주파수를 낮춰, 수동 T=20 트레이드오프를 강제한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

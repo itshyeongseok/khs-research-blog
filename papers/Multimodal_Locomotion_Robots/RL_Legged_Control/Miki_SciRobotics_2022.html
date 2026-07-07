@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning robust perceptive locomotion for quadrupedal robots in the wild</title>
+    <meta name="keywords" content="reinforcement learning, perceptive locomotion, exteroception, proprioception, belief state encoder, attention gating, privileged learning, sim-to-real transfer, ANYmal quadruped, elevation map">
+    <meta name="paper-authors" content="Takahiro Miki, Joonho Lee, Jemin Hwangbo, Lorenz Wellhausen, Vladlen Koltun, Marco Hutter">
+    <meta name="paper-journal" content="Science Robotics, vol. 7, no. 62, eabk2822 (2022). DOI:10.1126/scirobotics.abk2822. Preprint arXiv:2201.08117.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning robust perceptive locomotion for quadrupedal robots in the wild</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Takahiro Miki, Joonho Lee, Jemin Hwangbo, Lorenz Wellhausen, Vladlen Koltun, Marco Hutter</div>
+            <div class="journal">Science Robotics, vol. 7, no. 62, eabk2822 (2022). DOI:10.1126/scirobotics.abk2822. Preprint arXiv:2201.08117.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">저자들은 exteroceptive(지형 인지) 감각과 proprioceptive 감각을 robust하게 통합해, vision 기반 보행의 속도와 blind 보행의 robust성을 동시에 달성하는 사족 보행 제어기를 제시한다. 핵심 문제는 exteroception이 신뢰할 수 있을 때는 빠르고 에너지 효율적이지만 야외에서 자주 실패한다는 점이다(눈, 초목, 물, 반사/투명 표면, occlusion, pose 추정 drift). 그래서 가장 robust한 기존 제어기는 proprioception만 써서 느렸다. 핵심 구성요소는 proprioception과 exteroception을 통합 belief state로 융합하는 recurrent, attention-gated belief state encoder로, exteroceptive 입력을 얼마나 신뢰할지 end-to-end로 학습한다: exteroception이 신뢰할 만할 때 지형 예지(foresight)를 활용하고, 그렇지 않을 때 수작업 규칙 없이 매끄럽게 proprioception으로 회귀한다. 제어기는 privileged learning으로 학습된다: teacher policy를 ground-truth privileged 지형/contact 상태로 PPO로 학습한 뒤, on-robot 관측만 쓰는 student로 distill하며, behavior-cloning loss(teacher action 매칭)와 reconstruction loss(belief에서 ground-truth 지형/privileged 상태 복원)를 함께 쓴다. elevation map이 센서 비의존 추상화 계층 역할을 하고, 공격적 높이 표본 노이즈 모델링(점별/발별/episode별, offset과 full-dropout regime 포함)이 매핑 실패나 고장 난 센서에서도 policy를 살아남게 한다. 여러 계절에 걸쳐 alpine·forest·underground·urban 환경에 zero-shot 배치되어 낙상 0회를 기록했고, '난이도 높음'으로 평가된 한 시간짜리 Alpine 등반을 사람 권장 시간 내에 완주했으며, 1.2 m/s로 걸었고(baseline 0.6 m/s), DARPA Subterranean Challenge 결선 우승 팀의 기본 제어기였다. Ko의 MARCO 이족 sim-to-real 연구에 대해 본 논문은 우아한 fallback을 갖춘 학습된 다중 모달 인지 융합의 정전적 인용 문헌이다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">perceptive locomotion</span><span class="keyword-chip">exteroception</span><span class="keyword-chip">proprioception</span><span class="keyword-chip">belief state encoder</span><span class="keyword-chip">attention gating</span><span class="keyword-chip">privileged learning</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">ANYmal quadruped</span><span class="keyword-chip">elevation map</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Introduction은 robust한 perceptive locomotion을 난제로 규정한다: 동물은 vision으로 지형을 예지하고 발 디딤을 계획하며 proprioception과 exteroception을 자연스럽게 결합해 불규칙 지형을 활보하지만 로봇은 이를 따라가지 못한다. 핵심 난점은 불완전하고 노이즈 많은 온보드 인지의 신뢰성 있는 해석이다: 스테레오와 time-of-flight depth 센서는 저texture·과/저노출·어두움·반사·투명 표면에서 실패하고 부드러운 지형과 단단한 지형을 구별하지 못하며, elevation map은 pose 추정 오차·occlusion·시간적 불일치를 물려받는다. 기존 모델 기반 및 학습 기법은 정확한 map을 가정하고 운동 생성에 집중해 야외에서 실패하므로, 가장 robust한 제어기는 vision을 아예 피해 속도를 제한한다. 본 절은 privileged learning으로 학습된 recurrent belief state encoder 위에 세운 논문의 원리적 융합 해법을 소개한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 논의는 본 연구를 모델 기반 발 디딤 계획, 인지 불확실성 처리, 학습 기반 보행 사이에 위치시킨다. 오프라인·온라인 모델 기반 기법은 (사전 스캔 또는 온보드 구축) map 위에 궤적을 계획하고 정확한 지형 지식을 가정한다. 더 빠른 변형은 휴리스틱이나 CNN foothold costing을 쓰고, Atlas parkour는 온라인 LiDAR 최적화를 동반한 사전 계획 reference를 쓰지만, 모두 정확한 지형이 주어진 상태에서 foothold 선택에 집중한다. 일부 연구는 map 불확실성을 통계적으로 표현하나 휴리스틱 발 배치 규칙에만 쓰여 명시적으로 모델링된 불확실성만 다룬다. 학습 기반 보행은 시뮬레이션 전용 RL에서 Hwangbo et al.의 학습된 actuator dynamics와 Lee et al.의 privileged 험지 학습을 통한 실제 로봇 전이로 진전했으나 proprioception 전용이다. Gangapurwala et al.은 학습된 foothold planner와 모델 기반 제어로 exteroception을 더했으나 map 품질에 묶인 대체로 평평한 rigid 지형에 국한되었다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">신경망 policy를 통합 학습 actuator 모델과 함께 RaiSim 시뮬레이터에서 학습하고 3단계 privileged-learning 파이프라인으로 zero-shot 배치한다. 외부 force와 전체 지형이 관측 불가능하므로 제어 문제는 POMDP다. teacher policy(별도의 exteroceptive·privileged 인코더를 가진 MLP)는 무작위 생성 지형에서 무작위 명령 속도를 따르도록 domain randomization(질량, 초기 상태, 외부 force/torque, 미끄러짐을 위한 간헐적 저마찰)과 CPG 영감 action 공간(다리별 phase 차이와 잔차 관절 목표 출력)으로 PPO로 학습된다. teacher는 recurrent, attention-gated belief state encoder가 proprioception과 noisy exteroception을 belief state로 융합하는 student로 distill되며, behavior-cloning loss와 ground-truth 지형/privileged 상태를 복원하는 reconstruction loss로 학습된다. 공격적 높이 표본 노이즈 모델링(점별/발별/episode별, nominal/large-offset/large-noise regime을 60/30/10%로)과 두 curriculum(적응형 particle-filter 지형 난이도, logistic 외란/보상 ramp)이 robust성을 이끈다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">제어기는 여러 계절에 걸쳐 alpine·forest·underground·urban 환경에 zero-shot 배치되어 낙상 0회를 기록했고, exteroception을 활용해 지형을 예측하며 특히 계단과 큰 장애물 위를 빠르고 매끄럽게 걸었으며, (Spot과 달리) 특수 모드 없이 어느 방향으로든 계단을 기본 주파했다. '난이도 높음'으로 평가된 2.2 km Alpine 등반(고도 120 m 상승, 최대 38% 경사)을 사람 도움 없이 완주해 정상에 31분(사람 표지판 35분보다 빠름)에 도달하고 78분(등산 플래너 추정 76분 대비)에 마쳤다. 통제 실험은 exteroception 기여를 정량화했다: 제어기는 최대 30.5 cm 계단을 넘었고(baseline은 20 cm에서 떨어짐), 장애물 코스 경로를 매끄럽게 따랐으며(baseline은 모든 장애물에 걸림), 평지에서 1.2 vs 0.6 m/s로 걸었고 3 vs 0.6 rad/s(5배)로 선회했다. belief-state 시각화는 부드러운·투명한·센서 가림 장애물에 contact할 때 지형 추정을 올바로 수정하고, 미끄러운 표면과 눈이 멀었을 때 proprioception으로 우아하게 회귀함을 보인다. 제어기는 DARPA Subterranean Challenge 결선 우승 팀의 기본 제어기였다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 결과를 vision 기반 보행의 속도·우아함과 proprioception의 높은 robust성을 결합한 최초의 험지 legged 제어기로 규정하며, exteroception-proprioception 통합이 수작업 규칙 없이 end-to-end로 학습된다고 본다. robust성은 통제 실험과 광범위한 야외 배치로 검증되었으며, 사람 권장 시간에 완주한 '난이도 높음' Alpine 등반과 우승한 DARPA Subterranean Challenge 주행을 포함한다. 본 연구는 legged 로봇의 운용 영역을 넓히고, 지면 종류 식별이나 모드 전환이 더는 필요 없는 항행 계획을 단순화한다. 이어 한계와 '가능한 확장'을 열거한다: 불확실성이 현재 암묵적으로만 쓰이고(occlusion된 절벽에서 헛디딜 위험), 인지가 원시 센싱이 아니라 중간 elevation map과 별도 학습된 pose estimator로 매개되며, occlusion 모델을 학습할 수 있고, 정상 보행과 매우 다른 maneuver는 여전히 불가능하다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">기여를 종합하면, 논문은 학습된 attention-gated belief state로 exteroception과 proprioception을 robust하게 융합하면 vision 기반 보행의 속도와 blind 보행의 robust성을 동시에 달성하는 사족 제어기를 얻는다고 결론짓는다. privileged learning으로 시뮬레이션에서 학습되고(ground-truth 상태 PPO teacher를 behavior-cloning과 reconstruction loss로 student로 distill), elevation-map 추상화로 센서 비의존적이 되며, 공격적 높이 표본 노이즈 모델링과 curriculum으로 단단해진 제어기는 하드웨어로 zero-shot 전이된다. exteroception이 신뢰할 만할 때 지형을 예측하고 그렇지 않을 때 매끄럽게 proprioception으로 저하되며, 여러 계절에 걸친 alpine·forest·underground·urban 환경 낙상 0회 배치, 사람 시간에 완주한 '난이도 높음' Alpine 등반, proprioceptive baseline 대비 큰 속도/선회/장애물 주파 이득, DARPA Subterranean Challenge 결선 승리로 시연되어, 야외에서 복잡한 자율 기계의 robust한 배치를 위한 일반 프레임워크를 이룬다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "legged 로봇은 사람에게 너무 멀거나 위험한 환경에서 임무를 수행하고 바퀴·궤도 차량을 가로막는 지형을 주파할 수 있지만, 지금까지 험지 실세계 지형 주파에서 동물에 필적하지 못했다.", "figure_refs": [1]}, {"type": "bullet", "text": "동물은 다가오는 지형을 예지하고 시각 정보로 발 디딤을 계획해 활발히 걷거나 달리며, vision이 제한될 때도 proprioception과 exteroception을 자연스럽게 결합해 불규칙 지형 형상과 표면 속성(미끄러움, 부드러움)에 적응한다. 로봇에 이를 부여하는 것이 난제다."}, {"type": "bullet", "text": "온보드 센서의 exteroceptive 정보는 불완전하고 종종 신뢰할 수 없다: 스테레오 depth는 texture가 필요하고 과/저노출 영상에서 실패하며, time-of-flight 카메라는 어두운 표면과 햇빛 아래서 실패하고, 광 기반 센서는 반사 표면에서 인공물을 만들며 부드러운 지형과 단단한 지형을 구별하지 못한다."}, {"type": "bullet", "text": "depth 측정으로 지형을 표현하는 elevation map은 로봇의 추정 pose에 의존하며 pose 오차·occlusion·동적 물체로 인한 시간적 불일치로 손상되므로, 온보드 지형 인지에 의존하는 기법은 이런 실패에 취약하게 남는다."}, {"type": "bullet", "text": "기존 오프라인·온라인 접근은 지형 map과 그 불확실성이 합리적으로 정확하다고 가정하고 초점을 오직 운동 생성으로 옮기므로, 완벽한 map 가정이 통제되지 않은 야외 환경 사용을 가로막는다. 인지 불확실성 처리는 미해결 문제로 남는다."}, {"type": "bullet", "text": "기존 제어기는 야외에서 vision을 아예 쓰지 않거나 휴리스틱 반사 규칙을 더해 파국적 실패를 피한다. 지금까지 가장 robust하고 일반적인 해법은 오직 proprioception에 의존하는데, 이는 로봇이 적응 전에 지형을 물리적으로 더듬어야 해 속도를 심하게 제한한다."}, {"type": "bullet", "text": "논문은 핵심 구성요소가 proprioception과 exteroception을 통합하는 recurrent belief state encoder인 지형 인지 제어기를 제시한다. privileged learning으로 end-to-end 학습되어, exteroception이 신뢰할 만할 때 예지를 활용하고 필요할 때 매끄럽게 proprioception으로 회귀한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "오프라인 모델 기반 기법은 사전 스캔 지형 map, 수작업 cost function, 최적화된 궤적을 로봇에서 재생하며, 전체 지형과 로봇 상태의 완벽한 지식을 가정하고 긴 계획 시간을 쓴다."}, {"type": "bullet", "text": "온라인 모델 기반 기법은 온보드 자원으로 map을 구축하고 지속적으로 재계획한다. 휴리스틱이나 CNN으로 foothold cost의 계획 시간을 줄여 더 빠른 보행을 달성하며, Atlas는 LiDAR로 온라인 최적화한 사전 계획 reference로 parkour를 시연했다."}, {"type": "bullet", "text": "이 모든 접근은 정확한 지형 정보가 주어진 상태에서 foothold 선택과 궤적 생성에 집중한다. 일부는 통계적 map 불확실성을 표현하나 휴리스틱 발 배치 규칙에만 쓰여, 명시적으로 모델링된 불확실성만 다루고 야외의 다양한 인지 실패에 robust하지 못하다."}, {"type": "bullet", "text": "시뮬레이션 캐릭터를 위한 학습 기반 보행은 RL과 현실적 로봇 모델로 달성되었으나 시뮬레이션에서만 수행되었고, 이후 RL 제어기가 물리 로봇으로 전이되었다."}, {"type": "bullet", "text": "Hwangbo et al.은 sim-to-real을 돕는 학습된 actuator dynamics로 평지에서 사족 보행과 회복을 실현했고, Lee et al.은 적응형 curriculum을 동반한 privileged 학습 설정으로 이를 험지 보행으로 확장했으나, 이들 기법은 시각 정보를 쓰지 않는다.", "figure_refs": [1]}, {"type": "bullet", "text": "Gangapurwala et al.은 학습 기반 foothold planner와 모델 기반 전신 제어기를 결합해 exteroception을 더했으나, 응용이 대체로 평평한 rigid 지형에 국한되고 야외에서 종종 신뢰할 수 없는 map 품질에 강하게 묶여 있다."}, {"type": "bullet", "text": "모델 기반·학습 기반 기존 연구 모두에서 완벽한 map 품질 가정이 통제되지 않은 야외 환경 적용을 가로막아, 지형 인지 불확실성의 robust한 처리가 본 논문이 겨냥하는 미해결 문제로 남는다."}]}, "method": {"content": [{"type": "bullet", "text": "방법은 세 단계다(Fig. 5): privileged 시뮬레이션 데이터로 RL로 teacher 학습, imitation + reconstruction으로 student로 distill, 로봇 중심 elevation map의 높이 표본을 써서 student를 하드웨어에 zero-shot 배치.", "figure_refs": [5]}, {"type": "bullet", "text": "외부 force나 전체 지형 같은 관측 불가능 상태가 존재하므로 제어 문제는 부분 관측 마르코프 결정 과정(POMDP)으로 정식화된다. policy는 관측 모델을 통해 o_t를 관측하고, belief state b_t는 전체 상태를 포착하기 위해 관측 history로부터 구성된다.", "figure_refs": []}, {"type": "formula", "label": "RL 목적함수 (teacher)", "latex": "\\pi^{*}=\\arg\\max_{a}\\;\\mathbb{E}\\left[\\sum_{t=0}^{\\infty}\\gamma^{t} r_{t}\\right]", "description": "RL 목적함수는 미래 궤적에 걸친 기대 할인 보상을 최대화하는 policy를 찾는다. gamma는 할인 인자다. teacher는 평균이 MLP인 가우시안 policy이며 Proximal Policy Optimization(PPO)으로 학습된다."}, {"type": "bullet", "text": "teacher 관측은 proprioception(몸 속도, 자세, 관절 위치/속도 history, action history, 다리별 phase), exteroception(각 발 주위 다섯 반경의 높이 표본), privileged 상태(contact 상태/force/법선, 마찰, 허벅지/정강이 contact, 외부 force/torque, swing-phase 지속시간)를 결합하며, reality gap을 메우는 통합 actuator 모델과 함께 RaiSim에서 학습된다."}, {"type": "bullet", "text": "action 공간은 central pattern generator(CPG)에서 영감을 받았다: 각 다리는 역기구학으로 nominal 관절 목표로 변환되는 nominal stepping 궤적을 정의하는 phase 변수를 갖고, policy는 다리별 phase 차이와 잔차 관절 위치 목표를 출력한다."}, {"type": "formula", "label": "명령 추종 보상 (Eq. 1)", "latex": "r_{command}=\\begin{cases}1.0, & \\text{if } v_{des}\\cdot v > |v_{des}|\\\\ \\exp\\!\\big(-(v_{des}\\cdot v-|v_{des}|)^{2}\\big), & \\text{otherwise}\\end{cases}", "description": "명령 보상은 원하는 속도 v_des에 투영된 몸 속도 v가 명령 크기에 도달하거나 초과하면 1로 포화되고, 그렇지 않으면 속도 부족분에 대한 가우시안으로 감쇠한다. 동일 형태가 yaw 명령에 적용되며, 직교 속도·몸 각속도·자세·관절 토크/속도/가속도·발 미끄러짐·정강이/무릎 충돌에 대한 추가 shaping 벌점이 더해진다."}, {"type": "bullet", "text": "teacher policy는 세 구성요소의 MLP다: latent l^e를 만드는 exteroceptive 인코더, latent l^priv를 만드는 privileged 인코더, 그리고 main network. 학습된 가중치를 student 초기화에 재사용해 학습을 가속할 수 있게 한다.", "figure_refs": [6]}, {"type": "bullet", "text": "student는 privileged 입력을 recurrent, attention-gated belief state encoder로 대체한다: RNN이 proprioception, noisy exteroceptive feature, hidden state를 중간 belief로 인코딩하면, 학습된 attention gate가 exteroceptive 정보가 최종 belief state에 얼마나 들어갈지 제어하며, 이 belief는 teacher의 (l^e, l^priv) feature를 맞추도록 학습된다.", "figure_refs": [6]}, {"type": "formula", "label": "Attention-gated belief state", "latex": "b_{t}'=\\mathrm{RNN}(o_{t}^{p}, l_{t}^{e}, h_{t}),\\quad \\alpha=\\sigma(g_{a}(b_{t}')),\\quad b_{t}=g_{b}(b_{t}')+l_{t}^{e}\\odot \\alpha", "description": "recurrent 코어가 proprioception o^p, exteroceptive feature l^e, hidden state h로부터 중간 belief b'_t를 만들고, (b'_t에서 계산된) sigmoid-gated attention 벡터 alpha가 exteroceptive 정보 l^e가 최종 belief state b_t에 원소별로 얼마나 허용될지 제어해, exteroception에 대한 적응적 신뢰와 proprioception으로의 우아한 fallback을 가능케 한다."}, {"type": "bullet", "text": "student는 두 loss로 supervised learning된다: behavior-cloning loss(동일 상태/명령에 대한 student와 teacher action 간 제곱 거리)와 reconstruction loss(노이즈 없는 높이 표본/privileged 상태와 belief로부터의 복원 간 제곱 거리). robust성을 위해 student를 roll-out해(DAgger 방식) 표본을 생성한다."}, {"type": "formula", "label": "Logistic 외란/보상 curriculum", "latex": "c_{k+1}=(c_{k})^{d},\\qquad 0<d<1", "description": "두 번째 curriculum은 domain randomization과 일부 보상 항의 크기를, iteration k에 걸쳐 1을 향해 단조 증가하는 인자 c로 곱한다. d는 수렴률이다. 별도의 적응형 particle-filter 지형 curriculum이 지형을 도전적이되 달성 가능하게 유지하며, 높이 표본 노이즈(nominal/large-offset/large-noise regime을 60/30/10%로 점별/발별/episode별)는 학습에 따라 선형으로 ramp된다."}]}, "experiment": {"content": [{"type": "bullet", "text": "제어기는 alpine·forest·underground·urban 환경에 낙상 0회로 배치되었다. exteroception 덕에 로봇은 지형을 예측해 빠르고 매끄럽게 걸었고, 특히 계단·큰 장애물처럼 높은 발 clearance가 필요한 구조물에서 그러했으며, 기존 proprioception 전용 연구를 넘는 지형을 정복했다.", "figure_refs": [1]}, {"type": "bullet", "text": "전용 계단 모드와 올바른 방향이 필요한 Spot과 달리, 제어기는 어느 방향·자세로든(옆으로, 대각선으로, 계단에서 선회하며) 계단을 기본 주파하며, 계단을 미끄럽게 만들고 exteroception을 손상시키는 눈 같은 복합 난제에도 robust했다."}, {"type": "bullet", "text": "한 시간짜리 Alpine 등반(2.2 km, 고도 120 m 상승, 최대 38% 경사, '난이도 높음' 평가)에서 로봇은 실패 없이 완주했고(신발 고정과 배터리 교체로만 정지), 정상에 31분(사람 표지판 35분 대비), 마무리에 78분(등산 플래너 추정 76분 대비)이 걸렸다.", "figure_refs": [2]}, {"type": "bullet", "text": "proprioceptive baseline(Lee et al.) 대비 제어기는 최대 30.5 cm 고정 계단을 안정적으로 주파한 반면 baseline은 앞다리가 걸리며 20 cm에서 성공률이 떨어졌다. 제어기는 계단을 예측해 contact 없이 다리를 더 높이 들고 앞으로 기울여 뒷다리를 넘겼다.", "figure_refs": [4]}, {"type": "bullet", "text": "pure pursuit로 추종하는 고정 장애물 코스 경로(경사 플랫폼, 높은 플랫폼, 계단, 블록 더미)에서 제어기는 사전 인지를 써서 매끄럽게 따른 반면, baseline은 경로 추종에 실패하고 세 장애물 모두에 걸려 수동으로 들어 올리거나 밀어야 했다.", "figure_refs": [4]}, {"type": "bullet", "text": "최대 속도 시험에서 제어기는 평지(전진·횡)에서 baseline의 0.6 m/s 대비 1.2 m/s로 걸었고, baseline이 막힌 20 cm 계단을 눈에 띄는 감속 없이 주파했으며, 0.6 rad/s 대비 3 rad/s로 선회해 5배 차이를 보였다.", "figure_refs": [4]}, {"type": "bullet", "text": "학습된 belief decoder를 쓴 belief-state 시각화는, 제어기가 처음에는 exteroception을 신뢰하다가 부드러운(폼) 장애물과 투명한(아크릴) 장애물에 contact하면 지형 높이 추정을 빠르게 수정하고, recurrent 구조 덕에 발이 지면을 떠난 뒤에도 수정된 belief를 유지함을 보인다.", "figure_refs": [4]}, {"type": "bullet", "text": "센서를 물리적으로 가리면(완전한 exteroception 실패) 로봇은 무작위 노이즈를 입력으로 받으면서도 contact 시 지형 추정을 수정해 계단을 오르내렸다. 미끄러운 플랫폼에서는 저마찰을 감지해 균형 유지를 위해 더 빨리 디뎠고, elevation map이 안정될 때까지 proprioception으로 회귀했다.", "figure_refs": [4]}, {"type": "bullet", "text": "제어기는 DARPA Subterranean Challenge 결선에서 1위를 차지한 CERBERUS 팀의 기본 제어기로, 네 대의 ANYmal이 저하된 센싱(먼지, 안개, 물, 연기) 속에서 터널·도시·동굴 코스에 걸쳐 1700 m 이상을 단 한 번의 낙상 없이 탐사하게 했다."}]}, "discussion": {"content": [{"type": "bullet", "text": "제어기는 exteroceptive 입력과 proprioceptive 입력을 매끄럽게 통합한다: exteroception은 contact 전 지형을 예측해 gait를 적응시켜 빠르고 우아한 주파를 가능케 하고, exteroception이 오도하거나 불완전하거나 없을 때 매끄럽게 proprioceptive 보행으로 전환해 사실상 눈이 멀어도 robust하게 남는다."}, {"type": "bullet", "text": "통합은 수작업 규칙이나 휴리스틱 없이 end-to-end로 학습되어, vision 기반 보행의 속도·우아함과 proprioception의 높은 robust성을 결합한 최초의 험지 legged 보행 제어기를 낳는다."}, {"type": "bullet", "text": "속도와 robust성의 결합은 통제 실험과 광범위한 야외 배치로 검증되었으며, 사람 도움 없이 사람 등산객 권장 시간에 완주한 '난이도 높음' 한 시간짜리 Alpine 경로를 포함한다."}, {"type": "bullet", "text": "본 연구는 legged 로봇의 운용 영역을 넓히고 자율 항행의 새 지평을 연다. 플래너가 더는 지면 종류를 식별하거나 모드를 전환할 필요가 없기 때문이다. 제어기는 DARPA Subterranean Challenge 우승 주행의 기본 제어기였다."}, {"type": "bullet", "text": "한계와 확장: policy는 불확실성을 암묵적으로만 쓰므로 occlusion이 있는 좁은 절벽이나 디딤돌에서 연속 표면을 가정해 헛디딜 수 있다. 명시적 불확실성 추정은 제어기를 더 조심스럽게 만들 수 있다(예: 불확실할 때 발로 지면 더듬기)."}, {"type": "bullet", "text": "한계와 확장: 인지는 (LiDAR와 스테레오를 재학습 없이 쓰는, 센서 종류에 독립적인) 중간 elevation map을 통해 얻어져 재질/texture 세부를 생략하고 고전적·별도 학습 pose estimator에 의존한다. 원시 센서 처리를 network에 접어 넣고 occlusion 모델을 학습하면 속도와 robust성을 높일 수 있다."}, {"type": "bullet", "text": "한계: 제어기는 좁은 구멍에 끼인 다리에서 빠져나오거나 높은 턱 위로 오르는 등, 정상 보행과 매우 다른 maneuver가 필요한 task를 완수할 수 없다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "학습된 attention-gated belief state encoder가 exteroception과 proprioception을 robust하게 통합해, vision 기반 보행의 속도·우아함과 proprioception의 robust성을 단일 제어기에 결합한다."}, {"type": "bullet", "text": "privileged learning(ground-truth privileged 상태 PPO teacher를 behavior-cloning + reconstruction loss로 student로 distill)이 fine-tuning 없이 시뮬레이션에서 하드웨어로 zero-shot 전이되는 policy를 만든다."}, {"type": "bullet", "text": "elevation-map 추상화가 특정 depth 센서에 독립적이게(LiDAR나 스테레오를 재학습 없이) 만드는 한편, 공격적 높이 표본 노이즈 모델링이 매핑 실패나 물리적 센서 고장 시에도 로봇이 계속 걷게 한다."}, {"type": "bullet", "text": "제어기는 exteroception이 신뢰할 만할 때 지형 예지를 활용하고, 오도하거나 불완전하거나 없을 때 수작업 규칙 없이 robust한 proprioceptive 보행으로 매끄럽게 회귀한다."}, {"type": "bullet", "text": "여러 계절에 걸친 alpine·forest·underground·urban 환경 낙상 0회 배치, 사람 권장 시간 내 '난이도 높음' Alpine 등반, 그리고 proprioceptive baseline 대비 속도·선회·장애물 주파의 큰 이득이 접근을 검증한다."}, {"type": "bullet", "text": "DARPA Subterranean Challenge 결선 우승자의 기본 제어기로 기능하며, 야외에서 복잡한 자율 legged 기계의 robust한 배치를 위한 일반 프레임워크를 이룬다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "policy는 지형 불확실성을 암묵적으로만 쓰므로, occlusion으로 elevation map이 정보를 주지 못하는 좁은 절벽이나 디딤돌 앞에서는 연속 표면을 가정해 로봇이 헛디뎌 낙상할 수 있다.", "source_quote": "Currently, the policy uses uncertainty only implicitly to estimate the terrain. For example, in front of narrow cliff or a stepping stone, the elevation map does not provide sufficient information due to occlusion. Therefore, the policy assumes a continuous surface and, as a result, the robot might step off and fall.", "source_section": "discussion"}, {"claim": "인지 정보는 원시 센서 데이터가 아니라 중간 elevation map을 통해 얻으므로 원시 입력에 있는 세부(재질, texture)가 생략되며, map은 시스템의 나머지와 함께 학습되지 않는 고전적 pose estimator에 의존한다.", "source_quote": "the elevation map representation omits detail that may be present in the raw sensory input and may provide additional information concerning material and texture. Furthermore, our elevation map construction relies on a classical pose estimation module that is not trained jointly with the rest of the system.", "source_section": "discussion"}, {"claim": "제어기는 좁은 구멍에 다리가 끼었을 때 빠져나오거나 높은 턱 위로 올라가는 등, 정상 보행과 매우 다른 maneuver가 필요한 보행 task를 완수할 수 없다.", "source_quote": "Another limitation is the inability to complete locomotion tasks which would require maneuvers very different from normal walking, for example recovering from a leg stuck in narrow holes or climbing onto high ledges.", "source_section": "discussion"}], "future_works": [{"claim": "belief state의 불확실성 정보를 명시적으로 추정·활용해, exteroception이 신뢰할 수 없을 때 policy가 더 조심하도록 한다(예: 불확실할 때 발로 지면을 더듬어 보기).", "source_quote": "Explicitly estimating uncertainty may allow the policy to become more careful when exteroceptive input is unreliable, for example using its foot to probe the ground if it is unsure about it.", "source_section": "discussion"}, {"claim": "(중간 elevation map을 거치는 대신) 원시 센서 입력 처리를 network 안으로 접어 넣고 occlusion 모델을 학습해, policy가 절벽 뒤 occlusion을 이해하고 헛디디지 않게 한다.", "source_quote": "Appropriately folding the processing of raw sensory input into the network may further enhance the speed and robustness of the controller. In addition, an occlusion model could be learned, such that the policy understands that there's an occlusion behind the cliff and avoids stepping off it.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["exteroceptive 인지는 빠르고 에너지 효율적인 보행에 결정적이다. contact 전에 지형을 인지하면 사전에 계획과 gait 적응이 가능하기 때문이다. 그러나 이를 robust하게 쓰는 것은 여전히 난제다: 눈·초목·물이 거짓 장애물로 보이거나 높은 반사율 하에 사라지고, 어려운 조명·먼지·안개·반사/투명 표면·occlusion 하에서 depth 인지가 저하된다.", "기존 모델 기반 및 학습 기반 기법은 지형 map과 그 불확실성이 합리적으로 정확하다고 가정하고 운동 생성에만 집중하므로 통제되지 않은 야외 환경에서 무너진다. 지형 인지의 불확실성 처리는 미해결 문제로 남아 있었다.", "이런 실패 때문에 지금까지 가장 robust하고 일반적인 해법은 오직 proprioception에 의존했고(또는 취약한 휴리스틱 반사 규칙을 더했고), 이는 로봇이 gait를 적응하기 전에 지형을 물리적으로 더듬어야 해 속도를 심하게 제한한다."], "addressed_by_this_work": ["recurrent, attention-gated belief state encoder가 proprioception과 exteroception을 end-to-end로 융합하고 exteroceptive 정보를 얼마나 신뢰할지 제어하는 적응적 gating 인자를 학습해, 신뢰할 만할 때 지형 예지를 활용하고 그렇지 않을 때 수작업 규칙 없이 robust한 proprioceptive 보행으로 매끄럽게 저하된다.", "privileged learning이 ground-truth privileged 상태로 PPO teacher를 학습한 뒤, behavior-cloning loss와 noisy 관측에서 ground-truth 지형/privileged 정보를 belief가 복원하도록 강제하는 reconstruction loss로 student로 distill해, 배치 가능하고 robust한 제어기를 산출한다.", "elevation map 추상화 계층에 공격적 높이 표본 노이즈 모델링(점별/발별/episode별 노이즈, large-offset 및 full-dropout regime)을 더해 제어기를 센서 비의존적이고 매핑 실패·고장 센서에 robust하게 만들며, 야외 낙상 0회 배치와 DARPA Subterranean Challenge 결선 우승으로 검증된다."], "remaining_unresolved": ["불확실성이 암묵적으로만 쓰이고(occlusion된 절벽에서 헛디딜 위험), 인지가 원시 센싱이 아니라 별도 학습된 pose estimator를 동반한 중간 elevation map을 거치며, 정상 보행과 매우 다른 maneuver(끼인 다리 회복, 높은 턱 오르기)는 아직 불가능하다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>End-to-End Reinforcement Learning for Torque Based Variable Height Hopping</title>
+    <meta name="keywords" content="end-to-end reinforcement learning, torque control, variable-height hopping, monoped, soft actor-critic, sim-to-real transfer, CMA-ES parameter identification, implicit contact detection">
+    <meta name="paper-authors" content="Raghav Soni, Daniel Harnack, Hannah Isermann, Sotaro Fushimi, Shivesh Kumar, Frank Kirchner">
+    <meta name="paper-journal" content="2023 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Detroit, MI, USA, pp. 7531-7538, doi:10.1109/IROS55552.2023.10342187 (arXiv:2307.16676v2) · code at github.com/dfki-ric-underactuated-lab/hopping_leg">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">End-to-End Reinforcement Learning for Torque Based Variable Height Hopping</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Raghav Soni, Daniel Harnack, Hannah Isermann, Sotaro Fushimi, Shivesh Kumar, Frank Kirchner</div>
+            <div class="journal">2023 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Detroit, MI, USA, pp. 7531-7538, doi:10.1109/IROS55552.2023.10342187 (arXiv:2307.16676v2) · code at github.com/dfki-ric-underactuated-lab/hopping_leg</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 고유수용성 피드백(관절 위치와 속도)만을 관절 토크로 직접 매핑하는, 단일 다리(monoped) 로봇의 연속적·가변 높이 호핑(hopping)을 위한 종단간(end-to-end) <span class="term">강화학습</span> 토크 제어기를 제시한다. 명시적 이지(lift-off)/비행/착지(touchdown) 위상 검출, 높이 추정, PD 제어를 갖춘 <span class="term">유한 상태 기계(finite state machine)</span>를 사용하는 고전적 모델 기반 호핑 제어기와 달리, 학습된 정책은 관련 점프 위상을 암묵적으로 검출하여 모든 수동 상태 검출 휴리스틱을 제거한다. 정책은 에너지 셰이핑(energy-shaping)에서 영감을 받은 보상으로 <span class="term">Soft Actor-Critic (SAC)</span>을 사용해 학습되며, 저자들은 2단계 <span class="term">CMA-ES</span> 시뮬레이션 파라미터 최적화에 기반한 동역학 무작위화 없는 sim-to-real 방법을 고차원 파라미터 공간과 접촉이 풍부한 과제로 확장하여 추가 파라미터 튜닝 없이 배치를 가능하게 한다. 제어기는 학습된 점프 높이 사이를 보간하며, 팔꿈치 관절 토크 분석은 그것이 순전히 고유수용성으로부터 지면 접촉을 검출함을 확인한다. RL 보행 제어 서브시스템에 대해, 이 연구는 진정한 종단간 토크 수준 RL이 매우 동적이고 접촉이 풍부한 다리형 과제에서 위상 검출 휴리스틱과 PD 계층을 대체하면서도 하드웨어로 제로샷 전이될 수 있음을 시연한다.</div>
+            <div class="keywords"><span class="keyword-chip">end-to-end reinforcement learning</span><span class="keyword-chip">torque control</span><span class="keyword-chip">variable-height hopping</span><span class="keyword-chip">monoped</span><span class="keyword-chip">soft actor-critic</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">CMA-ES parameter identification</span><span class="keyword-chip">implicit contact detection</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">동적 다리형 보행은 비구조적 지형을 통과하는 다재다능한 방법이며, 특히 호핑은 통과 불가능한 장애물을 뛰어넘어 기동성을 높일 수 있지만, 무게중심 궤적이 대체로 고정되는 긴 비행 위상 때문에 추가적인 제어 복잡성을 수반한다. 고전적 호핑 제어기는 점프 상태(이지, 정점, 착지)를 검출하고 유한 상태 기계를 통해 제어기를 전환하는 데 의존하여, 수작업 튜닝된 휴리스틱, 높이 추정, 접촉 검출을 필요로 한다. 저자들은 보편 함수 근사기로서 신경망이 점프 위상을 암묵적으로 검출하고 고유수용성을 토크로 직접 매핑하는 통합된 완전 종단간 호핑 제어기를 실현할 수 있다고 가정하며, 이를 처음으로 monoped에서 시연한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 Raibert의 3D 단일 다리 호퍼와 에너지 셰이핑 힘 제어에서 비롯된 단일 다리 호핑 연구의 오랜 계보에 기반하며, 여기서 제어기는 이지와 착지 같은 상태를 검출하고 상태 기계로 실현된다. 이는 최적 제어 및 RL 보행 접근, 그리고 단일 도약을 목표로 하거나 여전히 높이 추정과 PD 제어에 의존했던 기존 학습 기반 점프와 대조된다. SAC와 일반화된 상태 의존 탐색(generalized state-dependent exploration)이 학습 기계를 제공하며, sim-to-real 접근은 도메인 무작위화가 아닌 파라미터 최적화(시스템 식별 방식) 방법에서 적응되었다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 수직 레일 위의 맞춤형 3-DOF 호핑 다리(1개 수동, 2개 능동 DOF)와 200 Hz의 준직접구동(quasi-direct-drive) 모터를 사용한다. 세 상태 기계 내부의 고전적 에너지 셰이핑(ES) 제어기가 베이스라인 역할을 한다. RL 문제는 MDP로 정식화되어 SAC와 일반화된 상태 의존 탐색(gSDE)으로 해결된다. 관측은 최근 세 시간단계에 걸친 정규화된 관절 위치/속도와 원하는 높이(차원 15), 행동은 정규화된 모터 토크(차원 2)이다. 보상은 에너지 이득, 높이 장벽(height-barrier) 페널티, 급격한 행동(jerky-action) 페널티, 관절 한계 페널티의 에너지 셰이핑에서 영감을 받은 가중 합이다. Sim-to-real은 기록된 사인파 하드웨어 궤적에 대한 시뮬레이션 동역학 및 솔버 파라미터의 2단계 CMA-ES 최적화와, 강건성을 위한 관측 버퍼 지연 및 노이즈 주입을 사용한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">2단계 CMA-ES는 sim-to-real 격차를 좁히는 시뮬레이션 파라미터를 산출하며, 세 점프 높이(0.25, 0.30, 0.35 m)로 학습된 정책은 중간 명령으로 보간하여 근사적 작업 공간(task-space) 역동역학을 학습했음을 나타낸다. 팔꿈치 관절 토크의 위상 공간 분석은 비행보다 지지 중 현저히 높은 토크와 최소 자세 이후 증가하는 토크를 보여, 고유수용성만으로부터의 암묵적 지면 접촉 검출을 입증한다. 시뮬레이션으로 학습된 제어기는 조정 없이 실제 로봇에 배치된다. 실제 점프 높이는 명령보다 낮지만(0.04-0.06 m 오프셋) 올바르게 정렬되며, 통계 검정은 인접 점프 높이 분포가 유의하게 다름을 확인한다(p<0.001). ES 베이스라인은 잘 작동하지만 전문가의 게인 튜닝이 필요한 반면, RL 제어기는 그 경향을 맞추고 때때로 더 작은 분산을 보인다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실행 시 높이 추정과 PD 제어를 피하면서 고유수용성 피드백을 토크로 매핑한다는 목표가 달성된다: 높이는 학습 보상에만 나타나고, 소프트 PD 관절 한계는 거의 작동하지 않는 부드러운 탐색 안내 및 하드웨어 안전 조치 역할을 하므로 이 접근법은 진정한 종단간이다. 도메인 무작위화를 먼저 시도했으나 불만족스러운 전이를 주었다. 선택된 파라미터 최적화(시스템 식별 방식) 방법은 동적 동작에 결정적인 것으로 식별된 로터 관성과 함께 훨씬 더 잘 전이되었다. 무작위 관측 버퍼 샘플링은 간단한 지연 강건성 메커니즘을 제공한다. 정책의 우수한 보간은 역동역학 해석을 뒷받침하는 한편, 잔여 높이 추적 오차는 제한된 네트워크 용량, 비최적 시뮬레이터 파라미터, 또는 모델링되지 않은 비선형 동역학에 기인하며, 해결책으로 SAC를 통한 실제 시스템 계속 학습이 제안된다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 점프 높이 사이를 보간하고 점프 위상을 암묵적으로 검출하는 연속 monoped 호핑을 위한 통합 토크 제어기를 학습하는 방법과, 전이 중 파라미터 튜닝의 필요성을 제거하는 sim-to-real 매핑 절차를 제시한다. 학습된 정책은 고유수용성 피드백에서 토크 제어로의 직접 매핑을 실현하며, 저자들이 아는 한 점프 높이 조정 가능 monoped 토크 제어기에 대한 최초로 보고된 종단간 학습 절차이다. 그 높이 추적 정확도를 모델 기반 에너지 셰이핑 제어 수준으로 끌어올리려면 많은 것이 남아 있다. 향후 과제는 철저한 네트워크 하이퍼파라미터 튜닝, 잔여 모델링 오차를 흡수하기 위한 실제 시스템 계속 학습, 그리고 RealAIGym 생태계로의 통합을 목표로 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "동적 다리형 보행은 자연적이거나 비구조적인 지형을 위한 다재다능한 전략이지만, 접촉의 준순간적 생성/소멸은 복잡한 제어가 필요한 매우 비선형적이고 비매끄러운 동역학을 낳는다."}, {"type": "bullet", "text": "호핑은 장애물을 뛰어넘게 함으로써 시스템의 기동성을 높일 수 있지만, 긴 비행 위상이 충격에 대비해 조정할 가능성을 제한하기 때문에 훨씬 더 많은 제어 복잡성을 수반한다."}, {"type": "bullet", "text": "호핑을 연구하기 위한 표준 시스템은 단일 호핑 다리(monoped)이다. 고전적 제어기는 이지, 정점 자세, 착지, 최소 자세 같은 상태 검출에 의존하며, 비행 중에는 PD 제어기를, 지지 중에는 토크/힘 제어를 사용하는 상태 기계로 실현된다.", "figure_refs": [2]}, {"type": "bullet", "text": "그러한 제어기를 하드웨어에 배치하려면 파라미터의 수작업 튜닝과 시스템별 적응이 필요하며, 점프 상태 검출은 정확한 높이 추정과 추가 휴리스틱을 통한 접촉 검출에 의존한다."}, {"type": "bullet", "text": "저자들은 보편 함수 근사기인 신경망이 관련 점프 위상을 암묵적으로 검출하고 명시적 상태 전이 휴리스틱 없이 통합된 호핑 제어기를 실현할 수 있다고 가정한다."}, {"type": "bullet", "text": "완전히 통합된 종단간 RL 해법은 고유수용성 피드백(액추에이터 위치와 속도)만을 직접 토크 제어로 매핑해야 하며, 이는 이론적으로 가변 높이 호핑에 충분하다."}, {"type": "bullet", "text": "기존 학습 기반 점프 연구는 단일 도약(암묵적 위상 검출이 덜 중요한 경우)에 집중하거나 여전히 높이 추정과 PD 제어에 의존하여, 진정한 종단간으로 간주될 수 없다.", "figure_refs": [1]}, {"type": "bullet", "text": "본 논문은 높이 추정, 접촉 검출, 하이퍼파라미터 튜닝, PD 제어, 거동 상태 기계 중 어느 것도 필요로 하지 않는 RL 방법을 제시하며, 암묵적 위상 검출과 제어 가능한 높이를 갖춘 토크 제어기의 sim-to-real 전이에 성공한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "실제 로봇에서의 동적 걷기는 최적 제어와 RL로 해결되었지만, 호핑은 훨씬 더 동적임에도 상당히 적은 연구를 받았다."}, {"type": "bullet", "text": "가장 초기의 동적 다리형 시스템 중 하나는 점프로 이동하는 Raibert의 단일 다리였으며, 에너지 셰이핑 알고리즘에서 동기를 얻은 휴리스틱하게 튜닝된 힘 제어기를 사용했다."}, {"type": "bullet", "text": "고전적 호핑 제어기의 공통 주제는 상태(이지, 정점 자세, 착지, 최소 자세) 검출에 대한 의존이며, 전체 제어기는 비행 중 PD 제어와 지지 중 토크/힘 제어를 사용하는 상태 기계로 실현된다."}, {"type": "bullet", "text": "기존 학습 기반 점프 제어기는 단일 도약에 집중하여 암묵적 점프 위상 검출을 덜 중요하게 만들었고, 그러한 검출이 실제로 실현되는지 불분명하게 남겼다."}, {"type": "bullet", "text": "조정 가능한 높이를 갖춘 소형 사족 로봇을 위한 최근 RL 연속 호핑 제어기는 통합 제어기가 실현 가능함을 보였지만, 여전히 높이 추정과 PD 제어에 의존하여 진정한 종단간이 아니다."}, {"type": "bullet", "text": "PD 제어기는 시뮬레이션 정확도 요구를 줄이고 sim-to-real 전이를 돕기 때문에 RL에서 인기가 있지만, 게인 튜닝을 필요로 하며 직접 토크 제어가 완전한 동역학적 능력을 발휘하는 매우 동적인 과제를 방해할 수 있다."}, {"type": "bullet", "text": "sim-to-real 접근은 시뮬레이션 궤적이 실제 기록 데이터를 따르게 만드는 파라미터 최적화 방법에서 적응되었으며, 본 논문은 이를 고차원 파라미터 공간과 접촉이 풍부한 동적 과제로 확장한다."}]}, "method": {"content": [{"type": "bullet", "text": "로봇은 수직 레일 위의 맞춤형 3-DOF 호핑 다리(1개 수동 DOF, 2개 능동 DOF)로 mjbots qdd100 준직접구동 모터로 구동되며, 정책은 200 Hz로 추론된다.", "figure_refs": [3]}, {"type": "bullet", "text": "베이스라인 고전적 에너지 셰이핑(ES) 제어기는 높이 추정과 튜닝된 게인을 필요로 하는 세 상태 유한 상태 기계(이지, 비행, 착지)로 구현된다.", "figure_refs": [4]}, {"type": "formula", "label": "식 (1) — 필요 점프 에너지(에너지 셰이핑)", "latex": "E_d = m g x_d", "description": "원하는 베이스 높이 x_d에 도달하기 위해 이지 중 필요한 에너지로, 로봇을 베이스의 점질량 m으로 근사한다. 에너지 셰이핑 베이스라인의 기반이다."}, {"type": "bullet", "text": "호핑 문제는 마르코프 결정 과정(Markov Decision Process)으로 정식화되어, 샘플 효율성, 안정성, 최소한의 하이퍼파라미터 튜닝을 위해 선택된 Soft Actor-Critic (SAC)으로 해결된다."}, {"type": "formula", "label": "SAC 최대 엔트로피 목적함수", "latex": "\\pi^{*} = \\arg\\max_{\\pi}\\ \\mathbb{E}_{a\\sim\\pi}\\!\\left[\\sum_{t=0}^{\\infty}\\gamma^{t}\\,R(s_t,a_t,s_{t+1}) + \\alpha\\,\\mathcal{H}(\\pi(\\cdot\\mid s_t))\\right]", "description": "SAC는 기대 할인 수익에 정책 엔트로피 항(alpha로 가중)을 더한 것을 최대화하여, 최대한 가변적이고 본질적으로 강건한 정책을 산출한다."}, {"type": "bullet", "text": "일반화된 상태 의존 탐색(gSDE)은 탐색 노이즈를 정책 특징의 함수로 만들어, 노이즈가 재샘플링될 때까지 한 상태에 대해 행동을 일정하게 유지하여 하드웨어에서의 떨리는 거동을 줄인다."}, {"type": "bullet", "text": "관측은 최근 세 시간단계에 걸친 정규화된 관절 위치/속도와 원하는 높이를 쌓는다(R^15). 행동은 명령으로 전송되기 전에 스케일링되는 정규화된 출력 모터 토크(R^2)이다. 다중 시간단계 데이터는 암묵적 접촉 검출에 필수적이다."}, {"type": "formula", "label": "식 (9) — 에너지 이득 보상 항", "latex": "G_e = \\dot{x}^2 + (x - x_o)^2", "description": "다리를 평균 길이 x_o의 스프링으로 근사하여, 이 항은 운동 에너지에 탄성 위치 에너지를 더한 것을 보상하여 진동 거동과 호핑에 충분히 높은 속도를 촉진한다."}, {"type": "formula", "label": "식 (14) — 총 보상", "latex": "R = w_1 G_e - w_2 P_h - w_3 P_j - w_4 P_{jp} - w_5 P_{jv}", "description": "에너지 이득 G_e와 원하는 높이 초과(P_h), 급격한 행동(P_j), 관절 위치/속도 한계(P_jp, P_jv)에 대한 페널티의 가중 합이며, 가중치는 0.5, 2, 0.05, 0.02, 0.005이다."}, {"type": "formula", "label": "식 (17) — CMA-ES sim-to-real 식별 비용", "latex": "J(q) = \\sum_{t=0}^{t_f}\\sum_{i=0}^{1} \\left(q^{t}_{i,sim} - q^{t}_{i,real}\\right)^2", "description": "시뮬레이션과 기록된 하드웨어 데이터 간의 시간단계별 관절 위치 차이의 누적값으로, 2단계 과정(먼저 관성/솔버 고정, 그다음 경계가 있는 동역학)에서 동역학/솔버 파라미터에 대해 CMA-ES로 최소화된다."}, {"type": "bullet", "text": "강건성은 (지연을 모사하기 위해) 10단계 관측 버퍼에서 세 시간단계를 무작위로 샘플링하고 균일 노이즈를 주입함으로써(관절 데이터에 lambda=0.05, 토크에 lambda=0.15) 추가된다."}]}, "experiment": {"content": [{"type": "bullet", "text": "2단계 CMA-ES 최적화는 Table I에 나열된 시뮬레이션 파라미터(마찰 손실, 감쇠, 전기자(armature), 링크 관성, 솔버 시간 상수와 감쇠비)를 산출한다.", "figure_refs": [5]}, {"type": "bullet", "text": "단 세 개의 원하는 높이(0.25, 0.30, 0.35 m)로 학습된 제어기는 30 s 램프 시험에 걸쳐 그들 사이를 보간하며, 원하는 높이에서 실제 높이로의 단조 매핑을 보여 근사적 작업 공간 역동역학 모델을 나타낸다.", "figure_refs": [6]}, {"type": "bullet", "text": "10 s, 0.30 m 시험에 걸친 팔꿈치 관절 토크의 위상 공간 분석은 비행보다 지지 중 유의하게 높은 토크와 최소 자세 이후 토크 증가를 보여, 고유수용성 관절 데이터만으로부터의 암묵적 지면 접촉 검출을 강하게 시사한다.", "figure_refs": [7]}, {"type": "bullet", "text": "시뮬레이션으로 학습된 제어기는 추가 조정 없이 실제 로봇에서 시험되었다. 실제 점프 높이는 명령보다 낮지만 0.04-0.06 m 오프셋으로 올바르게 정렬된다.", "figure_refs": [8]}, {"type": "bullet", "text": "RL 제어기의 점프 높이 분포는 시뮬레이션에서는 완전히 겹치지 않지만 실제 시스템에서는 다소 겹치는데, 부분적으로 픽셀 추적 측정 노이즈 때문이다. 0.25 m 명령은 번갈아 나타나는 이중 모드 높이를 보인다.", "figure_refs": [9]}, {"type": "bullet", "text": "윌콕슨 순위합 검정(Wilcoxon rank-sum test)은 모든 인접 점프 높이 분포가 시뮬레이션과 실제 시스템 모두에서 유의하게 다름을 확인한다(p<0.001)."}, {"type": "bullet", "text": "ES 베이스라인은 (모델 지식에서 예상되듯이) 시뮬레이션과 하드웨어 모두에서 놀랍도록 잘 작동하지만 접촉 검출 임계값과 게인의 전문가 튜닝을 필요로 하는 반면, 종단간 RL 제어기는 그러한 전문성이 필요 없고 유사한 경향을 보이며 일부 경우에는 더 작은 표준편차를 보인다."}]}, "discussion": {"content": [{"type": "bullet", "text": "높이가 보상에 사용되고 소프트 PD 관절 한계가 존재하지만, 높이는 (실행 시 피드백이 아니라) 학습 중에만 필요하고 관절 한계는 거의 넘지 않는 부드러운 탐색 안내 및 안전 조치이므로, 제어기는 진정한 종단간이다."}, {"type": "bullet", "text": "작은 sim-to-real 격차가 전제 조건이다. 도메인 무작위화를 먼저 시험했으나 불만족스러운 전이를 주어, 채택된 파라미터 최적화 접근을 동기 부여했다."}, {"type": "bullet", "text": "이 방법은 동적 시스템 식별과 유사하지만, 진짜 물리 파라미터가 아니라 시뮬레이션 내에서 시스템 동역학의 가능한 한 가장 가까운 표현을 목표로 한다."}, {"type": "bullet", "text": "로터 관성 식별이 결정적이었다: 걷기 같은 덜 동적인 거동에는 불필요하지만, 호핑 같은 매우 동적인 동작에는 더 영향력이 커진다."}, {"type": "bullet", "text": "관측 버퍼로부터의 무작위 샘플링은 정확한 분포를 알지 못하고도 예상 가능한 지연에 정책을 강건하게 만드는 쉬운 방법으로, 액추에이터 모델 학습의 대안이다."}, {"type": "bullet", "text": "학습되지 않은 높이로의 우수한 보간은 정책이 작업 공간 역동역학 모델을 암묵적으로 학습했음을 시사하며, 암묵적 점프 위상 검출로 더욱 뒷받침되지만, 중간 명령(약 0.3 m) 추적 편차는 제한된 네트워크 용량을 반영할 수 있다."}, {"type": "bullet", "text": "잔여 sim-to-real 높이 차이는 비최적 시뮬레이터 동역학 파라미터나 모델링되지 않은 비선형 동역학(백래시, 토크 포화, 상태 의존 센서 노이즈) 때문일 수 있다. 이러한 효과를 명시적으로 모델링하지 않고 성능을 향상시키기 위해 SAC로 실제 시스템에서 계속 학습하는 것이 제안된다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "점프 높이 사이를 보간하고 관련 점프 위상을 암묵적으로 검출하여 그에 따라 행동할 수 있는, monoped를 위한 연속 호핑용 통합 토크 제어기가 학습되었다."}, {"type": "bullet", "text": "시뮬레이션-실제 매핑 절차는 거동 전이를 위한 파라미터 튜닝의 필요성을 제거한다."}, {"type": "bullet", "text": "학습된 정책은 고유수용성 피드백에서 토크 제어로의 직접 매핑을 실현하며, 점프 높이 조정 가능 monoped 토크 제어기에 대한 최초의 종단간 학습 절차로 보고된다."}, {"type": "bullet", "text": "높이 추적 정확도를 모델 기반 에너지 셰이핑 제어기에 더 가깝게 끌어올리려면 아직 많은 것을 해야 한다."}, {"type": "bullet", "text": "향후 과제는 시뮬레이션에서 점프 높이 보간을 향상시키기 위한 네트워크 구조의 철저한 하이퍼파라미터 튜닝을 포함한다."}, {"type": "bullet", "text": "향후 과제는 또한 시뮬레이터의 잔여 동역학 모델링 부정확성을 완화하기 위해 실제 시스템에서 계속 학습하는 것을 포함하며, 이에 SAC가 적합하다."}, {"type": "bullet", "text": "저자들은 이 연구를 다른 표준 저구동 시스템과 함께 RealAIGym 생태계에 통합할 계획이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "실제 시스템에서 RL 제어기의 높이 추적 성능은 여전히 모델 기반 에너지 셰이핑 베이스라인에 뒤처져, 상당한 개선 여지를 남긴다.", "source_quote": "there is substantial room for improvement in the performance of the RL controller on the real system in comparison to the baseline ES controller.", "source_section": "discussion"}, {"claim": "높이 추적은 약 0.3 m의 중간 명령에서 상대적으로 더 큰 편차를 보이는데, 신경망이 전체 동역학을 표현할 용량이 부족하기 때문일 수 있다.", "source_quote": "height tracking shows relatively higher deviations at intermediate commands around 0.3m. This could be an issue of the neural network not having enough capacity to represent the full dynamics.", "source_section": "discussion"}, {"claim": "실제 로봇에서 명령된 점프 높이와 실제 점프 높이 사이에 약 0.04-0.06 m의 지속적 오프셋이 있다.", "source_quote": "The offset between commanded and actual jump height lies between 0.04 m and 0.06 m.", "source_section": "experiment"}, {"claim": "남은 sim-to-real 차이는 모터 백래시, 토크 포화, 상태 의존 센서 노이즈 같은 모델링되지 않은 비선형 동역학에서 비롯될 수 있다.", "source_quote": "Another explanation could be additional, unmodelled non-linear dynamics such as motor backlash, motor torque saturation, or state dependent sensor noise.", "source_section": "discussion"}], "future_works": [{"claim": "시뮬레이션에서 점프 높이 보간을 향상시키기 위해 신경망 구조의 철저한 하이퍼파라미터 튜닝을 수행한다.", "source_quote": "Future research directions include a thorough hyperparameter tuning of the neural network architecture to improve the jump height interpolation in simulation", "source_section": "conclusion"}, {"claim": "시뮬레이터의 잔여 동역학 모델링 부정확성의 영향을 완화하기 위해 실제 시스템에서 제어기를 직접 계속 학습한다.", "source_quote": "as well as continued training on the real system to mitigate the effect of residual dynamics modeling inaccuracies of the simulator.", "source_section": "conclusion"}, {"claim": "이 연구를 다른 표준 저구동 시스템과 함께 RealAIGym 생태계에 통합한다.", "source_quote": "We also plan to integrate this work in the RealAIGym ecosystem [38] similar to other canonical underactuated systems like simple pendulum", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["모델 기반 호핑 제어는 일반적으로 구별되는 점프 위상(이지, 정점, 착지)의 정확한 검출에 의존하고 위상별로 다른 제어기를 사용하며, 배치에 파라미터의 수작업 튜닝과 시스템별 적응을 요구하는 유한 상태 기계로 실현된다.", "점프 상태를 검출하고 이지 중 올바른 제어를 생성하는 것은 정확한 높이 추정과 접촉 검출에 의존하며, 이를 위해 일반적으로 추가 휴리스틱이 사용된다.", "PD 제어기는 sim-to-real 전이를 쉽게 하기 위해 RL에서 널리 사용되지만, PD 게인 튜닝을 필요로 하며 직접 토크 제어가 시스템의 완전한 동역학적 능력을 발휘하는 점프 같은 매우 동적인 과제를 방해할 수 있다. 기존의 모든 고전적·RL 접근은 높이 추정, 접촉 검출, 하이퍼파라미터 튜닝, PD 제어, 상태 기계 중 일부 부분집합을 필요로 한다."], "addressed_by_this_work": ["종단간 SAC 토크 정책은 고유수용성 관절 위치/속도만을 관절 토크로 매핑하고 관련 점프 위상을 암묵적으로 검출하여, 실행 시 명시적 상태 전이 휴리스틱, PD 제어, 높이 피드백을 제거한다.", "2단계 CMA-ES 시뮬레이션 파라미터 최적화(동역학 무작위화가 아닌 시스템 식별과 유사)가 고차원 파라미터 공간과 접촉이 풍부한 동적 과제로 확장되어, sim-to-real 격차를 좁혀 정책이 파라미터 튜닝 없이 전이되게 한다.", "학습된 제어기는 학습된 점프 높이 사이를 보간하며, 위상 공간 토크 분석은 고유수용성만으로부터의 암묵적 지면 접촉 검출을 확인한다. 이는 점프 높이 조정 가능 monoped 토크 제어기에 대한 최초의 종단간 학습 절차로 보고된다."], "remaining_unresolved": ["실제 시스템 높이 추적 정확도는 여전히 모델 기반 에너지 셰이핑 제어기에 뒤처지며, 0.04-0.06 m의 명령 대 실제 오프셋을 갖는다.", "백래시, 토크 포화, 상태 의존 센서 노이즈 같은 모델링되지 않은 비선형 효과에서 비롯되는 잔여 sim-to-real 격차가 남아 있다.", "전체 동역학을 더 잘 표현하기 위한 네트워크 용량 및 하이퍼파라미터 튜닝은 향후 과제로 남겨진다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

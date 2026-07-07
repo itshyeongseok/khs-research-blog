@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Bird-inspired foot and limb for perching drones: preliminary considerations</title>
+    <meta name="keywords" content="biomechanical analysis, pressure-sensing, perching robot, bird-inspired foot, tendon arrangement, toe pad surface, bioinspired drone, tactile pincer">
+    <meta name="paper-authors" content="Damien Horsin, Anick Abourachid, Micky Rakotondrabe, Franck Ruffier, Thibaut Raharijaona">
+    <meta name="paper-journal" content="International Workshop on Bionic Engineering (IWBE), 10-12 June 2020, Manchester, United Kingdom, pp. 1-2 · open-access author version (HAL Id: hal-03103963; OATAO 26939) · no DOI assigned">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Bird-inspired foot and limb for perching drones: preliminary considerations</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">Damien Horsin, Anick Abourachid, Micky Rakotondrabe, Franck Ruffier, Thibaut Raharijaona</div>
+            <div class="journal">International Workshop on Bionic Engineering (IWBE), 10-12 June 2020, Manchester, United Kingdom, pp. 1-2 · open-access author version (HAL Id: hal-03103963; OATAO 26939) · no DOI assigned</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 2페이지 분량의 예비 고찰(preliminary-considerations) 워크숍 초록은 <span class="term">perching drones</span>를 위한 조류 모사형 발과 사지를 구축하기 위한 연구 프로그램의 개요를 제시한다. 목표는 경량 기구로 다양한 자연 기질(substrate)에 안정적으로 안착함으로써 드론이 회수, 탐사, 감시를 위해 여러 장소에 접근할 수 있게 하는 것이다. 조류 해부 구조에 착안하여, 저자들은 세 가지 요소—(i) 발 구성, (ii) 건의 배열, (iii) 발가락 패드 표면—를 결합하고, 3단계 방법을 따를 것을 제안한다: 살아 있는 새의 생체역학적 분석(3D 고속 영상 및 압력 센서), 인공 근육·건 및 스마트 소재 능동 피부를 사용한 조류 모사형 사지와 촉각 핀서(pincer)의 구축, 그리고 피드백 제어 하에서 로봇 발/사지의 안정성 시험. 문헌과 케아(Kea) 앵무 시험 실험으로부터의 예비 결과는, 4발가락 발 구성이 안착 안정성을 지지하고, 평평한 발가락 패드가 파지를 향상시키며, 두 개의 심지굴근(deep-digital-flexor) 건이 안착에 결정적이고, 근위(proximally)에 삽입된 건이 더 큰 역할을 함을 시사한다.</div>
+            <div class="keywords"><span class="keyword-chip">biomechanical analysis</span><span class="keyword-chip">pressure-sensing</span><span class="keyword-chip">perching robot</span><span class="keyword-chip">bird-inspired foot</span><span class="keyword-chip">tendon arrangement</span><span class="keyword-chip">toe pad surface</span><span class="keyword-chip">bioinspired drone</span><span class="keyword-chip">tactile pincer</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">초록은 perching drones를 회수, 탐사, 감시를 위해 여러 환경에 접근하는 수단으로 동기 부여하며, 핵심 과제를 다양한 자연 기질에 안정적으로 안착하는 경량의 쉽게 장착 가능한 기구로 규정한다. 조류 해부 구조를 설계 영감으로 자리매김하고, 생체모사 perching drone에 이르는 경로로서 발 구성, 건 배열, 발가락 패드 표면의 결합을 천명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">초록은 본 연구를 선행 안착 기구 및 조류 생체역학 문헌에 비추어 자리매김한다: UAV 안착을 위한 모듈화 랜딩 기어, 새가 표면의 거칠기에 맞춰 파지를 조정하는 방식의 동적 모델, 조류 발 유형의 고전 조류학적 분류, 발 형태와 발가락 패드의 비교 연구, 그리고 굴근 건 배열의 기계적 분석. 각 선행 갈래는 발가락별 안착 역할을 미해결로 남긴다고 지적한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">제안된 방법은 세 가지 설계 요소—발 구성, 건 배열, 발가락 패드 표면—를 결합하는 3단계 생체모사 파이프라인이다. 1단계는 압력 센서와 3D 고속 영상을 사용한 살아 있는 새의 생체역학적 분석이고, 2단계는 인공 근육·건 및 스마트 소재 능동 피부로 조류 모사형 사지와 촉각 핀서를 구축하며, 3단계는 피드백 제어 법칙으로 로봇 발/사지의 안정성을 시험한다. 케아 앵무 시험 실험이 측정 프로토콜을 조정하는 데 사용된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">예비 실험 작업은 살아 있는 새의 3D 고속 영상, 압력 감지, 해부학적 연구를 결합하며, 케아 앵무 시험 사례를 사용하여 발가락별 노력을 정량화하기 위한 프로토콜을 정교화한다. 이러한 예비 관찰은 발 구성, 발가락 패드 표면, 굴근 건 배열에 관한 세 가지 결과를 뒷받침하여 계획된 로봇 설계를 안내한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토의는 예비 결과를 설계 관련 세 가지 결론으로 정리한다: 4발가락 구성은 안착 안정성을 지지하고, 평평한 발가락 패드는 파지를 향상시키며, 두 개의 심지굴근 건이 안착에 결정적이다. 각 결과는 세 가지 설계 요소(발 구성, 발가락 패드 표면, 건 배열) 중 하나에 대응되며 구체적인 다음 구축 또는 시험의 동기가 된다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">예비 고찰 초록으로서, 본 연구는 통합된 연구 방향을 제시하며 결론짓는다: 조류 모사형 발 구성, 건 배열, 발가락 패드 표면을 결합하고, 생체역학적 분석, 시제품 구축, 피드백 제어 안정성 시험을 통해 검증하여, 다양한 자연 기질에 안정적으로 파지하는 경량 perching drone을 실현한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "perching drones의 목표는 회수 작업, 탐사, 감시를 위해 여러 장소에서 환경에 접근하는 것이다."}, {"type": "bullet", "text": "주된 과제는 드론에 쉽게 장착할 수 있으면서 다양한 자연 기질에 안정적인 안착을 가능하게 하는 경량 기구를 구축하는 것이다."}, {"type": "bullet", "text": "경량의 모듈화·작동형 랜딩 기어 프레임워크는 안착과 휴식을 통해 광범위한 구조물에서 드론을 안정화할 수 있다."}, {"type": "bullet", "text": "의도된 기계 프레임워크는 새의 갈고리(claw)에 착안하였으나, 선행 프레임워크는 전신 해부 구조를 고려하지 않았다."}, {"type": "bullet", "text": "드론이 어떤 기하 구조와 표면을 가진 나뭇가지에든 안착할 수 있는 방법, 그리고 외란에도 불구하고 안정성을 유지하는 방법을 아는 것이 필수적이다."}, {"type": "bullet", "text": "저자들은 발 구성, 건 배열, 발가락 패드 표면을 결합하여 드론-환경 상호작용을 최적화하고자 조류 해부 구조에서 영감을 얻는다.", "figure_refs": [1]}, {"type": "bullet", "text": "예비 실험은 살아 있는 새의 3D 고속 영상 획득과 새의 발·사지 해부 구조 연구를 함께 사용한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "Hang 등(Science Robotics, 2019)은 안착과 휴식을 통한 UAV 기동을 위한 모듈화 랜딩 기어 패러다임을 제시하였다 [1]."}, {"type": "bullet", "text": "Roderick 등(eLife, 2019)은 새가 접촉 시 발-표면 상호작용을 조정하여 복잡한 표면에 신뢰성 있게 착륙함을 보여, 파지가 표면 거칠기에 어떻게 의존하는지를 밝혔다 [2]."}, {"type": "bullet", "text": "Roderick 모델은 새가 복잡한 표면을 파지하는 방식을 보여주지만, 안정적 안착에서 각 손가락의 역할은 조사하지 않는다."}, {"type": "bullet", "text": "Raikow(1985)는 발 유형과 안착의 기본이 되는 강한 대향 발가락 파지를 포함하여 조류 운동 시스템을 기술한다 [3]."}, {"type": "bullet", "text": "Coues(1890)와 Harrison(1964)은 새의 구조와 발 유형(안착, 보행, 수영)에 대한 고전적 분류를 제공한다 [4,5]."}, {"type": "bullet", "text": "Abourachid 등(J. Anatomy, 2017)은 수목성 조류의 발 형태를 분석하여, 형태가 안착 능력에 영향을 주며 좋은 파지를 제공하는 구성을 식별함을 보였다 [6]."}, {"type": "bullet", "text": "Tsang 등(J. Morphology, 2019)은 맹금류와 비포식성 조류의 발가락 패드를 비교하여, 평평한 패드 대 높은 패드를 보행/안착 대 먹이 파지와 연결하였다 [7]."}, {"type": "bullet", "text": "Sundevall(1977)은 심지굴근 건 배열의 다양성을 기술하였고 [8], Backus 등(R. Soc. Open Sci., 2015)은 조류 발의 2D 기계적 분석을 수행하여 근위 건의 더 큰 역할을 보였다 [9]."}]}, "method": {"content": [{"type": "bullet", "text": "구축 전략은 세 가지 요소를 결합한다: (i) 발 구성, (ii) 건의 배열, (iii) 발가락 패드 표면.", "figure_refs": [1]}, {"type": "bullet", "text": "1단계 - 압력 센서와 고속 카메라를 이용한 3D 영상 획득을 사용하여, 살아 있는 새로부터 안정적 안착을 위한 사지의 생체역학적 분석.", "figure_refs": [1]}, {"type": "bullet", "text": "2단계 - 인공 근육·건과 능동 피부용 스마트 소재를 사용한 조류 모사형 사지와 촉각 핀서의 구축.", "figure_refs": [1]}, {"type": "bullet", "text": "3단계 - 피드백 제어 법칙을 사용한 로봇 발과 사지의 안정성 시험.", "figure_refs": [1]}, {"type": "bullet", "text": "촉각 핀서용 능동 피부를 설계·구축하기 위해 발바닥(plantar) 표면을 연구할 것이다."}, {"type": "bullet", "text": "케아 앵무 실험은 측정 프로토콜을 조정하고 개별 발가락 수준에서 노력(effort)을 정량화하기 시작하기 위한 시험 실험으로 기능한다."}, {"type": "bullet", "text": "2D 시뮬레이션이 안착력에 지배적인 것으로 지시한, 근위에 삽입된 심층 발바닥 건 구성을 모델에서 재현·시험할 것이다."}]}, "experiment": {"content": [{"type": "bullet", "text": "예비 실험은 살아 있는 새의 3D 고속 카메라 영상 획득과 새의 발·사지 해부학적 연구를 함께 사용하였다."}, {"type": "bullet", "text": "사지의 생체역학적 분석에서 압력 센서를 사용하여 살아 있는 새의 안정적 안착을 특성화한다.", "figure_refs": [1]}, {"type": "bullet", "text": "케아 앵무 실험은 프로토콜을 조정하기 위한 시험 실험으로 수행되었으며, 개별 발가락 수준에서 노력을 정량화하는 것을 목표로 한다."}, {"type": "bullet", "text": "발가락의 수와 배열에 따라 12가지 서로 다른 발 구성이 존재하며, 이는 안착, 보행, 수영의 세 가지 일반 유형으로 나뉜다."}, {"type": "bullet", "text": "4발가락 발의 다섯 가지 구성이 좋은 파지를 이끌지만, 각 개별 발가락의 기여는 아직 알려져 있지 않다."}, {"type": "bullet", "text": "기본적인 안착 적응은 나뭇가지를 에워싸는 대향 발가락 세트로부터의 강한 파지이며, 발 형태가 안착 능력에 영향을 준다."}, {"type": "bullet", "text": "비교 관찰에 따르면 참새목(까마귀류, 앵무류)은 보행/안착/파지를 위한 평평한 발가락 패드를 가지는 반면, 맹금류는 먹이를 파지하기 위한 더 높은 발가락 패드를 가진다."}]}, "discussion": {"content": [{"type": "bullet", "text": "4발가락 발 구성은 안착하는 새가 안정성을 유지하게 하므로, 발 구성이 핵심 설계 변수가 된다."}, {"type": "bullet", "text": "발가락별 기여가 알려져 있지 않으므로, 저자들은 케아 앵무 프로토콜을 사용하여 개별 발가락 수준에서 노력을 정량화하는 것을 목표로 한다."}, {"type": "bullet", "text": "평평한 발가락 패드는 횃대를 더 잘 파지하게 하며, 발가락 패드 표면은 새와 파지 대상 사이의 접점(interface)이다."}, {"type": "bullet", "text": "촉각 핀서용 능동 피부를 설계·구축하기 위해 발바닥 표면을 연구할 것이다."}, {"type": "bullet", "text": "원위 지골에 삽입된 심지굴근(긴발가락굽힘근 및 긴엄지굽힘근)의 두 건이 파지와 운반에 결정적이다."}, {"type": "bullet", "text": "이러한 심층 발바닥 건은 여덟 가지 배열 유형에 걸쳐 있으며, 근위에 삽입된 건이 안착력 생성에 더 큰 역할을 한다(2D 시뮬레이션). 이 구성을 모델에서 시험할 것이다."}, {"type": "bullet", "text": "세 가지 결과 각각은 생체모사 perching drone에 통합될 설계 요소—발 구성, 발가락 패드 표면, 건 배열—에 대응된다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "최종 목표는 드론이 다양한 자연 기질에 안정적으로 안착하게 하는 경량의 쉽게 장착 가능한 기구이다."}, {"type": "bullet", "text": "안착을 위한 드론-환경 상호작용을 최적화하기 위해 조류 해부 구조를 설계 템플릿으로 채택한다."}, {"type": "bullet", "text": "생체모사 perching drone은 발 구성, 건 배열, 발가락 패드 표면을 결합하여 구축될 것이다."}, {"type": "bullet", "text": "3단계 방법론—생체역학적 분석, 사지/핀서 구축, 피드백 제어 안정성 시험—이 계획된 개발의 틀을 잡는다.", "figure_refs": [1]}, {"type": "bullet", "text": "촉각 핀서용 능동 피부는 발바닥 표면 연구로부터 설계될 것이다."}, {"type": "bullet", "text": "근위에 삽입된 굴근 건 구성이 안정적 안착을 위한 후보 배열로서 모델에서 시험될 것이다."}, {"type": "bullet", "text": "케아 앵무 실험으로 시작된 발가락별 노력의 정량화가 설계를 향한 즉각적인 다음 단계로 자리매김한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "본 연구는 예비 고찰 단계에 있으며, 구축·검증된 perching drone이 아니라 설계 근거를 기술한다.", "source_quote": "We describe thanks to preliminary considerations how combining: (i) the foot configuration (ii) the arrangement of tendons and (iii) the toe pad surface, we will construct a bioinspired perching drone.", "source_section": "introduction"}, {"claim": "다섯 가지 4발가락 구성이 좋은 파지를 제공하는 것으로 알려져 있으나, 안착에 대한 각 발가락의 개별 기여는 아직 알려져 있지 않다.", "source_quote": "Five configurations of four toes foot lead to good grips [6], yet the participation of each toe is still unknown.", "source_section": "experiment"}, {"claim": "지금까지의 실험은 측정 프로토콜 조정에만 사용된 시험 사례로서의 케아 앵무에 국한된다.", "source_quote": "we have carried out experiments on the Kea parrot, as a test experiment to be able to adjust our protocol.", "source_section": "experiment"}], "future_works": [{"claim": "발 구성, 건 배열, 발가락 패드 표면을 결합하여 생체모사 perching drone을 구축한다.", "source_quote": "we will construct a bioinspired perching drone", "source_section": "introduction"}, {"claim": "발바닥 표면을 연구하여 촉각 핀서용 능동 피부를 설계·구축한다.", "source_quote": "We will look at the foot plantar surface to design and construct an active skin for the tactile pincer.", "source_section": "discussion"}, {"claim": "근위에 삽입된 심층 발바닥 건 구성을 로봇 모델에서 시험한다.", "source_quote": "The proximally inserted tendons play a greater role in generating the requisite forces for perching behavior as demonstrated by simulations in 2D in [9]. We will test this configuration in our model.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["perching drones는 회수 작업, 탐사, 감시를 위해 여러 장소에 접근해야 한다.", "주된 과제는 드론에 쉽게 장착되어 다양한 자연 기질에 안정적으로 안착하는 경량 기구이다.", "드론이 어떤 기하 구조나 표면을 가진 나뭇가지에든 안착하고 외란에도 불구하고 안정성을 유지하는 방법을 아는 것이 필수적이다.", "선행 연구는 파지 동역학을 포착했으나, 안정적 안착에서 각 손가락/발가락의 역할이나 전신 해부 구조는 조사하지 않았다."], "addressed_by_this_work": ["조류 해부 구조에서 영감을 얻어 드론과 환경의 상호작용을 최적화하며, 발 구성, 건 배열, 발가락 패드 표면을 결합한다.", "살아 있는 새의 3D 고속 영상 획득과 압력 센서, 그리고 새 발·사지의 해부학적 연구를 사용한다.", "3단계 방법을 제안한다: 생체역학적 분석, 조류 모사형 사지와 촉각 핀서의 구축, 피드백 제어 안정성 시험.", "케아 앵무 시험 실험을 통해 발가락별 노력의 정량화를 시작하여 측정 프로토콜을 조정한다."], "remaining_unresolved": ["안착에 대한 각 개별 발가락의 기여는 아직 알려져 있지 않으며 정량화가 필요하다.", "조류 모사형 사지, 촉각 핀서, 능동 피부는 의도된 구축물로 기술되며, 아직 구축·검증되지 않았다.", "피드백 제어 법칙 하 로봇 발과 사지의 안정성은 계획된 시험이며, 아직 입증되지 않았다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

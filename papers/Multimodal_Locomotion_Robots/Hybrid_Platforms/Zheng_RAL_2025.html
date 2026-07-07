@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Tailless Flapping-Wing Robot with Bio-Inspired Elastic Passive Legs for Multi-Modal Locomotion</title>
+    <meta name="keywords" content="flapping-wing robot, multi-modal locomotion, bio-inspired elastic passive legs, vibration-driven crawling, tailless aerial-ground robot, SE(3) geometric control, underactuated flight, water strider biomimicry">
+    <meta name="paper-authors" content="Zhi Zheng, Xiangyu Xu, Jin Wang, Yikai Chen, Jingyang Huang, Ruixin Wu, Huan Yu, Guodong Lu">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters (RA-L), Preprint version accepted June 2025 · arXiv:2503.00805v2">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Tailless Flapping-Wing Robot with Bio-Inspired Elastic Passive Legs for Multi-Modal Locomotion</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Zhi Zheng, Xiangyu Xu, Jin Wang, Yikai Chen, Jingyang Huang, Ruixin Wu, Huan Yu, Guodong Lu</div>
+            <div class="journal">IEEE Robotics and Automation Letters (RA-L), Preprint version accepted June 2025 · arXiv:2503.00805v2</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 세 쌍의 독립 구동 날개를 갖춘 37.4 g 무미익(tailless) 날갯짓 로봇을 제시하며, 별도의 지상 구동기 없이 공중 비행과 지상 기어가기를 모두 구현한다. 핵심 혁신은 어린 소금쟁이 다리 형태를 본뜬 한 쌍의 <span class="term">생체모방 탄성 수동 다리</span>로, 의도적인 구조적 비대칭을 통해 날갯짓으로 유발된 진동을 방향성 있는 지상 운동으로 변환한다. <span class="term">SE(3) 기반 기하학적 제어기</span>는 능동 요(yaw) 제어가 없음에도 단 세 개의 구동기만으로 저구동(underactuated) 비행과 매끄러운 모드 전환을 조율한다. 실험 결과 비행 최고 속도 5.5 m/s에 6.5분의 지속 시간, 지상 최고 속도 5.4 cm/s를 최대 28분간 유지함을 보였다. 본 연구는 경량 날갯짓 플랫폼을 위한 콤팩트하고 기계적으로 단순화된 공중-지상 하이브리드 이동 경로를 입증한다.</div>
+            <div class="keywords"><span class="keyword-chip">flapping-wing robot</span><span class="keyword-chip">multi-modal locomotion</span><span class="keyword-chip">bio-inspired elastic passive legs</span><span class="keyword-chip">vibration-driven crawling</span><span class="keyword-chip">tailless aerial-ground robot</span><span class="keyword-chip">SE(3) geometric control</span><span class="keyword-chip">underactuated flight</span><span class="keyword-chip">water strider biomimicry</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">날갯짓 로봇은 재난 구조나 환경 모니터링 같은 응용에 활용도가 높지만, 복잡한 환경에서 기동성과 적응성에 한계가 있다. 지상 이동을 위한 기존 접근법은 바퀴나 보행 기구를 추가하여 추가 구동기를 요구하고 제어를 복잡하게 만들며, 완전 자세 제어 공중 설계는 다수의 구동기를 비효율적으로 사용한다. 본 논문은 최소 구동으로 효율적인 다중 모드 이동을 달성하기 위해 생체모방 탄성 수동 다리를 갖춘 무미익 삼중 날갯짓 로봇을 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 지상 이동을 위해 바퀴나 보행 기구를 추가하는 다중 모드 날갯짓 로봇들과, 완전 자세 제어를 추구하는 무미익 날갯짓 플랫폼들 사이에 자신을 위치시킨다. 기존의 추가 구동기 의존 및 뒷전(trailing-edge)/날개 비틀림 기반 요 생성 방식과, 자신의 최소 구동·진동 구동 방식을 대조한다. 생물학적 영감은 소금쟁이 다리 형태와 Kilobot 진동 이동 원리에서 명시적으로 가져왔다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">로봇은 대칭 탄성 수동 다리 쌍(및 들어 올린 단일 뒷다리)을 통해 소진폭 날갯짓 진동을 방향성 있는 지상 운동으로 전달하며, 구조적 비대칭(팔을 각도 beta만큼 후방 경사, 뒷다리를 오프셋 Delta-H만큼 들어 올림)이 전진 기어가기를 유도한다. 비행 모드에서는 세 개의 환형 대칭 날갯짓 모듈이 추력을 제공하고 이는 종속(cascaded) 각속도·각도 PID 루프로 제어되며, SE(3) 기하학적 제어기가 관측된 요 각도를 평탄 출력(flat-output) 보조로 사용하여 세 모터 출력을 계산한다. 동역학은 위치를 평탄 출력으로 선택하고 목표 힘, 자세, 각속도 오차를 유도하여 능동 요 제어 없이 궤적 추종을 가능하게 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 지상 경로 추종, 추력/자기 복원/지속 시간, 그리고 궤적 추종을 포함한 원격 제어 비행을 평가했다. 슬라이딩 슬롯이 있는 하부 제한 브래킷이 반경 방향 진동을 동체로 전달하여 전진 기어가기를 유도하고, 이중 계층 PID가 8자형 지상 궤적 추종을 가능하게 한다. 로봇은 0.5초 이내에 자기 복원하고 약 6.5분간 호버링하며 약 28분간 기어가기를 하고, SE(3) 제어기는 수동 요 드리프트에도 낮은 롤/피치 RMSE로 자세를 유지한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">로봇의 진동 구동 기어가기는 제어 변조가 아니라 의도적인 기계적 비대칭에 의존하여, 시험된 주파수 범위에서 견고하지만 단방향인 운동을 제공한다. 능동 요 제어를 생략하는 것은 기계적 단순성을 위해 방향 제어권을 희생하는 것으로, 요가 날갯짓 기체의 직립 안정성에 영향을 주지 않는다는 사실을 활용한다. 곡선형 다리 형상과 기울어진 지지대는 이전의 평평한 다리 변형 대비 진동 전달과 방향성 편향을 개선하는 것으로 나타났다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 37.4 g 무미익 삼익 로봇이 단 세 개의 구동기로 비행과 진동 구동 지상 이동을 모두 수행하여 수직 이착륙, 다자유도 비행, 자기 복원, 매끄러운 공중-지상 전환을 달성할 수 있다고 결론짓는다. 지상 이동은 추가 구동기 없이 날갯짓 진동을 전방으로 유도하는 비대칭 탄성 다리와 섀시 형상에서 비롯되며, SE(3) 제어기는 요 제어가 없음에도 저구동 비행을 안정화한다. 향후 연구는 주파수 기반 지상 제어와 수동 요 안정화를 목표로 한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "날갯짓 로봇은 재난 구조, 환경 모니터링, 도심 탐사, 엔터테인먼트 분야에서 주목받아 왔으나, 복잡한 환경에서는 기동성과 적응성에 한계를 겪는 경우가 많다."}, {"type": "bullet", "text": "이러한 한계를 극복하기 위해 연구자들은 다양한 지형을 통과할 수 있도록 공중과 지상 이동을 모두 수행하는 다중 모드 날갯짓 로봇을 개발해 왔다."}, {"type": "bullet", "text": "지상 이동을 위해 지상 로봇 기구(바퀴 또는 보행 다리)를 통합하는 것이 일반적이지만, 이는 보통 추가 구동기를 요구하여 제어를 복잡하게 하고 신뢰성을 떨어뜨리며 제작·유지보수 비용을 증가시킨다.", "figure_refs": [1]}, {"type": "bullet", "text": "공중 이동의 경우 생체모방 연구가 자연 생물(곤충, 벌새, 날다람쥐, 무당벌레, 대형 조류)을 점점 더 모방하고 있으나, 공중에서의 완전 자세 제어는 흔히 복잡한 다중 구동기 설계를 요구하여 다중 모드 비효율을 초래한다."}, {"type": "bullet", "text": "제안하는 로봇은 어린 소금쟁이를 본뜬 생체모방 탄성 수동 다리를 사용하여 날개 진동을 지상 이동으로 변환하며, 수직 이륙, 다자유도 비행, 자기 복원(self-righting), 지상 이동, 매끄러운 모드 전환을 단 세 개의 구동기로 통합한다.", "figure_refs": [2]}, {"type": "bullet", "text": "이 로봇은 37.4 g 무게에 환형 대칭으로 배치된 세 세트의 날갯짓 구동기를 사용하며, 공중 이동을 위한 유사한 세 쌍 구성은 앞서 de Wagter에 의해 입증된 바 있다."}, {"type": "bullet", "text": "보고된 성능: 비행 최고 속도 5.5 m/s에 6.5분 지속 시간, 지상 최고 속도 5.4 cm/s를 최대 28분간 유지."}, {"type": "bullet", "text": "명시된 기여: (1) 탄성 수동 다리를 이용한 새로운 진동 구동 지상 이동 기구, (2) 비행과 기어가기를 매끄러운 전환과 함께 통합한 무미익 삼중 날갯짓 로봇, (3) 능동 요 제어 없는 저구동 비행을 위한 SE(3) 기반 제어기, (4) 벤치마크 비교를 포함한 실제 실험 검증."}]}, "related_works": {"content": [{"type": "bullet", "text": "기존의 다중 모드 날갯짓 로봇은 지상 이동을 위해 바퀴나 보행 기구를 장착하여 잘 확립된 신뢰성을 활용하지만, 비행 전용 구성에 비해 구동기를 추가한다."}, {"type": "bullet", "text": "생체모방 공중 설계는 두 개의 날갯짓 기구와 두 개의 서보, 또는 두 쌍의 독립 날개와 두 개의 로터로 곤충을 모방하며, 새, 벌새, 날다람쥐, 무당벌레로부터 영감을 얻는다."}, {"type": "bullet", "text": "DelFly 시리즈는 두 날개 및 네 날개 기체에서 제어된 비행을 달성했으나, 이러한 설계 대부분은 요 토크를 생성하기 위해 날개 뒷전을 비틀거나 사전 기울인 날개를 위한 추가 구동기를 필요로 하여 양력 효율을 저해한다."}, {"type": "bullet", "text": "선행 연구는 요 운동이 날갯짓 기체의 직립 안정성에 영향을 미치지 않으며 날갯짓 기구가 본질적으로 연속 회전을 유발하지 않음을 지적하는데, 이는 능동 요 제어를 생략하는 동기가 된다."}, {"type": "bullet", "text": "진동 구동 이동 원리는 유체역학적 추진이 아니라 유연한 다리를 통한 에너지 전달로 움직이는 Rubenstein 등의 Kilobot과 유사하다.", "figure_refs": [2]}, {"type": "bullet", "text": "소금쟁이는 빠른 다리 스트로크로 추진용 말굽형 와류를 생성하는데, 가운데 쌍이 추진을 담당하고 뒷다리가 안정화를 담당하여 탄성 수동 다리 배치의 생물학적 본보기를 제공한다.", "figure_refs": [2]}, {"type": "bullet", "text": "de Wagter의 세 쌍 날갯짓 구성은 여기서 채택한 삼중 날갯짓 공중 배치의 선례로 인용된다."}, {"type": "bullet", "text": "SE(3) 기하학적 추종 제어기는 Lee 등의 기하학적 쿼드로터 제어와 Mellinger-Kumar의 최소 스냅(minimum-snap) 궤적 생성을 기반으로 하며, 요 없는 저구동 사례에 맞게 변형되었다."}]}, "method": {"content": [{"type": "bullet", "text": "지상에서의 추진은 (소금쟁이처럼) 큰 능동 스트로크가 아니라 모터로 유발된 소진폭 날갯짓 진동을 비대칭 곡선형 탄성 다리를 통해 지면으로 전달하여 달성한다.", "figure_refs": [2]}, {"type": "bullet", "text": "대칭 탄성 다리 쌍은 소금쟁이의 가운데 다리를 모사하여 주 추진 인터페이스 역할을 하고, 들어 올린 단일 뒷 수동 다리는 소금쟁이 뒷다리와 유사하게 마찰을 줄이며 안정성을 더한다."}, {"type": "bullet", "text": "세 날갯짓 모듈은 제어 입력 u = [u1 u2 u3]로 조율되며, u1은 총 양력이고 u2, u3는 각각 X축, Y축 둘레의 토크이다. 모듈당 양력은 계수 kF를 통해 날갯짓 주파수에 선형 관계를 갖는다.", "figure_refs": [4]}, {"type": "formula", "label": "식 (1) — 날갯짓 주파수를 양력과 동체 토크로 매핑하는 입력/할당 행렬", "latex": "u = \\begin{bmatrix} k_F & k_F & k_F \\\\ 0 & -\\sin\\alpha\\, k_F L & \\sin\\alpha\\, k_F L \\\\ -k_F L & \\cos\\alpha\\, k_F L & \\cos\\alpha\\, k_F L \\end{bmatrix} \\begin{bmatrix} f_1 \\\\ f_2 \\\\ f_3 \\end{bmatrix}", "description": "후방/좌/우 날갯짓 주파수 f1,f2,f3를 총 양력과 두 동체 토크로 매핑한다. kF는 양력 계수, L은 각 모듈에서 질량 중심까지의 팔 길이, alpha는 +X축에 대한 좌측 연결 팔의 각도이다."}, {"type": "bullet", "text": "병진 동역학은 가속도로부터 동체 z축 방향을 부여하며, 요 제어가 없는 상황에서 위치 p를 평탄 출력으로 선택한다."}, {"type": "formula", "label": "식 (2) — 병진 동역학", "latex": "m\\ddot{p} = -mg Z_W + u_1 Z_B", "description": "뉴턴 병진 동역학: 질량 곱하기 가속도는 월드 z축 방향의 중력에 동체 z축 Z_B 방향으로 작용하는 총 양력 u1을 더한 것과 같으며, 이로부터 Z_B를 복원한다."}, {"type": "bullet", "text": "SE(3) 제어기는 위치·속도 오차와 전향(feedforward) 중력/가속도로부터 목표 힘 벡터를 계산한 뒤, 목표 동체 좌표계와 자세 오차를 구성한다.", "figure_refs": [4]}, {"type": "formula", "label": "식 (10) — 목표 힘 벡터", "latex": "F_{des} = -K_p e_p - K_v e_v + mg Z_W + m\\ddot{p}", "description": "비례 위치 오차 e_p와 속도 오차 e_v에 이득 Kp, Kv를 적용하고 중력 보상과 가속도 전향을 더하여 얻는 목표 추력 벡터이며, 그 크기는 u1을, 방향은 목표 동체 z축을 결정한다."}, {"type": "formula", "label": "식 (17) — 자세 토크 제어 법칙", "latex": "\\begin{bmatrix} u_2 \\\\ u_3 \\\\ M_Z \\end{bmatrix} = -K_R e_R - K_\\omega e_\\omega", "description": "자세 오차 e_R와 각속도 오차 e_omega에 이득 K_R, K_omega를 적용하여 동체 토크(및 잔여 요 토크 M_Z)를 계산하며, 필요한 모터 속도는 식 (1)의 역변환으로부터 따라 나온다."}, {"type": "bullet", "text": "온보드 제어는 200 Hz 센서 샘플링과 함께 100 Hz로 구동되어 안정적 비행에 충분하며, 종속 각속도·각도 PID 루프가 피치와 롤을 안정화하는데 이는 무미익 날갯짓 기체 호버링의 핵심이다.", "figure_refs": [3]}, {"type": "bullet", "text": "구조적 비대칭 파라미터 — 팔을 각도 beta만큼 후방으로 기울이고 뒷다리를 수직 오프셋 Delta-H만큼 들어 올림 — 는 뒷다리 진동을 억제하고 전진 추진을 증폭하여 기어가기 방향을 기계적으로 고정한다.", "figure_refs": [7]}]}, "experiment": {"content": [{"type": "bullet", "text": "통합 슬라이딩 슬롯이 있는 하부 제한 브래킷이 날갯짓 진동을 분리·유도하여 접선 성분 V_T를 구속하는 한편 반경 성분 V_R는 동체로 전파시켜 전진 기어가기를 구동한다.", "figure_refs": [7]}, {"type": "bullet", "text": "우측 날갯짓 모듈의 출력을 증가시키면 전진 운동과 반시계 회전이 발생하며, 좌측 모듈과 협조하면 전진과 선회를 위한 차동 조향이 가능하다.", "figure_refs": [7]}, {"type": "bullet", "text": "이중 계층 PID(선형 거리 PID와 평면 요 PID)와 차동 조향 전략이 좌/우 모듈 주파수 f1 = o_d + o_psi, f2 = o_d - o_psi를 구동하여 8자형 지상 궤적을 추종한다.", "figure_refs": [8]}, {"type": "formula", "label": "식 (19) — 날갯짓 주파수 대 PWM 스로틀 (2차 적합)", "latex": "f = -41.56\\,\\mathrm{thr}^2 + 80.69\\,\\mathrm{thr} - 14.64", "description": "일정 전압 공급 하에서 측정한, 모터 PWM 스로틀 명령 'thr'와 날개 날갯짓 주파수 f를 관계짓는 경험적 2차식이며, 주파수는 다시 적합 계수 K_F = 0.0195로 양력과 선형 관계를 갖는다.", "figure_refs": [9]}, {"type": "bullet", "text": "각 날갯짓 모듈은 최대 25.1 Hz의 주파수와 약 18.1 g의 최대 양력에 도달하며, 세 모듈은 최대 양력 54.2 g를 제공하여 양력 대 중량비 1.45를 달성한다.", "figure_refs": [9]}, {"type": "bullet", "text": "130도의 날개 스트로크로, 로봇은 뒤집혔을 때 피치/롤을 감지하고 지면에 가장 가까운 두 날갯짓 모듈을 전개하여 0.5초 이내에 자기 복원한다.", "figure_refs": [8]}, {"type": "bullet", "text": "지속 시간: 완충 시 약 6.5분 호버링 대비 지상 모드에서 약 28분(약 4배 더 김)인데, 이는 기어가기가 호버링 스로틀의 약 절반으로 두 모듈만 사용하기 때문이다."}, {"type": "bullet", "text": "롤/피치 설정값 0도의 호버 안정화에서 SE(3) 제어기는 RMSE 4.78도(롤)와 7.07도(피치)를 달성했으며, 최대 편차는 각각 16.65도와 20.15도였고 수동 요 회전은 허용했다.", "figure_refs": [10]}, {"type": "bullet", "text": "비행 시험에는 고도 유지 모드의 수직 이착륙, 다자유도 및 장애물 통과 궤적 추종, 그리고 동일 구동기로 구조 변경 없이 수행한 기어가기-비행-착륙의 매끄러운 전환이 포함되었다.", "figure_refs": [11]}, {"type": "bullet", "text": "초기 조립 불균형에 기인한 연속 요 드리프트에도, 관성 좌표계 위치 제어기는 롤과 피치를 통해 추력을 재지향하여 허용 가능한 정확도로 목표 궤적을 추종한다.", "figure_refs": [10]}]}, "discussion": {"content": [{"type": "bullet", "text": "운동 방향성은 제어 기반 변조가 아니라 주로 기계 설계에 의해 결정되어, 신뢰성 있는 전진 기어가기를 제공하지만 현재 설계에서는 후진 운동이 불가능하다.", "figure_refs": [7]}, {"type": "bullet", "text": "시험된 주파수 범위 전반에서 기어가기 방향의 반전이나 이탈이 관찰되지 않아, 비대칭 구동 구조가 주파수 의존 최적화 없이도 견고한 편향을 제공함을 시사한다."}, {"type": "bullet", "text": "곡선형 다리는 유연한 변형과 더 나은 지면 접촉 동역학을 통해 진동 전달을 개선하여, 진동 구동 추진에서 이전의 평평한 다리 변형을 능가한다."}, {"type": "bullet", "text": "능동 요 제어 생략은 요가 직립 안정성에 영향을 주지 않고 날갯짓 기구가 본질적으로 연속 회전을 유발하지 않기 때문에 정당화되며, 요 구동 없이 자율 비행을 가능하게 한다."}, {"type": "bullet", "text": "요 드리프트는 주로 조립 불균형에서 비롯되며 적절한 조립으로 최소화하거나 무시할 수 있고, 관성 좌표계 제어기는 롤과 피치를 통해 추력을 재지향하여 이를 보상한다.", "figure_refs": [10]}, {"type": "bullet", "text": "전복 없는 지상 모드 안정성은 낮고 거의 중앙에 위치한 질량 중심과 대칭 다리 지지에 기인하며, 진동 및 양력 유발 진동 하에서도 유지된다."}, {"type": "bullet", "text": "롤, 피치, 추력에 단 세 개의 구동기만 사용하면 완전 자세 다중 구동기 날갯짓 기체에 비해 시스템 복잡성을 줄이고 신뢰성을 높이며 제작/유지보수 비용을 낮춘다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "단 세 개의 구동기로 비행과 진동 구동 지상 이동을 모두 수행할 수 있는 무미익 삼익 날갯짓 로봇을 입증했다."}, {"type": "bullet", "text": "37.4 g 로봇은 비행 속도 5.5 m/s에 6.5분 지속 시간, 지상 속도 5.4 cm/s를 최대 28분간 달성한다."}, {"type": "bullet", "text": "지상 이동은 추가 구동기 없이 날갯짓으로 유발된 진동을 전진 운동으로 유도하는 비대칭 탄성 다리와 섀시 형상에 의해 생성된다."}, {"type": "bullet", "text": "최종 설계는 곡선형 다리와 기울어진 지지 구조를 통해 진동 전달과 방향성 편향을 향상시킨다."}, {"type": "bullet", "text": "SE(3) 기반 제어기는 요 제어 부재에도 저구동 조건에서 허용 가능한 비행 안정화를 가능하게 한다."}, {"type": "bullet", "text": "결과는 경량 공중-지상 로봇의 다중 모드 이동에 대한 콤팩트하고 효율적이며 실현 가능한 접근법을 보여주며, 주파수 기반 지상 제어와 수동 요 안정화의 토대를 제공한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "방향성이 제어 변조가 아니라 기계적으로 고정되어 있어 현재 설계에서는 후진 기어가기가 불가능하다.", "source_quote": "As a result, the robot consistently exhibits forward crawling under symmetric flapping actuation, backward crawling is not possible under current design.", "source_section": "experiment"}, {"claim": "로봇에 능동 요 제어가 없어 초기 조립 불균형으로 인한 요 드리프트가 장시간 운용 시 위치 제어 안정성을 저하시킨다.", "source_quote": "However, the inherent issue of yaw angle drift poses a significant challenge to position control systems that rely exclusively on onboard control algorithms, potentially leading to a progressive degradation of flight stability over extended operational durations.", "source_section": "method"}, {"claim": "마이크로 로봇의 지상 기어가기 운동은 모델링이 어렵기 때문에 지상 이동 모드는 체계적 모델이 아니라 경험적으로 최적화되었다.", "source_quote": "The ground crawling motion of micro-robots is often challenging to model systematically. In this study, the ground motion mode is primarily optimized through experimentation.", "source_section": "experiment"}], "future_works": [{"claim": "날갯짓 주파수 변화가 기어가기 속도와 선회 동역학에 미치는 영향을 조사하여 잠재적으로 구동기 없는 지상 운동 제어를 가능하게 한다.", "source_quote": "Future work will investigate how varying flapping frequency affects crawling speed and turning dynamics potentially enabling actuator-free control of terrestrial motion.", "source_section": "conclusion"}, {"claim": "저구동 비행에서 방향 제어와 견고성을 개선하기 위해 수동적 또는 최소 능동 요 안정화 전략을 탐구한다.", "source_quote": "We also plan to explore passive or minimally active yaw stabilization strategies to improve heading control and enhance robustness in underactuated flight.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["바퀴나 보행 기구로 지상 이동성을 얻는 다중 모드 날갯짓 로봇은 추가 구동기를 요구하여 제어를 복잡하게 하고 신뢰성을 떨어뜨리며 제작·유지보수 비용을 높인다.", "공중에서 완전 자세 제어를 추구하는 기존 생체모방 날갯짓 설계는 다수의 구동기를 가진 복잡한 구성을 사용하여 비효율적인 다중 모드 이동을 초래한다.", "지상 및 공중 이동 양쪽의 진전에도 불구하고, 효율적인 다중 모드 이동과 매끄러운 모드 전환을 달성하는 것은 여전히 미해결 과제로 남아 있다."], "addressed_by_this_work": ["생체모방 탄성 수동 다리를 이용한 진동 구동 지상 이동 기구는 어떠한 추가 구동기 없이도 지상 이동을 제공하여 복잡성과 비용을 낮춘다.", "삼익 구성은 단 세 개의 구동기로 롤, 피치, 추력을 제어하여 완전 자세 다중 구동기 설계 대비 시스템 복잡성을 줄인다.", "SE(3) 기반 제어기는 구조 변경 없이 동일한 구동기 세트로 공중과 지상 모드 간의 매끄러운 전환을 실현한다."], "remaining_unresolved": ["로봇이 여전히 능동 요 제어를 갖추지 못하고 수동 요 드리프트를 보이기 때문에 방향 제어가 여전히 불완전하다.", "지상 방향성이 기계적 비대칭으로 고정되어 있어 주파수 기반 또는 양방향 지상 제어는 아직 달성되지 않았으며 향후 연구로 남겨진다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

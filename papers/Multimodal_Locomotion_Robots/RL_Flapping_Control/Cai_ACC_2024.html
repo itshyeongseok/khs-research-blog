@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning-based Trajectory Tracking for Bird-inspired Flapping-Wing Robots</title>
+    <meta name="keywords" content="flapping-wing robot, bird-inspired FMAV, reinforcement learning, trajectory tracking, MuJoCo simulation, domain randomization, multi-body dynamics, stability analysis, agile maneuvers, PPO">
+    <meta name="paper-authors" content="Jiaze Cai, Vishnu Sangli, Mintae Kim, Koushil Sreenath">
+    <meta name="paper-journal" content="American Control Conference (ACC), 2024 (arXiv:2411.15103, v1 Nov 2024)">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning-based Trajectory Tracking for Bird-inspired Flapping-Wing Robots</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Jiaze Cai, Vishnu Sangli, Mintae Kim, Koushil Sreenath</div>
+            <div class="journal">American Control Conference (ACC), 2024 (arXiv:2411.15103, v1 Nov 2024)</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 높은 자유도를 가진 새 모방 날갯짓 로봇(오니솝터)의 민첩한 궤적 추종을 위한 모델프리 <span class="term">reinforcement-learning</span> 프레임워크를 제안한다. 로봇은 <span class="eng">MuJoCo</span>에서 다섯 개의 구동 관절을 가진 네 개의 강체 타원체로 모델링되며, PPO 정책이 저역통과 필터링된 목표 관절 위치를 출력하면 저수준 PD 제어기가 이를 추종한다. 커리큘럼 학습과 동역학·공력 무작위화를 통해 정책은 복잡한 3D 궤적을 추종하고, 비행 모드를 전환하며, 루프와 이멜만 턴 같은 곡예 기동을 수행한다. 시스템 식별 기반 안정성 분석은 폐루프 시스템이 BIBO 안정적이고 최소위상이며 안정적인 주기적 관절 궤도를 가짐을 보인다. 모든 결과는 시뮬레이션에서 얻은 것이며 하드웨어 플랫폼은 아직 설계 중이다.</div>
+            <div class="keywords"><span class="keyword-chip">flapping-wing robot</span><span class="keyword-chip">bird-inspired FMAV</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">trajectory tracking</span><span class="keyword-chip">MuJoCo simulation</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">multi-body dynamics</span><span class="keyword-chip">stability analysis</span><span class="keyword-chip">agile maneuvers</span><span class="keyword-chip">PPO</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">날갯짓 초소형 비행체(FMAV)는 양력, 추진력, 제어력을 동시에 생성할 수 있으며, 새 모방 오니솝터는 호버링에 최적화된 곤충 규모 설계에 비해 지속적인 전진 비행에서 우수한 효율과 강건성을 제공한다. 그러나 고도로 비선형적인 공기역학, 큰 날개 관성, 빠듯한 중량 예산 때문에 강건하고 민첩하며 정밀한 궤적 추종을 달성하기는 어렵다. 저자들은 이러한 장애물을 모델링, 시뮬레이션, 설계 과제로 분류한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">FMAV는 호버링에 최적화된 곤충/벌새 모방 비행체와 전진 비행을 위해 설계된 새 모방 비행체로 분류된다. 전통적 제어는 모델 기반 단일 강체 방법(PID, 피드백 선형화)과 최적화 기반 궤적 추종에 의존하는데, 이들은 비선형 다자유도 동역학에 어려움을 겪는 반면, 학습 기반 접근법은 최근에야 적용되기 시작했고 새 크기의 전진 비행에 대해서는 여전히 충분히 탐구되지 않았다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">플랫폼은 0.995 m 날개폭, 0.31 kg의 로봇으로, 다섯 개의 구동 관절(날개당 플랩과 페더링, 그리고 꼬리 피치)을 가져 11자유도, 6자유도 부족구동 시스템을 이룬다. 전차수 뉴턴-오일러 동역학은 무상태 타원체 유체 모델과 함께 MuJoCo에서 시뮬레이션된다. 50 Hz로 동작하는 PPO 정책이 저역통과 필터링된 목표 관절 위치를 출력하면 250 Hz PD 제어기가 이를 추종하며, 3단계 커리큘럼과 광범위한 동역학·공력 무작위화로 학습된다. 보상은 위치 추종, 동체 각속도 평활성, 수평 자세, 에너지 효율의 균형을 맞춘다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">학습된 정책은 전진 비행, 상승, 하강, 활공, 선회, 곡예 기동에 걸쳐 시뮬레이션에서 검증되었다. 시스템 식별 안정성 분석은 극점과 영점이 좌반평면에 놓이는 저차원 선형 모델을 적합하여 BIBO 안정성과 최소위상 거동을 확인했으며, 위상 초상화는 안정적인 주기적 관절 궤도를 보인다. 강건성 시험에서 제어기는 쿠타 양력 계수에 가장 민감하지만 바람과 공력 무작위화 하에서도 높은 성공률을 유지했다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 안정성 결과를 입출력 선택이 제어 가능한 최소위상 폐루프 시스템을 산출한다는 증거로 해석하며, 이는 비최소위상 고정익 거동과 대조된다. 그들은 새 규모 날갯짓에서 쿠타 양력 계수의 지배적 역할과 무상태 MuJoCo 유체 모델의 제한된 충실도를 논의하며, 이것이 sim-to-real 격차를 메우기 위해 공력 무작위화에 의존하는 동기가 됨을 설명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 연구는 새 모방 날갯짓 로봇에 대해 시뮬레이션에서 복잡한 3D 궤적을 추종하고, 민첩한 곡예 기동을 수행하며, 변화하는 공력 조건에 적응하는 새로운 RL 기반 프레임워크를 제안한다. MuJoCo 다물체 모델링과 공력 무작위화는 일반화를 촉진했고, 안정성 분석은 점근 안정성과 안정적인 주기적 관절 패턴을 확인했다. 하드웨어 플랫폼은 아직 설계 중이며, 실험적 검증은 향후 과제로 남는다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "FMAV는 양력, 추진력, 제어력을 동시에 생성할 수 있어, 생물학적 비행체를 모방하여 기존 고정익 또는 회전익 항공기를 넘어서는 기동을 가능하게 한다."}, {"type": "bullet", "text": "민첩성과 호버링에 뛰어난 곤충 또는 벌새 모방 FMAV와 비교할 때, 새 모방 FMAV(오니솝터)는 지속적이고 장거리의 전진 비행에서 우수한 효율과 강건성을 제공한다."}, {"type": "bullet", "text": "새 모방 FMAV는 대략 $10^3$에서 $10^6$의 레이놀즈수에서 작동하는데, 이 영역에서는 층류-난류 경계층 천이가 공기역학에 강하게 영향을 미치고 정확하게 모델링하기 어렵기 때문에 모델링이 까다롭다.", "figure_refs": []}, {"type": "bullet", "text": "날개 관성이 무시할 만한 곤충 규모 비행체와 달리, 새 모방 FMAV의 더 큰 날개는 상당한 관성 효과를 유발하여 다물체 동역학 모델을 필요로 하며, 공력과 날개 변형 사이의 공탄성 결합이 모델링을 더욱 복잡하게 만든다."}, {"type": "bullet", "text": "시뮬레이션은 병목이다. 고충실도 CFD-CSD 계산은 며칠이 걸리는 반면, 더 낮은 충실도의 UVLM과 비정상 양력선 방법은 선행 와류 같은 점성 효과를 포착하지 못하고 큰 가로세로비와 작은 받음각에 국한된다."}, {"type": "bullet", "text": "제한된 중량 예산에서 오는 설계 제약은 탑재 연산과 액추에이터 수를 제한하며, 대부분의 최근 새 모방 FMAV는 단일 날갯짓 모터와 구동 꼬리를 사용하므로 제어 입력이 제한되어 민첩성이 떨어진다.", "figure_refs": [1]}, {"type": "bullet", "text": "이 논문이 표명한 목표는 다중 모드 비행과 민첩한 궤적 추종을 가능하게 하는 학습 기반 제어기를 통해 날갯짓 비행의 다재다능함과 적응성을 발휘하는 것이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "FMAV는 호버링 근처 비행에 최적화된 곤충/벌새 모방 설계와 주로 모드 전환을 동반한 전진 비행을 위한 새 모방 설계로 크게 나뉜다."}, {"type": "bullet", "text": "오니솝터의 전통적 제어는 기본 자세 안정화를 위해 PID와 상태 피드백 선형화를 갖춘 모델 기반 단일 강체 동역학을 사용하는데, 이는 비선형적이고 고도로 동적인 공력에 어려움을 겪는다."}, {"type": "bullet", "text": "전진 비행에서의 궤적 추종과 생성을 위한 최적화 기반 및 모델 기반 방법이 시연되었으나, 날갯짓 동역학을 다루기 위해 필요한 단순화와 적은 수의 액추에이터(날갯짓 주파수와 꼬리 각도)에 대한 의존 때문에 정확도가 제한된다."}, {"type": "bullet", "text": "학습 기반 접근법, 특히 강화학습은 최근 지상 차량, 드론, 보행 로봇에 성공적으로 적용되어 동적 환경에서 강건하고 민첩한 운동을 달성했다."}, {"type": "bullet", "text": "날갯짓 비행에서의 초기 RL 연구는 나비형 MAV의 양력 생성 향상이나 궤적 추종 중 날개 진동 억제 같은 좁은 과제를 목표로 했다."}, {"type": "bullet", "text": "RL은 곤충 크기의 호버 가능 FMAV에서 백플립이나 회피 행동 같은 민첩한 기동에 가능성을 보였으나, 전진 비행을 위한 새 크기 FMAV에서의 활용은 여전히 미개척 연구 영역으로 남아 있다."}]}, "method": {"content": [{"type": "bullet", "text": "로봇은 0.995 m 날개폭, 0.17 m 평균 시위, 0.31 kg 질량을 가지며, 날개당 플랩과 페더링 관절, 그리고 꼬리 피치 관절의 다섯 개 제어 가능 관절을 가져 다섯 개의 구동 자유도를 제공한다.", "figure_refs": [1]}, {"type": "bullet", "text": "6자유도 부유 베이스를 포함하면 시스템은 11개의 일반화 좌표와 6의 부족구동도를 가지며, 모든 물체는 강체로 가정하고 날개 변형은 도메인 무작위화로 흡수한다."}, {"type": "bullet", "text": "전차수 동역학은 뉴턴-오일러 정식화로 유도되며, 일반화 공력은 자코비안 전치를 통해 좌표로 사상된다."}, {"type": "formula", "label": "식 (1) — 뉴턴-오일러 운동방정식", "latex": "M(q)\\ddot{q} + C(q,\\dot{q})\\dot{q} + G(q) = \\begin{bmatrix} 0 \\\\ \\tau \\end{bmatrix} + u_{aero}(q,\\dot{q})", "description": "질량 행렬 $M$, 코리올리/원심 항 $C$, 중력 $G$, 관절 입력 토크 $\\tau$, 일반화 공력 $u_{aero}$를 갖는 전차수 강체 다물체 동역학."}, {"type": "formula", "label": "식 (2) — 일반화 공력", "latex": "u_{aero}(q,\\dot{q}) = \\sum_{i=1}^{m} J_i^{T}(q)\\, F_{aero,i}(q,\\dot{q})", "description": "유체에 잠긴 $m$개 물체 각각에 작용하는 직교 공력 렌치 $F_{aero,i}$가 자코비안 전치 $J_i^T$를 통해 일반화 좌표로 사상된다."}, {"type": "bullet", "text": "MuJoCo는 무상태 유체력 모델을 제공한다. 더 정교한 타원체 모델은 양력 물체에 대해 다섯 가지 공력 효과(부가 질량, 점성 항력, 마그누스 양력, 쿠타 양력, 점성 저항)를 고려하는 반면, 더 단순한 관성 모델은 주 동체에 사용된다.", "figure_refs": []}, {"type": "formula", "label": "식 (3) — 타원체 모델 공력", "latex": "f_{aero} = f_A + f_D + f_M + f_K + f_V", "description": "양력 물체에 작용하는 총 공력은 부가 질량, 점성 항력, 마그누스 양력, 쿠타 양력, 점성 저항 기여를 합산하며, 다섯 개의 유체 계수는 활공 시 설계 양항비에 맞도록 수동 조정된다."}, {"type": "bullet", "text": "제어 구조는 50 Hz로 PPO 정책을 실행하여 스케일링·저역통과 필터링되어 목표 관절 위치가 되는 행동을 출력하고, 250 Hz 저수준 PD 제어기가 모터 토크를 계산하며, 7 Hz LPF 차단주파수가 날갯짓을 새와 유사한 4–6 Hz로 제한한다.", "figure_refs": [3]}, {"type": "bullet", "text": "3단계 커리큘럼(등속 전진 비행, 이어서 가변 속도의 상승/하강, 그다음 선회와 임의 기동) 이후 강건성과 적응성을 향상시키기 위한 동역학 무작위화 단계가 뒤따른다."}, {"type": "bullet", "text": "관측값은 자세 쿼터니언, 국소 각속도, 관절 위치, 피토관과 유사한 바람 상대 x-속도를 포함하며, 25스텝(0.5초) 이력과 다가오는 궤적의 30스텝(0.6초) 전방 예측을 갖는다."}, {"type": "formula", "label": "식 (8) — 보상 함수", "latex": "r = 0.5\\,r_{pos} + 0.1\\,r_{\\Omega} + 0.2\\,r_{\\phi,\\theta} + 0.05\\,r_{energy}", "description": "위치 추종, 동체 각속도 최소화, 수평 자세 유도, 그리고 활공과 새와 유사한 날갯짓 주파수를 장려하는 에너지 항을 결합한 가중 보상."}, {"type": "bullet", "text": "무작위화는 링크 질량/관성/질량중심, 다섯 개의 유체 계수, 부가 질량과 관성, 바람 외란을 포괄하며, 정책은 256개의 병렬 환경을 사용해 약 3천만 스텝(CPU에서 약 5시간) 동안 MLP 액터-크리틱 PPO로 학습된다."}]}, "experiment": {"content": [{"type": "bullet", "text": "3.8 m/s에서의 전진 날갯짓은 5.3 Hz의 기본 주파수를 보였으며, 날개 플랩, 날개 피치, 꼬리 각도가 그 모드에서 각각 에너지의 38.65%, 36.81%, 38.24%를 담당했다.", "figure_refs": [4]}, {"type": "bullet", "text": "폐루프 시스템의 입출력 쌍으로부터 저차원 LTI 모델이 추출되었으며, 적합된 동역학은 응답을 최소 $5.629\\times10^{-5}$의 평균제곱오차로 예측한다.", "figure_refs": [5]}, {"type": "formula", "label": "식 (9) — 식별된 종방향 전달함수", "latex": "Y_x(s) = \\frac{49.89 s^2 + 164.9 s + 26.27}{s^3 + 3.554 s^2 + 6.438 s + 2.809}", "description": "폐루프 안정성을 평가하는 데 사용된, 원하는 x-위치에서 측정된 x-위치로의 적합된 입출력 전달함수 예시이며, y축과 z축에 대한 유사한 식이 제시된다."}, {"type": "bullet", "text": "세 축 모두의 극점-영점 분석은 모든 극점과 영점이 좌반평면에 있음을 보여, 기존 고정익 항공기의 비최소위상 꼬리 내림 효과와 달리, 유계입력 유계출력 안정성과 최소위상 거동을 확인한다.", "figure_refs": [6]}, {"type": "bullet", "text": "전진 비행, 상승, 선회 중 날개 플랩과 피치 관절의 위상 초상화는 닫히고 일관된 주기적 궤도를 형성하여, 안정적이고 주기적인 날갯짓과 피칭을 나타낸다.", "figure_refs": [7, 8]}, {"type": "bullet", "text": "상승은 더 많은 양력을 모으기 위해 더 큰 플랩 관절 가동 범위와 피치 각도의 더 높은 받음각 방향으로의 이동을 보이는 반면, 선회는 비대칭 양력과 추력을 생성하기 위해 바깥쪽 날개를 들어 올리고 피치업한다.", "figure_refs": [7, 8]}, {"type": "bullet", "text": "제어기는 단순 기술(순항, 상승, 활공, 하강, 선회)과 루프, 선회, 바닥에서 빠져나오는 롤 기동을 포함한 곡예 궤적을 추종했으며, 동역학적으로 실현 불가능한 기준에 대해서만 눈에 띄는 오차를 보였다.", "figure_refs": [9, 12, 13]}, {"type": "bullet", "text": "강건성 시험은 FMAV가 쿠타 양력 계수 $C_K$에 가장 민감함을 보였으나, 유체 계수가 최대 0.5배까지 무작위화되고 2D 바람 외란 하에서도 비교적 높은 성공률을 유지함을 보였다.", "figure_refs": [10, 11]}]}, "discussion": {"content": [{"type": "bullet", "text": "모든 극점을 좌반평면에 위치시키는 것은 RL 정책 하의 비선형 FMAV가 국소적으로 입출력 안정적임을 의미하며, 입출력 변수의 선택이 제어 가능하고 안정화 가능한 폐루프 시스템을 달성하는 데 결정적이라고 주장된다.", "figure_refs": [6]}, {"type": "bullet", "text": "모든 영점 또한 좌반평면에 있으므로 시스템은 최소위상이며, 기존 고정익 항공기에 흔한 비최소위상 꼬리 내림-후-올림 거동을 피한다."}, {"type": "bullet", "text": "위상 초상화의 닫힌 주기적 궤도는 학습된 제어기가 비행 과제 전반에 걸쳐 안정적이고 반복 가능한 날갯짓·피칭 한계 사이클을 생성한다는 확인으로 해석된다.", "figure_refs": [7]}, {"type": "bullet", "text": "쿠타 양력 계수에 대한 높은 민감도는 새 규모 날갯짓 비행에서 양력을 생성하는 데 있어 그것의 지배적 역할에 기인하며, 이 계수가 추종 성공에 가장 강하게 영향을 미치는 이유를 설명한다.", "figure_refs": [11]}, {"type": "bullet", "text": "무상태 MuJoCo 유체 모델은 세 가지 이유 — 수동 조정 계수, 상태 의존 비정상 힘을 포착하지 못함, 모델링되지 않은 날개 변형 — 로 제한된 충실도를 가짐이 인정되며, 이것이 공력 무작위화의 동기가 된다.", "figure_refs": []}, {"type": "bullet", "text": "정책이 비현실적으로 높은 날갯짓 주파수를 선호하는 것을 막기 위해 에너지 페널티와 7 Hz 저역통과 필터 차단주파수가 필요했으며, 따라서 학습된 4–6 Hz 주파수는 비슷한 날개 면적을 가진 실제 새와 유사하다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "새 모방 날갯짓 로봇의 궤적 추종을 위한 새로운 모델프리 RL 프레임워크가 시연되어, 복잡한 3D 궤적을 추종하고 시뮬레이션에서 민첩한 기동을 수행했다."}, {"type": "bullet", "text": "MuJoCo 다물체 동역학 모델링을 공력 무작위화와 결합하여 RL 정책이 바람 외란과 변화하는 공력을 포함한 다양한 비행 시나리오에 걸쳐 일반화할 수 있게 했다."}, {"type": "bullet", "text": "안정성 분석은 폐루프 시스템이 점근 안정적이며 안정적이고 주기적인 관절 동작 패턴을 유지함을 검증했다."}, {"type": "bullet", "text": "이 프레임워크는 단일 학습 제어기 내에서 모드 전환과 루프 및 이멜만 턴 같은 곡예 기동을 처리한다."}, {"type": "bullet", "text": "날갯짓 로봇의 하드웨어 플랫폼은 아직 설계 과정에 있으므로, 보고된 모든 결과는 시뮬레이션에서 얻은 것이다."}, {"type": "bullet", "text": "향후 연구는 물리적 날갯짓 로봇이 설계·제작되면 RL 정책의 실험적 검증을 추구할 것이다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "로봇의 모든 물체가 강체로 가정되며, 날개 유연성과 공탄성 변형은 직접 모델링되기보다 도메인 무작위화를 통해 근사될 뿐이다.", "source_quote": "Although the wings of a flapping-wing robot can be flexible, in this work, we assume all bodies in the robot are rigid for simplicity.", "source_section": "method"}, {"claim": "MuJoCo 무상태 유체 모델은 수동 조정 계수가 실제 모델과 일치하지 않을 수 있고, 무상태 정식화가 상태 의존 비정상 공력을 포착하지 못하며, 물리적 날개 변형이 합력을 바꾸기 때문에 정확도가 제한된다.", "source_quote": "Although the Mujoco Fluid model is capable of capturing salient aerodynamic effects using ellipsoids, it still has limited accuracy to simulate the real physics of the flapping-wing robot.", "source_section": "discussion"}, {"claim": "제어기는 동역학적으로 실현 불가능한 목표 궤적이 명령될 때 눈에 띄는 추종 오차를 보이지만, 부분적으로는 그것에 다시 합류할 수 있다.", "source_quote": "Note that there is a noticeable tracking error when we provide a potentially dynamically infeasible target trajectory, but the FMAV is capable of rejoining the trajectory to some extent.", "source_section": "discussion"}, {"claim": "모든 검증은 시뮬레이션에서 수행되며, 로봇이 아직 제작되지 않았기 때문에 물리적 하드웨어 실험은 수행되지 않았다.", "source_quote": "It is worthwhile mentioning that the hardware platform of the flapping-wing robot is in the process of design.", "source_section": "conclusion"}], "future_works": [{"claim": "저자들은 물리적 날갯짓 로봇이 설계·제작되면 RL 정책을 실험적으로 검증할 계획이다.", "source_quote": "Our future work will involve experimental validation of the proposed RL policy once we design and build a flapping-wing robot.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["새 모방 FMAV는 전통적 모델 기반 단일 강체 제어기가 제대로 다루지 못하는 고도로 비선형적인 공기역학과 복잡한 다자유도 동역학을 가진다.", "CFD-CSD는 너무 느리고 저차원 방법은 점성 효과를 놓치기 때문에, 날갯짓 비행을 위한 고정확도이면서 낮은 연산 비용의 동역학 시뮬레이션 환경이 부족하다.", "대부분의 기존 새 모방 FMAV는 단일 모터와 구동 꼬리로 구동되므로, 제한된 제어 입력이 민첩성과 기동성을 제약한다.", "강화학습은 다른 로봇 플랫폼에서의 성공에도 불구하고 전진 비행을 위한 새 크기 FMAV에서의 활용이 여전히 대체로 미개척 상태로 남아 있다."], "addressed_by_this_work": ["모델프리 RL(PPO) 프레임워크가 높은 자유도의 오니솝터를 직접 제어하여 비선형 동역학 하에서 안정적이고 민첩한 궤적 추종을 달성한다.", "무상태 타원체 유체 모델과 공력 무작위화를 갖춘 MuJoCo 기반 시뮬레이션이 핵심 공력 효과를 포착하는 연산적으로 실현 가능한 학습 환경을 제공한다.", "다섯 개의 독립 구동 관절(날개당 플랩과 페더링, 그리고 꼬리 피치)을 가진 로봇이 다중 모드 및 곡예 기동에 충분한 제어 권한을 제공한다.", "이 논문은 새 크기 FMAV에 대해 RL 기반 전진 비행 궤적 추종, 곡예, 그리고 형식적 폐루프 안정성 분석을 시연한다."], "remaining_unresolved": ["하드웨어 플랫폼이 설계 단계에 불과하므로 실세계 실험적 검증이 여전히 미결로 남아 있다.", "도메인 무작위화가 적용되었음에도 MuJoCo 유체 모델의 충실도가 제한적이므로 sim-to-real 격차가 남아 있다.", "동역학적으로 실현 불가능한 기준 궤적에 대해서는 추종 정확도가 저하된다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

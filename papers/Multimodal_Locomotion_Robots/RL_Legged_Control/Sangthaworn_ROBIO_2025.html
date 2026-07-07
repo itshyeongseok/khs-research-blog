@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>From Imitation to Task Performance: Scheduled Reward Weighting for Energy-Efficient Bipedal Locomotion</title>
+    <meta name="keywords" content="bipedal locomotion, reinforcement learning, scheduled reward weighting, adversarial motion priors, multi-objective optimization, energy efficiency, imitation learning, humanoid robot, reward shaping">
+    <meta name="paper-authors" content="Tuchapong Sangthaworn, Bawornsak Sakulkueakulsuk">
+    <meta name="paper-journal" content="2025 IEEE International Conference on Robotics and Biomimetics (ROBIO), December 3-7, 2025, Chengdu, China, pp. 1245-1250 · DOI: 10.1109/ROBIO66322.2025">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">From Imitation to Task Performance: Scheduled Reward Weighting for Energy-Efficient Bipedal Locomotion</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Tuchapong Sangthaworn, Bawornsak Sakulkueakulsuk</div>
+            <div class="journal">2025 IEEE International Conference on Robotics and Biomimetics (ROBIO), December 3-7, 2025, Chengdu, China, pp. 1245-1250 · DOI: 10.1109/ROBIO66322.2025</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 이족 보행에서 자연스러운 인간형 동작과 정확한 과제 수행이라는 상충하는 목표를 균형 잡기 위한 미니멀리스트 기법인 <span class="term">Scheduled Reward Weighting (SRW)</span>를 제안합니다. SRW는 고정된 보상 가중치 대신 단순한 시변 함수(선형 또는 지수 감쇠)를 사용하여 모방 중심 학습에서 과제 중심 학습으로 전환하며, 인간 동작을 초기 탐색 안내로 활용한 뒤 과제 최적화 쪽으로 감쇠시킵니다. Adversarial Motion Priors (AMP) 방식의 보상을 기반으로 구축된 SRW는 IsaacLab 시뮬레이션의 Unitree G1 휴머노이드에서 정교하게 튜닝된 고정 가중치 및 AdaptiveMimic 기준선과 비교하여 평가됩니다. SRW는 낮은 에너지 소비(12.5-13.6 kJ), 정확한 속도 추종(RMSE 0.23-0.27 m/s), 그리고 고정 가중치 기준선 대비 68% 낮은 분산을 달성하는 동시에 참조 데이터를 넘어서는 새로운 에너지 효율적 보행을 발견합니다. 본 연구는 시간적 보상 동역학을 더 복잡한 적응형 기법들이 그에 대해 스스로를 정당화해야 하는 실용적 기준선으로 확립합니다.</div>
+            <div class="keywords"><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">scheduled reward weighting</span><span class="keyword-chip">adversarial motion priors</span><span class="keyword-chip">multi-objective optimization</span><span class="keyword-chip">energy efficiency</span><span class="keyword-chip">imitation learning</span><span class="keyword-chip">humanoid robot</span><span class="keyword-chip">reward shaping</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이족 보행은 자연스러운 인간형 동작과 정확한 과제 수행을 균형 잡아야 하며, 이 절충은 보상 설계에서 직접 드러납니다. 모방 보상은 자연스러운 보행을 선호하지만 추종 정확도를 저해하는 반면, 과제 보상은 정밀하지만 에너지 비효율적인 동작을 산출합니다. 현재 기법들은 이 스펙트럼 상의 단일 지점을 사전 선택하고 광범위한 수동 튜닝을 요구하는 고정 보상 가중치에 의존하며, 기존 적응형 기법들은 복잡합니다. 저자들은 단순한 선형 또는 지수 감쇠를 사용하여 모방 중심에서 과제 중심 학습으로 전환하고 새로운 에너지 효율적 보행을 발견하는 Scheduled Reward Weighting (SRW)을 제안합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 SRW를 보상 가중치를 일정하게 유지하는 기초적 모방 기반 이족 기법(DeepMimic, AMP), 데이터 분포를 벗어날 수 없는 참조 기반 기법, 그리고 상당한 복잡성을 추가하는 적응형 다목적 기법들과 대비하여 위치시킵니다. 이족 보행의 정적 가중치 관행을 학습률, 탐색, 커리큘럼을 일상적으로 감쇠시키는 더 폭넓은 RL 관행과 대조합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">SRW는 이족 보행을 과제 보상과 가중 합산되는 AMP 기반 스타일 보상을 갖춘 목표 조건부 RL로 정식화합니다. 스타일 가중치를 고정으로 유지하는 대신, SRW는 정규화된 학습 진행도로 매개변수화된 선형 또는 지수 스케줄을 사용하여 초기값(일반적으로 1.0)에서 최솟값(일반적으로 0.5)을 향해 학습 동안 이를 감쇠시킵니다. 하한은 학습 전반에 걸쳐 동작 품질을 보존하면서 정책이 모방 안내 탐색에서 과제 최적화로 이동하도록 허용합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">SRW는 4096개의 병렬 환경과 23-DOF Unitree G1 휴머노이드를 사용하여 IsaacLab에 구현되었으며, AMASS 참조 동작을 사용하여 20,000 에피소드에 걸쳐 PPO-Clip으로 학습됩니다. 이는 속도 추종 RMSE, 에너지 소비, 판별자 보상에 대해 고정 스타일 가중치 기준선 및 AdaptiveMimic 적응형 기준선과 비교되며, 통계적 유의성은 다섯 개 시드에 걸쳐 평가됩니다. SRW는 낮은 추종 오차와 낮고 저분산인 에너지 소비를 동시에 달성하여, 고정 가중치 및 적응형 기준선 모두를 제약하는 절충을 초월합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 그들의 제약된 시뮬레이션 기반 연구를 실세계 배치의 추가적 과제를 인정하면서 SRW를 교란 요인으로부터 의도적으로 분리하는 것으로 규정합니다. 그들은 단순한 시간적 보상 동역학이 다목적 보행 학습에 상당한 이익을 준다고 주장하며, 위상 구조화된 스케줄링이 반응형 적응(AdaptiveMimic)이 찾지 못하는 에너지 효율적 보행을 발견한다고 봅니다. 본 연구는 보상 동역학이 이족 학습을 어떻게 형성하는지에 대한 최초의 체계적 특성화로 자리매김하며, 향후 적응형 기법을 위한 기준선이자 벤치마크를 제공합니다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 SRW가 자연스러운 동작 대 과제 성능 절충에 대한 미니멀리스트 해결책으로서, 최소한의 프레임워크 수정으로 시드 전반에 걸쳐 에너지 효율성, 추종 정확도, 분산 감소를 동시에 달성한다고 결론짓습니다. 수동 튜닝 제거, 새로운 에너지 효율적 보행 발견, 그리고 속도 전반의 강건한 일반화라는 세 가지 이점을 강조하며, 무엇을 최적화하는가만큼 언제 최적화하는가가 중요하다는 원리를 도출합니다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "이족 보행은 자연스러운 인간형 동작과 정확한 과제 수행이라는 두 목표를 균형 잡아야 하며, 이 절충은 보상 설계에서 가장 명확히 나타납니다. 모방 보상은 자연스러운 보행을 촉진하지만 추종 정확도를 저해하는 반면, 과제 보상은 부자연스럽고 에너지 비효율적인 동작이라는 대가를 치르며 정밀한 제어를 달성합니다."}, {"type": "bullet", "text": "현재 기법들은 자연스러움-성능 스펙트럼 상의 단일 지점을 사전 선택하는 고정 보상 가중치를 통해 이 과제에 대처하며, 이는 실무자들을 광범위한 수동 튜닝으로 몰아넣고 종종 차선의 절충점으로 수렴합니다."}, {"type": "bullet", "text": "최근 참조 기반 학습은 강력한 동작 추종을 달성했습니다. Li 등은 이중 이력 구조를 갖춘 다단계 학습을 개발했고, ASAP은 잔차 행동 학습을 통해 민첩한 휴머노이드 동작을 가능하게 합니다. 그러나 이러한 기법들은 참조 데이터 분포에 제약되며 데이터셋을 넘어서는 새로운 행동을 발견할 수 없습니다."}, {"type": "bullet", "text": "이족 보행에서 고정 가중치의 지속성은, 학습 과정에서 학습률이 감쇠하고 탐색률이 감소하며 커리큘럼이 과제 난이도를 적응시키는 더 폭넓은 RL 관행과 뚜렷하게 대조됩니다."}, {"type": "bullet", "text": "ORSO, Reward Training Wheels, Adaptive Mimic와 같은 다목적 RL 기법들은 적응형 가중치를 개발했지만, 추가적인 신경망, 온라인 최적화, 또는 복잡한 선택 메커니즘을 요구합니다."}, {"type": "bullet", "text": "저자들은 이족 보행에서 모방 학습으로부터 과제 최적화로 전환하는 근본적인 학습 동역학을 이해하기 위한 단순한 접근으로서 기본적인 수학 함수(선형/지수)를 사용하는 <span class=\"term\">Scheduled Reward Weighting (SRW)</span>를 제안합니다.", "figure_refs": [1]}, {"type": "bullet", "text": "기여는 다음과 같습니다: (1) 스케줄된 전환이 일관된 다목적 최적화를 어떻게 가능하게 하는지 실증적으로 특성화하고, (2) 최소한의 프레임워크 수정으로 시드와 하이퍼파라미터 전반에 걸쳐 일관된 결과를 달성하며, (3) 그러한 단순성이 참조 데이터를 넘어서는 새로운 에너지 효율적 보행을 발견할 수 있음을 입증합니다."}, {"type": "bullet", "text": "이 접근법은 정교하게 튜닝된 고정 가중치 기준선과 비교하여, 다수의 무작위 시드 전반에 걸쳐 에너지 소비, 추종 정확도, 속도 추종, 행동 안정성을 사용하여 시뮬레이션 상의 Unitree G1 휴머노이드에서 평가됩니다."}]}, "related_works": {"content": [{"type": "bullet", "text": "DeepMimic과 AMP 같은 기초적 이족 모방 기법들은 학습 전반에 걸쳐 일정한 보상 가중치를 유지하며, 이는 광범위한 수동 튜닝을 요구하고 종종 차선의 절충을 산출합니다."}, {"type": "bullet", "text": "Li 등은 이중 이력 구조를 갖춘 다단계 학습을 개발하여 포괄적인 보행 및 점프 능력을 입증했습니다."}, {"type": "bullet", "text": "ASAP은 잔차 행동 학습을 통해 공중 180도 회전을 포함한 민첩한 휴머노이드 동작을 가능하게 하는 2단계 프레임워크를 제시하지만, 그 참조 데이터 분포에 제약됩니다."}, {"type": "bullet", "text": "ORSO와 Reward Training Wheels 같은 최근 다목적 RL 접근법들은 연속 제어 과제에서 성공을 입증합니다."}, {"type": "bullet", "text": "Adaptive Mimic은 휴머노이드 보행 과제에 대해 연속적인 성능 기반 가중치를 사용하지만, 그러한 기법들은 추가적인 신경망, 온라인 최적화, 또는 복잡한 선택 메커니즘을 요구합니다."}, {"type": "bullet", "text": "더 폭넓은 RL 관행은 학습률을 일상적으로 감쇠시키고, 탐색률을 감소시키며, 과제 난이도에 커리큘럼을 적응시키지만, 이족 보행은 그 보상 가중치에 유사한 시간적 스케줄링을 거의 적용하지 않았습니다."}]}, "method": {"content": [{"type": "bullet", "text": "이족 보행 과제는 두 가지 보상 성분을 갖춘 목표 조건부 RL 문제로 정식화됩니다: 과제별 보상 rG(예: 속도 추종)와 정책을 참조 동작과 양식적으로 유사한 동작으로 안내하는 스타일 보상 rS이며, 둘은 가중 합산되어 최종 학습 보상이 됩니다."}, {"type": "formula", "label": "Eq. (1) — 가중 보상 구성", "latex": "r_t = w^G_t\\, r^G_t + w^S_t\\, r^S_t", "description": "시점 $t$의 최종 보상은 시변 가중치 $w^G_t$와 $w^S_t$를 갖춘 과제 보상 $r^G_t$와 AMP 스타일 보상 $r^S_t$의 가중 합입니다."}, {"type": "formula", "label": "Eq. (2) — 상보적 가중치", "latex": "w^G_t = 1 - w^S_t", "description": "과제 가중치와 스타일 가중치는 상보적이므로, 스타일 가중치를 지정하면 과제 가중치가 완전히 결정됩니다."}, {"type": "bullet", "text": "스타일 보상은 <span class=\"term\">Adversarial Motion Priors (AMP)</span>를 기반으로 구축됩니다: 판별자 D(o_t, o_{t+1})는 전문가 시연 전이에 대해 +1을, 정책 전이에 대해 -1을 출력하도록 전문가 손실, 정책 손실, 그리고 전체 AMP 손실로 결합된 기울기 페널티를 통해 학습됩니다."}, {"type": "formula", "label": "Eq. (6) — 결합된 AMP 판별자 손실", "latex": "L_{AMP} = \\tfrac{1}{2} L_{expert} + \\tfrac{1}{2} L_{policy} + \\lambda_{GP} L_{GP}", "description": "판별자는 최소제곱 전문가 손실, 정책 손실, 그리고 계수 $\\lambda_{GP}$로 스케일된 기울기 페널티 항 $L_{GP}$로 학습되며, 전문가 손실과 정책 손실은 점수를 각각 +1과 -1을 향해 밀어냅니다."}, {"type": "formula", "label": "Eq. (7) — 판별자로부터의 스타일 보상", "latex": "r^S_t = \\max\\!\\left(0,\\; 1 - 0.25\\,(D(o_t, o_{t+1}) - 1)^2\\right)", "description": "스타일 보상은 판별자 점수로부터 도출되어 [0, 1] 범위로 제한되며, 판별자가 전문가다운 것으로 판단하는 전이에 보상을 줍니다."}, {"type": "bullet", "text": "<span class=\"term\">Scheduled Reward Weighting</span>은 고정 가중치를 모방 중심에서 과제 중심 학습으로 매끄럽게 전환하는 시변 함수로 대체하여, 정규화된 학습 진행도에 기반해 에피소드 N에서 초기값 w_init(일반적으로 1.0)으로부터 에피소드 M에서 최솟값 w_min(일반적으로 0.5)까지 스타일 가중치를 감쇠시킵니다."}, {"type": "formula", "label": "Eq. (8) — 정규화된 학습 진행도", "latex": "\\alpha_t = \\mathrm{clamp}\\!\\left(\\frac{t - N}{M - N},\\, 0,\\, 1\\right)", "description": "정규화된 학습 진행도 $\\alpha_t$는 감쇠 시작 에피소드 N과 감쇠 종료 에피소드 M 사이에서 0에서 1로 증가하며, 가중치 스케줄을 제어합니다."}, {"type": "formula", "label": "Eq. (9) — 선형 감쇠 스타일 가중치", "latex": "w^S_t = w_{min} + (w_{init} - w_{min})(1 - \\alpha_t)", "description": "선형 감쇠 함수는 $\\alpha_t$가 증가함에 따라 스타일 가중치의 모방에서 과제 최적화로의 꾸준한 전환을 제공합니다."}, {"type": "bullet", "text": "지수 감쇠 스케줄은 급격한 초기 전환에 이은 점진적 정제를 가능하게 하며, 가파름 매개변수 λ_decay(일반적으로 10)로 제어됩니다. 선형 및 지수 스케줄 모두 학습 전반에 걸쳐 동작 품질을 보존하기 위해 wS ≥ w_min을 유지합니다."}, {"type": "formula", "label": "Eq. (11) — 지수 감쇠 스타일 가중치", "latex": "w^S_t = w_{min} + (w_{init} - w_{min})\\, g(\\alpha_t), \\quad g(\\alpha) = \\frac{e^{-\\lambda_{decay}\\alpha} - e^{-\\lambda_{decay}}}{1 - e^{-\\lambda_{decay}}}", "description": "지수 스케줄은 가파름 $\\lambda_{decay}$를 갖춘 정규화된 감쇠 형태 $g(\\alpha)$를 적용하여, $w_{min}$로 하한이 유지되는 가운데 빠른 초기 전환에 이은 점진적 정제를 산출합니다."}]}, "experiment": {"content": [{"type": "bullet", "text": "구현은 4096개의 병렬 환경, 200 Hz 시뮬레이션 주파수, 50 Hz 정책 질의로 IsaacLab 4.2.0을 사용하며, Unitree G1 휴머노이드(23 DOF: 루트/골반 1, 다리당 5, 팔당 6) 상에서 PD 제어기를 위한 목표 관절 위치를 행동으로 합니다."}, {"type": "bullet", "text": "Actor/Critic 모델은 82차원 관측(루트 자세, 선형/각속도, 중력 방향, 속도 명령, 관절 위치/속도, 이전 행동)을 사용하는 반면 판별자는 53차원 관측을 사용합니다. 참조 동작 데이터셋은 AMASS 데이터셋에서 가져옵니다."}, {"type": "bullet", "text": "정책은 24-시간스텝 궤적을 사용하여 20,000 에피소드에 걸쳐 PPO-Clip으로 학습되며, NVIDIA RTX 4070 Ti SUPER를 탑재한 Intel i5-14400F에서 12-14시간 만에 완료됩니다."}, {"type": "bullet", "text": "기준선에는 고정 스타일 가중치 wS ∈ {0.5, 0.6, 0.7, 0.8, 0.9, 1.0}과 성능 피드백으로부터 스타일 가중치를 조정하는 AdaptiveMimic 적응형 기준선이 포함됩니다. SRW는 w_init = 1.0, w_min = 0.5, 감쇠 구간 N = 0%에 M은 50% 또는 100%, 그리고 λ_decay = 10을 사용합니다(Table I)."}, {"type": "bullet", "text": "세 가지 지표가 1,000-시간스텝 구간에 걸쳐 평가됩니다—속도 추종 RMSE (m/s), 에너지 소비(양의 기계적 일의 이산 적분, dt = 0.02 s), 그리고 판별자 스타일 보상 [0,1]—이며, 통계적 비교는 Mann-Whitney U 검정(N = 5 시드, α = 0.05)을 통해 이루어집니다."}, {"type": "bullet", "text": "고정 가중치는 용납할 수 없는 절충을 강요합니다: 과제 중심 w=0.5는 0.250 m/s 추종을 달성하지만 29.6 kJ를 초과하는 에너지를 요구하는 반면, 모방 중심 가중치는 에너지를 7.8 kJ 미만으로 유지하지만 추종을 0.680 m/s 이상으로 저하시킵니다. AdaptiveMimic은 적당한 추종(0.254 m/s)에 도달하지만 판별자 보상이 0.008로 붕괴하는 가운데 59.7 kJ의 파국적 에너지 비용을 치릅니다.", "figure_refs": [2, 3]}, {"type": "bullet", "text": "SRW는 이러한 절충을 초월합니다: Linear-10k는 13.6 kJ 에너지로 동급 최고의 최종 추종 오차 0.231 m/s를 달성하여, 가장 효율적인 고정 기준선(w=0.7, p>0.05)에 필적하면서 추종을 유의하게 개선합니다(p<0.01). 그리고 SRW는 에너지 분산을 최소로 유지합니다(CV ≈ 2-3%, 고정 가중치보다 약 90% 낮음).", "figure_refs": [2, 3]}, {"type": "bullet", "text": "0-2.5 m/s 속도 범위 전반에 걸쳐, Exponential-10k는 7.4 J/timestep에서 0.306 m/s RMSE를 달성하고(w=0.5 대비 68% 에너지 감소) Linear-20k는 6.4 J/timestep에 도달하며, 모든 속도에서 최대 에너지가 26.8 J 미만으로 유지됩니다. 보행 분석은 SRW가 폭발적 구동 없이 더 빠른 보행을 달성하면서 인간형 관절 범위를 보존함을 보여줍니다.", "figure_refs": [4, 5]}]}, "discussion": {"content": [{"type": "bullet", "text": "본 연구는 SRW 효과를 교란 요인으로부터 분리하는 제약된 시뮬레이션 기반 평가로 제시되며, 학습 과정 전반에 걸친 동적 보상 목표의 잠재력을 드러냅니다."}, {"type": "bullet", "text": "실세계 배치는 구동기 지연, 센서 잡음, 모델링되지 않은 동역학과 같은 추가적 과제에 직면함이 인정되지만, 통제된 설정은 향후 sim-to-real 전이 연구에 필수적이라 여겨지는 재현 가능한 기준선 행동을 산출합니다."}, {"type": "bullet", "text": "단순한 선형 및 지수 가중치 함수를 사용하여, 본 논문은 정책이 모방 안내 탐색에서 과제 최적화 성능으로 전환되는 가운데 다목적 보행 학습이 시간적 보상 동역학으로부터 상당히 이익을 얻는다고 주장합니다."}, {"type": "bullet", "text": "SRW는 통제된 참조 이탈을 통해 참조 동작을 넘어서는 새로운 에너지 효율적 보행을 발견하는 것으로 나타나며, 파괴적이 아닌 통제된 이탈을 반영하는 0.249-0.271 대역에서 판별자 보상을 유지합니다."}, {"type": "bullet", "text": "AdaptiveMimic의 실패는 위상 구조 없는 과도한 성능 기반 적응이 목표 간 진동과 고정 가중치보다 큰 불안정성을 만든다는 점을 예시하며, 사전 결정된 스케줄링의 가치를 강조합니다.", "figure_refs": [2]}, {"type": "bullet", "text": "사전 결정된 스케줄링의 성공은 보상 설계의 시간적 동역학이 보상 함수 자체만큼 중요함을 드러내며, 많은 다목적 RL 문제가 정적 가중치를 튜닝하는 것에만 의존하기보다 시간적 보상 동역학을 재고함으로써 이익을 얻을 수 있음을 시사합니다."}, {"type": "bullet", "text": "이 미니멀리스트 접근법은 보상 동역학이 이족 학습 궤적에 어떻게 영향을 미치는지에 대한 최초의 체계적 특성화로 자리매김하며, 정교한 적응형 기법을 위한 실증적 토대와 그러한 기법들이 능가해야 하는 성능 벤치마크 양자를 확립합니다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "SRW는 자연스러운 동작과 과제 성능 사이의 근본적 절충에 대한 미니멀리스트 접근법으로 제시되며, 단순한 선형 또는 지수 감쇠를 사용하여 최소한의 프레임워크 수정으로 무작위 시드 전반에 걸쳐 에너지 효율성, 추종 정확도, 분산 감소를 동시에 달성합니다."}, {"type": "bullet", "text": "첫 번째 핵심 이점: SRW는 성능 분산을 줄이고 시드 전반에 걸쳐 예측 가능한 행동을 유지하면서 광범위한 수동 튜닝을 제거합니다."}, {"type": "bullet", "text": "두 번째: 이 기법은 새로운 에너지 효율적 보행을 발견하여, 통제된 이탈을 통해 참조 동작의 한계를 초월함으로써 과제 중심 접근법 대비 50-58% 에너지 감소와 모방 중심 접근법 대비 45-80% 추종 오차 감소를 달성합니다."}, {"type": "bullet", "text": "세 번째: SRW는 고정 가중치 및 적응형 기법 모두를 제약하는 에너지 불안정성을 피하면서 전체 속도 작동 범위에 걸쳐 강건한 일반화를 제공합니다."}, {"type": "bullet", "text": "사전 결정된 스케줄링의 성공은 보상 설계의 시간적 동역학이 보상 함수 자체만큼 중요하다는 원리를 드러내며, 학계가 무엇을 최적화할지는 연구해 왔으나 언제 최적화할지는 거의 연구하지 않았음을 지적합니다."}, {"type": "bullet", "text": "본 연구는 참조 기반에서 참조 비의존으로의 전환을 이족 보행 연구를 위한 실용적 기준선으로 확립하며, 많은 다목적 RL 문제가 시간적 보상 동역학을 재고함으로써 이익을 얻을 수 있음을 시사합니다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "평가는 SRW를 교란 요인으로부터 분리하는 제약된 시뮬레이션 전용 연구이며 실세계 배치를 포함하지 않습니다.", "source_quote": "Our work provides a constrained, simulation-based evaluation that isolates SRW effects from confounding factors, revealing the potential of dynamic reward objectives throughout the learning process.", "source_section": "discussion"}, {"claim": "실세계 배치는 통제된 설정이 포착하지 못하는 구동기 지연, 센서 잡음, 모델링되지 않은 동역학과 같은 추가적 과제를 도입합니다.", "source_quote": "While real-world deployment faces additional challenges—actuator delays, sensor noise, unmodeled dynamics—our controlled setting yields reproducible baseline behaviors essential for future sim-to-real transfer studies.", "source_section": "discussion"}], "future_works": [{"claim": "재현 가능한 기준선 행동을 향후 sim-to-real 전이 연구에 활용합니다.", "source_quote": "While real-world deployment faces additional challenges—actuator delays, sensor noise, unmodeled dynamics—our controlled setting yields reproducible baseline behaviors essential for future sim-to-real transfer studies.", "source_section": "discussion"}, {"claim": "실증적 토대를 기반으로 확립된 성능 벤치마크를 능가하는 정교한 적응형 기법을 개발합니다.", "source_quote": "This minimalist approach provides the first systematic characterization of how reward dynamics influence bipedal learning trajectories, establishing both the empirical foundation for developing sophisticated adaptive methods and the performance benchmarks these advanced approaches must exceed.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["고정 보상 가중치는 실무자가 자연스러운 동작과 과제 성능 사이의 단일 절충 지점을 선택하도록 강요하여, 광범위한 수동 튜닝을 요구하고 종종 차선의 절충을 산출합니다.", "참조 기반 학습 기법은 참조 데이터 분포에 제약되어 있어 데이터셋을 넘어서는 새로운 행동을 발견할 수 없습니다.", "기존 적응형 다목적 가중치 기법들은 추가적인 신경망, 온라인 최적화, 또는 복잡한 선택 메커니즘을 요구합니다."], "addressed_by_this_work": ["SRW는 고정 가중치를 단순한 시변 선형 또는 지수 감쇠 함수로 대체하여, 광범위한 수동 튜닝을 제거하고 시드와 하이퍼파라미터 전반에 걸쳐 일관된 결과를 산출합니다.", "높은 모방 가중치로 시작하여 과제 중심으로 감쇠시킴으로써, SRW는 통제된 참조 동작 이탈을 통해 참조 동작을 넘어서는 새로운 에너지 효율적 보행을 발견합니다.", "SRW는 기존 프레임워크에 대한 최소한의 수정을 통해, 추가 신경망이나 온라인 최적화를 요구하지 않으면서 일반적으로 복잡한 적응형 기법과 연관된 이점을 얻습니다."], "remaining_unresolved": ["평가는 시뮬레이션 전용이며, 구동기 지연, 센서 잡음, 모델링되지 않은 동역학을 동반한 실세계 배치는 향후 sim-to-real 전이 연구로 미뤄집니다.", "본 연구는 완전히 개발된 적응형 기법이 아니라 실증적 기준선을 확립하며, 이 벤치마크를 능가하는 정교한 적응형 기법의 설계는 향후 연구로 남깁니다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

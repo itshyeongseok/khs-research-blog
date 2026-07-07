@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Policy Gradient Methods for Reinforcement Learning with Function Approximation</title>
+    <meta name="keywords" content="policy gradient, function approximation, actor-critic, REINFORCE, stochastic policy, compatible function approximation, convergence proof, reinforcement learning">
+    <meta name="paper-authors" content="Richard S. Sutton, David McAllester, Satinder Singh, Yishay Mansour">
+    <meta name="paper-journal" content="Advances in Neural Information Processing Systems 12 (NIPS 1999), MIT Press, 2000, pp. 1057-1063">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Policy Gradient Methods for Reinforcement Learning with Function Approximation</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Richard S. Sutton, David McAllester, Satinder Singh, Yishay Mansour</div>
+            <div class="journal">Advances in Neural Information Processing Systems 12 (NIPS 1999), MIT Press, 2000, pp. 1057-1063</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 <span class="term">정책 경사 정리(Policy Gradient Theorem)</span>를 정립하여, 기대 장기 보상의 정책 파라미터에 대한 경사가 상태 방문 분포의 미분을 포함하는 항 없이 표현될 수 있으며 따라서 표집된 경험으로부터 추정 가능함을 증명한다. 이 논문은 지배적이던 가치 함수 접근법에 대한 대안을 제시한다. 즉, 확률적 정책을 자체적인 함수 근사기로 표현하고 성능에 대한 경사 상승으로 갱신한다. 핵심적인 새 결과는 학습된 가치 함수 근사기를 정책 파라미터화와 연결하는 <span class="term">호환 조건(compatibility condition)</span>으로, 이로써 참 행동 가치를 근사값으로 대체해도 경사가 정확히 유지된다. 이 결과들을 이용하여 저자들은 임의의 미분 가능 함수 근사를 갖는 정책 반복(policy iteration)의 한 형태가 국소 최적 정책으로 수렴함을 처음으로 증명한다. 이 연구는 심층 강화학습 전반에서 사용되는 현대 액터-크리틱 및 정책 탐색 기법의 이론적 토대를 제공한다.</div>
+            <div class="keywords"><span class="keyword-chip">policy gradient</span><span class="keyword-chip">function approximation</span><span class="keyword-chip">actor-critic</span><span class="keyword-chip">REINFORCE</span><span class="keyword-chip">stochastic policy</span><span class="keyword-chip">compatible function approximation</span><span class="keyword-chip">convergence proof</span><span class="keyword-chip">reinforcement learning</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">대규모 강화학습은 일반화하는 함수 근사기를 필요로 하지만, 지배적이던 가치 함수 접근법(정책이 추정 가치에 대한 탐욕 정책으로 암묵적으로 표현되는 방식)은 잘 알려진 이론적·실용적 실패를 안고 있다. 이 논문은 그 대신 확률적 정책을 독립적인 함수 근사기로 근사하고 기대 보상에 대한 경사 상승으로 갱신할 것을 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 자신의 결과를 Williams의 REINFORCE, 이전의 특수 경우 경사 결과들, 동시기의 독립 연구, 그리고 VAPS 계열과 대비시키며 각각이 무엇을 보장하고 무엇을 보장하지 않는지 명확히 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">핵심 이론 결과인 정책 경사 정리는 평균 보상 및 시작 상태 정식화 모두에 대해 진술되며, 성능 경사가 상태 분포의 미분을 포함하는 항을 갖지 않음을 보인다. 이어서 호환 조건이 학습된 가치 근사기가 정책과 어떻게 관계되어야 참 행동 가치를 편향 없이 대체할 수 있는지 명시한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">경험적 실험 대신 3절은 정리 2로부터 구체적인 알고리즘 형태를 유도하여, 호환 조건이 깁스(소프트맥스) 정책에 대한 가치 함수 파라미터화를 어떻게 규정하는지 보이고, 호환 근사기가 이점 함수로 가장 잘 이해됨을 드러낸다. 이 해석적 시연이 논문의 결과 역할을 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문의 주요 수렴 기여는, 정책 경사를 호환되는 가치 근사기와 결합하면 표준 보폭 조건 하에서 국소 최적으로 증명 가능하게 수렴하는 정책 반복을 얻음을 정립한다. 논의는 또한 이점 해석을 고전적 강화학습 기준선과 연결한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 논문은 정책 경사에 대한 통합적이고 표집 친화적인 표현, 학습된 가치 함수가 편향 없이 분산을 줄이게 하는 호환 조건, 그리고 임의의 미분 가능 함수 근사를 갖는 정책 반복에 대한 최초의 수렴 증명을 제공하며, 이들이 함께 현대 액터-크리틱 기법의 이론적 기반을 형성한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "지난 10년간 지배적 전략은 <span class=\"term\">가치 함수 접근법(value-function approach)</span>이었다. 모든 근사 노력이 가치 함수를 추정하는 데 쓰이고, 정책은 각 상태에서 가장 높은 가치의 행동을 선택하는 탐욕 정책으로 암묵적으로 표현된다."}, {"type": "bullet", "text": "이 접근법은 두 가지 핵심 한계를 갖는다. 최적 정책이 흔히 확률적임에도 결정론적 정책을 지향하며, 추정된 행동 가치의 임의로 작은 변화가 그 행동의 선택 여부를 뒤집을 수 있다."}, {"type": "bullet", "text": "이러한 불연속적 변화는 수렴의 핵심 장애물로 지목되어 왔으며, Q-학습·Sarsa·동적 계획법은 모두 단순한 함수 근사기를 갖는 단순한 MDP에서 수렴하지 못함이 밝혀졌다(Gordon 1995; Baird 1995; Tsitsiklis and Van Roy 1996)."}, {"type": "bullet", "text": "제안된 대안은 정책을 자체적인 함수 근사기(예: 행동 확률을 출력하는 신경망)로 파라미터 벡터 $\\theta$와 함께 표현하고, 성능 $\\rho$의 경사에 근사적으로 비례하여 갱신한다."}, {"type": "formula", "label": "식 (1) — 정책 파라미터 경사 갱신", "latex": "\\Delta\\theta \\approx \\alpha \\frac{\\partial \\rho}{\\partial \\theta}", "description": "정책 파라미터 $\\theta$를 성능 척도 $\\rho$의 경사를 따라 양의 보폭 $\\alpha$만큼 이동시킨다. 이것이 달성되면 $\\theta$는 국소 최적 정책으로 수렴한다."}, {"type": "bullet", "text": "가치 함수 접근법 대비 결정적 이점: 정책이 $\\theta$에 매끄럽게 의존하므로 $\\theta$의 작은 변화가 정책과 상태 방문 분포에 작은 변화만 일으켜 수렴을 깨뜨리는 불연속성을 피한다."}, {"type": "bullet", "text": "이 논문의 두 기여는 (i) 호환 성질을 만족하는 학습된 가치 함수의 도움으로 경사를 경험으로부터 추정할 수 있음을 보인 것과, (ii) 임의의 미분 가능 함수 근사를 갖는 정책 반복에 대한 최초의 수렴 증명이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "<span class=\"term\">REINFORCE</span>(Williams 1988, 1992)도 불편 경사 추정값을 산출하지만 학습된 가치 함수가 없어 학습이 훨씬 느리다. 빠른 학습에는 경사 분산을 줄이는 가치 함수 사용이 필수로 보인다."}, {"type": "bullet", "text": "Jaakkola, Singh, Jordan(1995)은 표 형태 POMDP에 해당하는 함수 근사의 특수 경우에 대해 유사한 결과를 증명했다. 이 논문은 그것을 임의의 미분 가능 근사기로 강화·일반화한다."}, {"type": "bullet", "text": "Konda와 Tsitsiklis는 매우 유사한 결과를 독립적으로 개발했으며, Marbach와 Tsitsiklis(1998)는 평균 보상 정식화에 대해 이 형태의 경사를 처음 논의했다."}, {"type": "bullet", "text": "Barto, Sutton, Anderson(1983), Sutton(1984), Kimura와 Kobayashi(1998)의 액터-크리틱 및 정책 반복 구조는 새 결과가 수렴을 확립하는 데 도움을 줄 수 있는 종류의 알고리즘이다."}, {"type": "bullet", "text": "Baird와 Moore(1999)의 VAPS 계열도 정책과 가치 함수를 별도로 파라미터화하지만, 성능 단독이 아니라 성능과 가치 정확도를 결합한 척도의 경사를 오르므로, REINFORCE로 퇴화하지 않는 한 국소 최적 정책으로 수렴하지 않는다."}, {"type": "bullet", "text": "Gordon(1995)의 적합 가치 반복(fitted value iteration)은 수렴하고 가치 기반이지만, 이 연구와 달리 국소 최적 정책을 찾지 못한다. 이는 정책 경사가 제공하는 독특한 보장을 부각한다."}]}, "method": {"content": [{"type": "bullet", "text": "에이전트는 미분 가능 정책 $\\pi(s,a,\\theta)=\\Pr\\{a_t=a \\mid s_t=s,\\theta\\}$를 갖고 MDP에서 행동한다. 두 가지 목적 정식화, 즉 평균 보상 정식화와 시작 상태(할인) 정식화가 다루어진다."}, {"type": "formula", "label": "평균 보상 목적과 정상 분포", "latex": "\\rho(\\pi) = \\lim_{n\\to\\infty} \\frac{1}{n} E\\{r_1 + r_2 + \\cdots + r_n \\mid \\pi\\} = \\sum_s d^\\pi(s) \\sum_a \\pi(s,a)\\, \\mathcal{R}_s^a", "description": "정책은 단계당 장기 기대 보상으로 순위가 매겨지며, 여기서 $d^\\pi(s)=\\lim_{t\\to\\infty}\\Pr\\{s_t=s\\mid s_0,\\pi\\}$는 시작 상태와 무관하다고 가정되는 정상 상태 분포이다."}, {"type": "formula", "label": "행동 가치 (평균 보상 정식화)", "latex": "Q^\\pi(s,a) = \\sum_{t=1}^{\\infty} E\\{r_t - \\rho(\\pi) \\mid s_0=s,\\, a_0=a,\\, \\pi\\}", "description": "평균 보상 설정에서 상태-행동 쌍의 가치는 정책을 따를 때 평균 보상 $\\rho(\\pi)$로부터의 보상 편차의 기대 합이다."}, {"type": "bullet", "text": "첫 번째 결과는 정책 파라미터에 대한 성능의 경사에 관한 것이며, 두 목적 정식화 어느 쪽에 대해서도 성립한다."}, {"type": "formula", "label": "정리 1 — 정책 경사 정리 (식 2)", "latex": "\\frac{\\partial \\rho}{\\partial \\theta} = \\sum_s d^\\pi(s) \\sum_a \\frac{\\partial \\pi(s,a)}{\\partial \\theta} Q^\\pi(s,a)", "description": "성능 경사는 상태 분포로 가중된 정책 파라미터 경사와 행동 가치의 곱의 합과 같다. 결정적으로 $\\partial d^\\pi(s)/\\partial \\theta$ 형태의 항이 없다. 즉 정책 변화가 상태 분포에 미치는 영향이 나타나지 않으며, 이것이 경사를 표집으로 추정 가능하게 만든다."}, {"type": "bullet", "text": "상태 분포 미분이 없으므로, 상태를 $\\pi$를 따라 표집하면 $\\sum_a \\frac{\\partial \\pi(s,a)}{\\partial \\theta} Q^\\pi(s,a)$는 경사의 불편 추정값이 된다. $Q^\\pi$에 실제 수익을 대입하면 Williams의 에피소드형 REINFORCE를 회복한다."}, {"type": "bullet", "text": "학습된 근사기 $f_w(s,a)$를 $Q^\\pi$ 대신 사용하려면 $w$를 $Q^\\pi$ 방향으로 훈련한다. 국소 최적에서 가치 오차는 정책 경사에 직교하며, 근사기는 호환 조건을 만족해야 한다."}, {"type": "formula", "label": "식 (4) — 호환 조건", "latex": "\\frac{\\partial f_w(s,a)}{\\partial w} = \\frac{\\partial \\pi(s,a)}{\\partial \\theta}\\, \\frac{1}{\\pi(s,a)}", "description": "$w$에 대한 가치 근사기의 경사는 정책의 점수 함수 $\\nabla_\\theta \\log \\pi(s,a)$와 같아야 한다. 이는 $f_w$가 정책 경사를 편향시키지 않고 참 행동 가치를 대체할 수 있는 조건이다."}, {"type": "formula", "label": "정리 2 — 함수 근사를 갖는 정책 경사 (식 5)", "latex": "\\frac{\\partial \\rho}{\\partial \\theta} = \\sum_s d^\\pi(s) \\sum_a \\frac{\\partial \\pi(s,a)}{\\partial \\theta} f_w(s,a)", "description": "$f_w$가 호환 조건을 만족하고 가치 적합 오차의 국소 최적으로 수렴했다면, $Q^\\pi$를 학습된 $f_w$로 대체하여 정확한 정책 경사를 얻는다."}]}, "experiment": {"content": [{"type": "bullet", "text": "정책 파라미터화가 주어지면 정리 2를 역으로 적용해 적절한 가치 함수 파라미터화를 유도할 수 있다. 예제는 상태-행동 특징 $\\phi_{sa}$의 선형 결합에 대한 깁스(소프트맥스) 분포인 정책을 사용한다."}, {"type": "formula", "label": "선형 특징에 대한 깁스(소프트맥스) 정책", "latex": "\\pi(s,a) = \\frac{e^{\\theta^\\top \\phi_{sa}}}{\\sum_b e^{\\theta^\\top \\phi_{sb}}}", "description": "각 $\\phi_{sa}$가 상태-행동 쌍 $(s,a)$의 특징 벡터이고 $\\theta$가 정책 파라미터인 표준 미분 가능 확률적 정책이다."}, {"type": "bullet", "text": "이 정책에 호환 조건을 부과하면 가치 근사기가 동일한 특징에 대해 선형이 되도록 강제되지만, 각 상태에서 평균이 0이 되도록 정규화된다."}, {"type": "formula", "label": "호환되는 가치 함수 파라미터화", "latex": "f_w(s,a) = w^\\top \\Big[ \\phi_{sa} - \\sum_b \\pi(s,b)\\, \\phi_{sb} \\Big]", "description": "호환 근사기는 정책과 동일한 특징에 대해 선형이어야 하며, 모든 상태에서 $\\sum_a \\pi(s,a) f_w(s,a) = 0$이 되도록 상태별 평균이 차감된다."}, {"type": "bullet", "text": "$f_w$는 각 상태에서 평균이 0이므로, $Q^\\pi$ 자체보다는 <span class=\"term\">이점 함수(advantage function)</span> $A^\\pi(s,a)=Q^\\pi(s,a)-V^\\pi(s)$의 근사로 해석하는 것이 더 적절하다. 수렴 요건은 각 상태에서 행동들의 상대적 가치가 정확하기만 하면 된다."}, {"type": "bullet", "text": "이 결과는 가치 함수 근사의 목표로서 이점이 갖는 특별한 지위를 정당화하며, 근사에 임의의 상태 의존 함수 $v(s)$를 더하는 것으로 일반화된다."}, {"type": "formula", "label": "경사의 기준선 일반화", "latex": "\\frac{\\partial \\rho}{\\partial \\theta} = \\sum_s d^\\pi(s) \\sum_a \\frac{\\partial \\pi(s,a)}{\\partial \\theta} \\big[ f_w(s,a) + v(s) \\big]", "description": "$\\sum_a \\partial\\pi(s,a)/\\partial\\theta = 0$이므로 임의의 기준선 $v(s)$를 어떤 정리도 깨뜨리지 않고 더할 수 있다. $v$의 선택은 기대 갱신을 바꾸지 않지만 추정량 분산을 상당히 줄일 수 있다."}]}, "discussion": {"content": [{"type": "bullet", "text": "정리 2가 주어지면, 저자들은 함수 근사를 갖는 정책 반복의 한 형태가 국소 최적 정책으로 수렴함을 처음으로 증명한다(정리 3)."}, {"type": "formula", "label": "정리 3 — 함수 근사를 갖는 정책 반복의 수렴", "latex": "\\lim_{k\\to\\infty} \\frac{\\partial \\rho(\\pi_k)}{\\partial \\theta} = 0", "description": "정책의 유계인 2차 도함수, 유계인 MDP 보상, 그리고 $\\alpha_k \\to 0$이며 $\\sum_k \\alpha_k = \\infty$인 보폭 수열 하에서, 호환 가치 적합과 경사 상승을 번갈아 수행해 생성된 파라미터 수열은 성능 경사를 0으로 만든다. 즉 국소 최적으로 수렴한다."}, {"type": "bullet", "text": "증명은 각 갱신이 경사 방향임을 보장하는 정리 2와, 정책의 2차 도함수 및 보상에 대한 한계를 함께 사용하며, 국소 최적 수렴을 위해 Bertsekas와 Tsitsiklis(1996)의 명제 3.5를 인용한다."}, {"type": "bullet", "text": "수렴 요건(가치 오차가 정책 경사에 직교)은 본질적으로 $f_w$가 각 상태에서 행동들의 상대적 가치를 정확히 맞추는 것이지, 절대값이나 상태 간 변동을 맞추는 것이 아니다."}, {"type": "bullet", "text": "상태 의존 기준선을 더하는 자유는 이전 연구(Williams 1992; Dayan 1991; Sutton 1984)의 강화학습 기준선과 정확히 유사하다. 실무에서 $v$는 $V^\\pi$의 가장 좋은 가용 근사로 설정해야 한다."}, {"type": "bullet", "text": "핵심적인 개념적 요점은, 상태 분포 미분의 부재가 표집 기반 접근 전체를 다룰 수 있게 만든다는 것이다. 정책 변화가 어떤 상태를 방문하는지에 미치는 영향은 결코 미분할 필요가 없다."}, {"type": "bullet", "text": "부록은 상태 가치 경사의 재귀를 펼치고 정상 분포에 대해 합산하여 정리 1을 증명하며, 평균 보상과 시작 상태 정식화를 별도로 다룬다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "주요 새 결과는 성능 경사가 근사 행동 가치 또는 이점 함수의 도움으로 경험으로부터 추정하기에 적합한 형태로 표현될 수 있다는 것이다."}, {"type": "bullet", "text": "정책을 가치 함수와 독립적으로 직접 표현하면 가치 함수 기법의 수렴을 방해하는 불연속성 문제를 회피한다."}, {"type": "bullet", "text": "호환 조건(식 4)이 핵심이다. 이는 학습된 가치 근사기가 경사를 정확히 유지하면서 참 행동 가치를 대신할 수 있는 정확한 관계이다."}, {"type": "bullet", "text": "이 결과들을 이용하여 저자들은 일반적인 미분 가능 함수 근사를 갖는 정책 반복의 한 형태가 국소 최적 정책으로 수렴함을 처음으로 증명한다."}, {"type": "bullet", "text": "호환 근사기의 이점 함수 해석은 이후 널리 사용된 이점 기반 크리틱에 대한 원리적 정당화를 제공한다."}, {"type": "bullet", "text": "Isaac Lab 이족 보행을 목표로 RL을 처음 접하는 독자에게 이 논문은 현대 다리 보행 학습을 이끄는 액터-크리틱 정책 경사 알고리즘(PPO, SAC, TD3)의 이론적 뿌리이다. 별도로 파라미터화된 확률적 정책이 표집된 롤아웃으로부터 안정적으로 최적화될 수 있는 이유를 설명한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "수렴은 전역 최적이 아니라 국소 최적 정책으로만 보장된다.", "source_quote": "we prove for the first time that a version of policy iteration with general differentiable function approximation is convergent to a locally optimal policy.", "source_section": "conclusion"}, {"claim": "참 행동 가치 함수는 보통 알려져 있지 않아 그 자체를 추정해야 하므로 경사에 근사 오차가 유입된다.", "source_quote": "Of course, Q^pi(s, a) is also not normally known and must be estimated.", "source_section": "discussion"}, {"claim": "호환 조건은 가치 함수 근사기가 정책의 특징에 대해 선형이 되도록 강제할 수 있으며, 이는 표현 가능한 가치 함수를 제약할 수 있다.", "source_quote": "Tsitsiklis (personal communication) points out that fw being linear in the features given on the righthand side may be the only way to satisfy this condition.", "source_section": "method"}], "future_works": [{"claim": "이 결과는 다양한 액터-크리틱 및 정책 반복 구조의 수렴을 증명하는 경로를 시사한다.", "source_quote": "Our result also suggests a way of proving the convergence of a wide variety of algorithms based on \"actor-critic\" or policy-iteration architectures", "source_section": "introduction"}, {"claim": "가치 근사에 상태에 대한 임의의 기준선(baseline) 함수를 더해 경사 추정량의 분산을 줄일 수 있어, 기준선 선택에 대한 추가 연구를 동기화한다.", "source_quote": "The choice of v does not affect any of our theorems, but can substantially affect the variance of the gradient estimators.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["가치 함수 근사와 행동 선택을 결합하는 것은 이론적으로 다루기 어려움이 입증되어 왔으며, Q-학습·Sarsa·동적 계획법이 단순한 MDP와 단순한 근사기에서도 수렴하지 못함이 밝혀졌다.", "가치 함수 접근법은 결정론적 정책을 지향하는 반면, 최적 정책은 흔히 확률적이다.", "추정된 행동 가치의 임의로 작은 변화가 정책의 불연속적 변화를 유발하여 수렴 보장을 방해한다.", "Williams의 REINFORCE는 학습된 가치 함수 없이 경사를 추정하지만 학습이 훨씬 느리다."], "addressed_by_this_work": ["정책 경사 정리는 상태 분포 미분 항 없이 성능 경사를 표현하므로 경험으로부터 불편(unbiased)하게 추정할 수 있다.", "확률적 정책을 자체 근사기로 직접 표현하면 작은 파라미터 변화가 작은 정책 변화만 일으켜 불연속성 문제가 제거된다.", "호환 조건은 학습된 가치 함수가 경사를 정확히 유지하면서 (REINFORCE보다 빠르게) 경사 분산을 줄이도록 한다.", "임의의 미분 가능 함수 근사를 갖는 정책 반복이 국소 최적 정책으로 수렴함을 최초로 증명했다."], "remaining_unresolved": ["수렴은 전역이 아니라 국소에 그친다.", "비선형 정책에 대해 호환되는 가치 함수 특징(흔히 정책 특징에 대해 선형일 것이 요구됨)을 찾는 것은 여전히 미해결의 설계 문제로 남는다.", "경사 추정량의 분산은 여전히 기준선/이점(advantage) 표현의 선택에 의존한다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

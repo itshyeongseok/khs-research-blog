@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>RL-Augmented MPC for Non-Gaited Legged and Hybrid Locomotion</title>
+    <meta name="keywords" content="hierarchical RL-MPC, model predictive control, reinforcement learning, acyclic gait generation, contact scheduling, soft actor-critic, sim-to-real transfer, wheeled-legged locomotion">
+    <meta name="paper-authors" content="Andrea Patrizi, Carlo Rizzardo, Arturo Laurenzi, Francesco Ruscelli, Luca Rossini, Nikos G. Tsagarakis">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters (RA-L), 2026 (arXiv:2603.10878v1) · open-source framework at github.com/AndrePatri/AugMPC">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">RL-Augmented MPC for Non-Gaited Legged and Hybrid Locomotion</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Andrea Patrizi, Carlo Rizzardo, Arturo Laurenzi, Francesco Ruscelli, Luca Rossini, Nikos G. Tsagarakis</div>
+            <div class="journal">IEEE Robotics and Automation Letters (RA-L), 2026 (arXiv:2603.10878v1) · open-source framework at github.com/AndrePatri/AugMPC</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 논문은 고수준 <span class="term">강화학습</span> 에이전트를 저수준 보행 <span class="term">모델 예측 제어(model predictive control, MPC)</span>와 결합하는 접촉 명시적(contact-explicit) 계층 구조를 제안한다: RL 정책은 보행(접촉 스케줄)과 내비게이션 명령을 발령하고, MPC는 전차수 강체 동역학 하에서 전신 동작을 실행한다. 이는 접촉 타이밍의 조합적 부담을 MPC로부터 덜어내고, 정책이 단 세 개의 보상 항과 최소한의 튜닝만으로 시뮬레이션에서 시행착오를 통해 <span class="term">비주기 보행(acyclic gaits)</span>을 학습하게 한다. 정책은 GPU 시뮬레이션과 동기화된 수천 개의 CPU 병렬 MPC 인스턴스에 대해 <span class="term">Soft Actor-Critic (SAC)</span>으로 학습된다. 이 방법은 50 kg에서 120 kg에 이르는 플랫폼에서 검증되어, 도메인 무작위화 없이 제로샷 sim-to-sim 전이를, 그리고 120 kg 휠-다리(wheeled-legged) 휴머노이드 Centauro에서 제로샷 sim-to-real 전이를 달성하며, 다리형과 하이브리드 보행 모두에서 비주기 접촉 패턴과 타이밍 적응이 창발한다. 다중모드 로봇의 RL 보행 제어 서브시스템에 대해, 이 연구는 모델 기반 제어기가 동역학적으로 일관된 실행을 보장하는 동안 RL이 이산 보행 결정을 형성하게 하는 템플릿으로, 보상 엔지니어링과 도메인 무작위화 의존도를 급격히 줄인다.</div>
+            <div class="keywords"><span class="keyword-chip">hierarchical RL-MPC</span><span class="keyword-chip">model predictive control</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">acyclic gait generation</span><span class="keyword-chip">contact scheduling</span><span class="keyword-chip">soft actor-critic</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">wheeled-legged locomotion</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">자연계의 다리형 시스템은 과제 요구에 맞춰 보행을 동적으로 선택하고 적응시키는데, 이는 로봇공학이 오랫동안 복제하려 해온 능력이다. 고전적 접근은 모델 기반 방법(특히 MPC)과 모델-프리 RL로 나뉜다. MPC는 해석 가능성, 온라인 재계획, 명시적 제약 처리를 제공하지만 접촉에 대해 최적화할 때 다루기 어려운 혼합 정수 NLP에 직면하고, 모델-프리 RL은 접촉-암묵적 정책을 직접 학습하지만 도메인 무작위화와 보상 정형에 크게 의존한다. 본 논문은 고수준 RL 정책을 저수준 MPC와 결합하는 계층 구조를 제안한다: 정책은 시행착오를 통해 비주기 접촉 패턴을 학습하고 MPC는 동작을 실행하여, 보상 설계를 단순화하고 50-120 kg 플랫폼 전반에 걸친 강건한 전이와 함께 다양한 과제 적응형 거동을 가능하게 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 세 가지 MPC 접촉 스케줄링 전략(사전 정의된 스케줄, 하이브리드 혼합 정수 최적화, 접촉-암묵적 정식화), 접촉-암묵적 정책과 그들의 도메인 무작위화 및 병렬 시뮬레이션 의존에 관한 RL 문헌, 그리고 학습을 최적 제어와 결합하는 하이브리드 구조에 자리매김한다. 이는 볼록 MPC 위에 고수준 보행 정책을 학습하는 방법과 가장 밀접하게 관련되지만, 전차수 강체 동역학 MPC와 함께 RL(SAC)을 사용하고 학습과 평가 모두에서 스케줄링 정책과 MPC를 동시에 실행한다는 점에서 다르다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저수준은 역동역학(inverse-dynamics) MPC로, 전차수 강체 동역학, 적분 및 역동역학 등식 제약, 마찰 원뿔(friction-cone) 및 단방향성 부등식, 정규화/추적 비용을 가진 N-스텝 지평선에 대한 매개적 NLP를 실시간 반복(real-time iteration) 방식 하의 등식 제약 다중 슈팅(multiple-shooting) ILQR로 푼다. 보행 타이밍은 지평선 위상을 통해 제어된다: 발별 스칼라 주입(injection) 행동이 고정된 주입 노드에서만 새로운 비행 위상을 촉발하여, 클록 기반 관측 없이 완전히 비주기인 보행을 가능하게 한다. 고수준은 행동이 MPC 트위스트(twist) 참조와 발별 주입 플래그인 MDP이다. 부분 관측 가능 상태는 과제, 고유수용성, MPC, 임피던스 제어기, 행동 이력 정보를 통합하며, 엔트로피 정규화된 SAC 정책이 병렬 경험 수집과 함께 오프-폴리시(off-policy)로 학습된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 구조는 50 kg 사족 로봇(다리형 및 휠형), 약 80 kg Unitree B2-W, 그리고 120 kg 휠-다리 휴머노이드 Centauro에서 검증되며, 모두 동일한 보상 정식화로 도메인 무작위화 없이 학습되고, 비평탄 계단형 피라미드 확장도 포함한다. 정책은 최대 50의 실시간 계수(real-time factor)로 400만-1000만 환경 스텝에서 수렴한다. 결정론적 롤아웃은 창발하는 비주기 접촉 패턴과 타이밍 적응을 보인다: 명령된 트위스트가 목표 근처에서 줄어들수록 접촉 지속 시간이 증가하고, 비대칭 트로팅이 창발한다. 정책 빈도 비율 n_rep은 다리형 과제에 결정적이다. 제로샷 sim-to-sim(MuJoCo)과 sim-to-real(Centauro) 전이가 성공하며, 동일 조건에서 하이브리드 보행(CoT 약 0.12)이 다리형(CoT 약 0.35)보다 훨씬 에너지 효율적이다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결과는 동작 실행을 모델 기반 MPC에 위임하면서 RL이 접촉과 내비게이션을 결정하게 하면, 최소한의 보상 엔지니어링과 도메인 무작위화 없이 강건하고 샘플 효율적이며 전이 가능한 보행이 산출됨을 보인다. 계층 구조는 학습된 정책을 환경으로부터 부분적으로 분리하는데, 이것이 제로샷 sim-to-sim 및 sim-to-real 전이를 가능하게 하는 요소이며, 창발하는 비주기 보행과 타이밍 적응은 보행 거동이 사전 지정될 필요가 없음을 시연한다. 일치된 조건에서 다리형 대비 하이브리드 보행의 명확한 에너지 이점과 높이맵 구동 계단형 지형 확장은 이 구조의 유연성을 예시한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 다리형 및 하이브리드 보행을 위해 고수준 RL 정책을 저수준 MPC와 결합하는 접촉 명시적 계층 보행 구조를 제시한다. 시행착오를 통해 비주기 접촉 스케줄을 학습함으로써 사전 정의된 보행과 시연을 제거하고, 최소한의 튜닝으로 로봇 전반에 쉽게 적응하며, 수천 개의 병렬 MPC 인스턴스를 실행하는 모듈식 프레임워크에 힘입어 도메인 무작위화 없이 제로샷 sim-to-sim 및 sim-to-real 전이를 달성한다. 시뮬레이션 및 실제 실험은 창발하는 비주기 보행과 타이밍 적응, 그리고 비구조적 지형으로의 높이맵 구동 확장을 보인다. 향후 방향은 제어기/플랫폼 간 일반화, 더 어려운 지형과 조작을 위한 더 풍부한 행동/관측 공간, 명시적 발판 제어, 체계적 외란 강건성 평가를 포함한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "자연계 다리형 시스템의 핵심 능력은 과제 요구와 감각 정보에 기반하여 보행을 동적으로 선택하고 적응시키는 능력이며, 이는 다리형 보행 연구의 오랜 초점이다."}, {"type": "bullet", "text": "보행 접근은 고전적으로 모델 기반(최적 제어 문제에서 동역학 모델 사용)과 모델-프리(상호작용을 통해 정책을 직접 학습)로 나뉜다."}, {"type": "bullet", "text": "MPC는 온라인 재계획, 해석 가능성, 명시적 제약 처리를 통해 뛰어난 성능을 제공하지만, 접촉에 대해 최적화하면 온라인으로 풀기에 너무 복잡한 혼합 정수 비선형 계획법(Mixed-Integer Nonlinear Program) 문제가 생겨, 단순화된 모델과 휴리스틱을 동기 부여한다."}, {"type": "bullet", "text": "모델-프리 RL은 관절 공간 접촉-암묵적(contact-implicit) 정책을 통해 조합적 접촉 스케줄링을 우회하지만, 종종 도메인 무작위화와 보상 정형에 크게 의존하여 샘플 비효율성과 과제별 튜닝을 야기한다."}, {"type": "bullet", "text": "제안된 구조는 고수준 RL 정책을 저수준 MPC와 결합한다. 사전 정의된 보행이나 시연을 사용하는 기존 방법과 달리, 동작 실행을 MPC에 위임하면서 시행착오를 통해 비주기 접촉 패턴을 직접 학습한다.", "figure_refs": [1]}, {"type": "bullet", "text": "학습과 배치 중 동일한 MPC를 사용하면 강건성, 샘플 효율성, 도메인 전반의 일반화가 보장되고 보상 설계가 크게 단순화된다."}, {"type": "bullet", "text": "정책은 시연 없이 Soft Actor-Critic (SAC)으로 학습되며, GPU 기반 학습과 인터페이스하면서 수천 개의 CPU MPC 인스턴스를 병렬로 실행하는 확장 가능한 프레임워크가 이를 뒷받침한다."}, {"type": "bullet", "text": "이 시스템은 120 kg 휠-다리 휴머노이드 Centauro를 포함하여 50-120 kg에 걸친 플랫폼에서 도메인 무작위화 없이 시뮬레이션에서 하드웨어로 제로샷 전이된다."}]}, "related_works": {"content": [{"type": "bullet", "text": "사전 정의된 접촉 스케줄링은 고정된 접촉 시퀀스로 OCP를 비선형 계획법으로 전사하고, 접촉력을 마찰 및 단방향성(unilaterality)으로 제약된 결정 변수로 취급한다."}, {"type": "bullet", "text": "하이브리드 최적화는 동작과 이산 접촉 시퀀스를 혼합 정수 또는 이중 수준(bilevel) 문제로 공동 최적화하여 표현력이 있지만, 조합적이고 종종 실시간 적용성을 제한한다."}, {"type": "bullet", "text": "접촉-암묵적 정식화는 완화된 상보성(complementarity) 제약을 통해 상태-힘 관계를 강제하지만, 정확한 초기 추정에 의존하며 주로 오프라인 최적화에 적합하다."}, {"type": "bullet", "text": "RL 정책은 관측을 행동 분포로 직접 매핑하여 비매끄러운 접촉 동역학을 암묵적으로 처리하지만, 심층 RL은 샘플 비효율적이며 sim-to-real 전이를 위해 대규모 병렬 시뮬레이션과 도메인 무작위화에 의존한다."}, {"type": "bullet", "text": "하이브리드 구조는 학습과 최적 제어를 결합한다. 예를 들어 시각 없는(blind) 정책이 모방하는 참조를 생성하는 단순화된 역진자 모델, 또는 사전 정의된 스케줄을 사용하는 RL 발판(foothold) 정책과 결합된 강체 계획기가 있다."}, {"type": "bullet", "text": "몬테카를로 트리 탐색(Monte-Carlo Tree Search) 모듈이 단순화된 MPC와 전신 제어기와 결합된 혼합 정수 최적화를 대체할 수 있으며, 배치를 위해 MPC의 cost-to-go를 모방 학습으로 근사한다."}, {"type": "bullet", "text": "가장 밀접하게 관련된 연구는 볼록 단순화 동역학 MPC를 위한 접촉 위상을 매개화하기 위해 진화 전략(evolutionary strategies)을 통해 고수준 보행 정책을 학습한다. 본 논문은 대신 전차수 강체 MPC와 함께 RL(SAC)을 사용하며, 학습과 평가에서 정책과 MPC를 동시에 실행한다."}]}, "method": {"content": [{"type": "bullet", "text": "각 샘플 시간에 저수준 MPC는 이산 동역학, 등식, 부등식 제약을 만족하면서 진행 비용에 종단 비용을 더한 것을 최소화하여 길이-N 지평선에 대한 매개적 NLP를 푼다."}, {"type": "formula", "label": "식 (1) — 저수준 MPC 매개적 NLP", "latex": "\\min_{x_{0:N},\\,u_{0:N-1}} \\sum_{i=0}^{N-1} \\ell_i(x_i,u_i) + \\ell_N(x_N) \\quad \\text{s.t.}\\ x_{i+1}=f_i(x_i,u_i),\\ h_i(x_i,u_i)=0,\\ g_i(x_i,u_i)\\ge 0", "description": "이산 동역학 f_i, 등식 제약 h_i, 부등식 제약 g_i를 만족하면서 진행 비용 l_i와 종단 비용 l_N을 최소화하는 후퇴 지평선 최적 제어 문제이며, 역동역학 정식화가 전차수 강체 동역학을 강제한다."}, {"type": "bullet", "text": "결정 변수는 x_i = (q_i, dq_i)와 접촉력 lambda를 가진 u_i = (ddq_i, lambda_i)이다. 역동역학 정식화는 부유 베이스(floating-base) 동역학을 관절 토크와 독립적으로 만들어 간결하고 효율적인 NLP를 제공한다."}, {"type": "bullet", "text": "동일한 비용/제약 집합이 약간의 적응만으로 플랫폼 전반에 사용된다. 하이브리드 휠-다리 보행에는 구름 접촉(rolling-contact) 제약이, 그 외에는 무미끄럼 점접촉 제약이 강제되며, 관절 토크 제한은 부과되지 않는다.", "figure_refs": [2]}, {"type": "bullet", "text": "보행 타이밍은 지평선 항을 비행 위상과 접촉 위상으로 묶어 처리한다. 발별 스칼라 주입 행동 chi가 고정된 주입 노드에서만 새로운 비행 위상을 촉발하여(chi<0일 때), 클록 기반 관측을 피하면서 완전히 비주기인 보행을 허용한다."}, {"type": "bullet", "text": "MPC 폐루프는 초기 상태 제약으로 설정되며, 개루프, 완전 폐루프, 또는 부분 폐루프(IMU와 관절 엔코더만) 모드를 갖는다. 부분/개루프 모드가 실제 배치에 사용된다."}, {"type": "bullet", "text": "과제는 행동이 MPC 트위스트 참조와 발별 주입 플래그인 MDP로 정식화되며, 정책은 f_pi = f_MPC / n_rep로 실행되고, 부분 관측 가능 상태는 목표, 로봇, MPC 하위 상태를 결합한다."}, {"type": "formula", "label": "추적(tracking) 보상 항", "latex": "r_\\xi = w_\\xi \\cdot \\exp\\!\\left(-\\kappa_\\xi \\frac{\\lVert \\Delta\\xi \\circ w_\\xi' \\rVert}{\\lVert w_\\xi' \\rVert}\\right)", "description": "가중된 트위스트 오차 Delta-xi에 대한 지수형 트위스트 추적 보상으로 특정 축을 강조할 수 있게 한다. 행동률(action-rate) 페널티와 운송 비용 항과 결합되어 세 항 보상을 구성한다."}, {"type": "formula", "label": "운송 비용(Cost-of-Transport) 보상 항", "latex": "r_{\\mathrm{CoT}} = w_{\\mathrm{CoT}} \\left(1 - \\kappa_{\\mathrm{CoT}} \\frac{\\max(0,\\ \\langle \\dot{q}_{jnt}\\cdot \\tau_{jnt}\\rangle)}{m g \\lVert \\xi^{cmd}\\rVert + \\epsilon}\\right)", "description": "각 환경 스텝에 대한 평균 기계적 운송 비용에 기반한 에너지 효율 보상으로 저전력 거동을 촉진한다. m은 총 질량, g는 중력 크기, epsilon은 작은 상수이다."}, {"type": "bullet", "text": "MPC 전이가 비용이 크기 때문에(물리 대비 낮은 MPC 빈도), 엔트로피 정규화와 병렬 경험 수집을 갖춘 오프-폴리시 SAC 알고리즘을 채택하며, 액터/크리틱 네트워크는 입력 차원의 60%로 크기가 정해진 세 은닉 층을 갖는다."}]}, "experiment": {"content": [{"type": "bullet", "text": "실험은 단순화된 50 kg 사족 로봇(다리형 및 휠형), 약 80 kg Unitree B2-W 휠 사족 로봇, 그리고 120 kg Centauro 휠-다리 휴머노이드에 걸쳐 있으며, 모든 정책은 도메인 무작위화 없이 시뮬레이션에서 학습된다.", "figure_refs": [1]}, {"type": "bullet", "text": "정책은 400만-1000만 환경 스텝(약 9-29 시뮬레이션 일) 이내에 얻어지며, 종단간 RL은 한 자릿수 더 많은 샘플을 필요로 하여 향상된 샘플 효율성을 나타낸다. 프레임워크는 Centauro에서도 최대 50의 실시간 계수에 도달한다."}, {"type": "bullet", "text": "Centauro에서의 결정론적 다리형 롤아웃(4 Hz 정책, 20 Hz MPC)을 50 s 윈도우에 걸쳐 보면 완전히 비주기인 접촉 패턴이 드러난다: 참조 변화가 단일 및 이중 비행 위상을 번갈아 촉발하고, 명령된 트위스트 노름이 목표 근처에서 감소할수록 접촉 지속 시간이 증가한다.", "figure_refs": [5]}, {"type": "bullet", "text": "대칭 트로팅을 넘어 비대칭 트로팅 패턴이 창발한다. 하이브리드 휠-다리 모드에서 정책은 주로 바퀴에 의존하며, 휠 동작을 재개하기 전에 방향을 재조정하기 위해 스텝핑이 창발한다."}, {"type": "bullet", "text": "정책/MPC 빈도 비율 n_rep에 대한 절제 실험은 그것이 하이브리드 보행에는 영향이 제한적이지만 다리형 보행에는 결정적임을 보여주며, 잘못된 값은 스텝핑이 없는 국소 최소값으로 수렴한다.", "figure_refs": [6]}, {"type": "bullet", "text": "정책은 신뢰할 수 있는 오도메트리(odometry)의 부재로 인해 개루프로 학습된 MPC 정책과 MPC 상태 기반 위치 추정을 사용하여, 다른 시뮬레이터(MuJoCo)와 실제 Centauro로 다리형 및 하이브리드 보행 모두에 대해 제로샷 전이된다.", "figure_refs": [7]}, {"type": "bullet", "text": "Centauro에서 동일한 과제 조건 하에, 하이브리드 보행은 수렴 시 평균 CoT가 다리형 보행의 0.35 대비 약 0.12로 상당히 더 에너지 효율적이다."}, {"type": "bullet", "text": "이 구조는 비평탄 지형으로 확장된다: 원시 높이맵(heightmap) 관측과 비행 위상 파라미터에 대한 완전한 제어로, 하이브리드 Centauro 정책이 전방과 후방을 모두 향하면서 무작위로 생성된 계단형 피라미드를 오른다.", "figure_refs": [8]}]}, "discussion": {"content": [{"type": "bullet", "text": "RL이 접촉을 선택하는 동안 MPC가 동역학적으로 일관된 실행을 처리하게 하면, 조합적 접촉 타이밍 부담을 최적화기로부터, 보상 정형 부담을 학습기로부터 제거한다."}, {"type": "bullet", "text": "계층 구조는 학습된 정책을 환경으로부터 부분적으로 분리하여, 도메인 무작위화의 필요성을 상당히 줄이고 제로샷 전이를 뒷받침한다."}, {"type": "bullet", "text": "창발하는 비주기 보행과 타이밍 적응이 시뮬레이션과 현실 모두에서 일관되게 나타나, 보행 패턴이 사전 지정되기보다 발견될 수 있음을 보인다."}, {"type": "bullet", "text": "순간적(클록 없는) 행동 매개화는 정책이 순전히 MPC 지평선과의 상호작용을 통해 완전히 비주기인 보행을 생성하게 한다."}, {"type": "bullet", "text": "동일한 조건에서 하이브리드 휠-다리 보행은 순수 다리형 보행보다 현저히 에너지 효율적이어서, 휠-다리 형태의 구체적 이점을 부각한다."}, {"type": "bullet", "text": "실세계 배치는 여전히 정책과 MPC 모두에 모델링되지 않은 노이즈를 도입할 수 있지만, 이에도 불구하고 이 구조는 효과적이고 강건하게 유지된다."}, {"type": "bullet", "text": "일단 학습되면 정책 추론은 미미하며(Centauro에서 온보드 0.334 ms) MPC는 실시간으로 실행되어 실용적인 온보드 배치를 뒷받침한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "이 구조는 다리형 및 하이브리드 보행을 위해 고수준 RL 정책을 저수준 MPC 제어기와 결합하여, 시행착오를 통해 비주기 접촉 스케줄을 직접 학습한다."}, {"type": "bullet", "text": "사전 정의된 보행이나 시연의 필요성을 제거하고 최소한의 튜닝과 보상 엔지니어링을 요구한다."}, {"type": "bullet", "text": "수천 개의 병렬 MPC 인스턴스를 지원하는 모듈식 프레임워크에 힘입어 도메인 무작위화 없이 제로샷 sim-to-sim 및 sim-to-real 전이를 달성한다."}, {"type": "bullet", "text": "시뮬레이션 및 실제 실험은 다리형과 하이브리드 보행 모두에 대해 창발하는 비주기 보행과 타이밍 적응을 시연한다."}, {"type": "bullet", "text": "이 접근법은 원시 높이맵 데이터와 비행 위상 파라미터에 대한 제어를 활용하여 비구조적 환경으로 확장된다."}, {"type": "bullet", "text": "향후 과제는 제어기와 플랫폼 전반에 전이되는 더 일반적인 정책을 학습하는 것과, 더 복잡한 지형 및 조작 같은 과제를 위해 행동/관측 공간을 확장하는 것을 포함한다."}, {"type": "bullet", "text": "추가 방향은 정밀한 발판 배치를 위한 접촉 착지 위치에 대한 명시적 제어와 강하고 지속적인 외부 외란에 대한 강건성의 체계적 평가를 포함한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "벽시계(wall-time) 학습 효율성은 완전 종단간 RL 방법에 미치지 못하며, 이는 강건성과 전이성의 대가로 받아들인 비용이다.", "source_quote": "While this wall time efficiency does not match that of fully end-to-end RL methods, the proposed approach offers improved robustness and real-world transferability", "source_section": "experiment"}, {"claim": "다리형 보행의 경우 정책-대-MPC 빈도 비율이 결정적인 하이퍼파라미터이며, 잘못된 선택은 로봇이 정지 상태로 머물고 스텝핑이 창발하지 않는 나쁜 국소 최소값으로 수렴한다.", "source_quote": "for legged locomotion, nrep plays a critical role: inappropriate values often lead to convergence to poor local minima, where the robot remains stationary and stepping behavior fails to emerge.", "source_section": "experiment"}, {"claim": "실제 로봇에서 신뢰할 수 있는 온보드 오도메트리를 이용할 수 없기 때문에, 위치는 독립적으로 측정되기보다 MPC 상태로부터 직접 추정된다.", "source_quote": "due to the lack of reliable onboard odometry, we estimate the robot's position directly from the MPC state, which proved to be sufficiently reliable.", "source_section": "experiment"}, {"claim": "각 정책은 특정 MPC 인스턴스와 로봇에 대해 학습되므로, 아직 제어기나 플랫폼 전반에 걸쳐 일반적이지 않다.", "source_quote": "While policies in this study are trained for specific MPC instances and robots, a natural next step is to investigate whether more general policies can be learned", "source_section": "conclusion"}], "future_works": [{"claim": "다른 제어기와 로봇 플랫폼 전반에 전이되는 더 일반적인 정책을 학습할 수 있는지 조사한다.", "source_quote": "a natural next step is to investigate whether more general policies can be learned that transfer across controllers and platforms.", "source_section": "conclusion"}, {"claim": "더 복잡한 지형과 조작 같은 다른 과제로의 적용성을 넓히기 위해 RL 에이전트의 행동 및 관측 공간을 확장한다.", "source_quote": "future work will explore extensions of the RL agent's action and observation space—building on the non-flat terrain example—with the aim of broadening applicability to more complex terrains and to other tasks, such as manipulation.", "source_section": "conclusion"}, {"claim": "정밀한 발판 배치가 필요한 지형에서의 보행을 허용하기 위해 접촉 착지 위치에 대한 명시적 제어를 가능하게 한다.", "source_quote": "enabling explicit control over contact landing locations may allow locomotion on terrains requiring precise foothold placement.", "source_section": "conclusion"}, {"claim": "강하고 지속적인 외부 외란에 대한 강건성의 체계적 평가를 수행한다.", "source_quote": "a systematic evaluation of robustness to strong and persistent external disturbances remains an important direction for future investigation.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["MPC 기반 보행에서, 접촉에 대해 최적화하면 온라인으로 풀기에 너무 복잡한 혼합 정수 비선형 계획법 문제가 생겨, 단순화된 동역학 모델 및/또는 휴리스틱의 사용을 강요한다.", "모델-프리 RL은 접촉-암묵적 정책으로 조합적 접촉 스케줄링 문제를 우회하지만, 이들은 도메인 무작위화와 보상 정형에 크게 의존하여 샘플 비효율성과 증가된 과제별 튜닝으로 이어진다.", "기존 하이브리드 학습-최적 제어 방법은 사전 정의된 보행이나 시연에 의존하는데, 이는 단순화된 모델에 결부된 편향을 도입하고 해석 가능성과 도메인 전반 전이를 제한한다."], "addressed_by_this_work": ["계층 구조가 내비게이션 트위스트와 온디맨드 비행 위상 주입을 발령하는 고수준 SAC 정책을 저수준 전차수 강체 동역학 MPC와 결합하여, 정책은 시행착오를 통해 비주기 접촉 패턴을 학습하고 MPC는 실현 가능한 실행을 보장한다.", "보상 설계는 제한된 튜닝과 시연 없이 세 항(트위스트 추적, 행동률 페널티, 운송 비용)으로 축소되며, 강건성, 샘플 효율성, 일반화를 위해 학습과 배치 중 동일한 MPC가 사용된다.", "이 방법은 50-120 kg 플랫폼 전반에 제로샷 sim-to-sim으로, 그리고 120 kg Centauro에서 제로샷 sim-to-real로 도메인 무작위화 없이 전이되며, 다리형과 하이브리드 보행에서 창발하는 비주기 보행과 타이밍 적응을 보인다."], "remaining_unresolved": ["정책은 특정 MPC 인스턴스와 로봇에 결부되어 있으며, 제어기 간 및 플랫폼 간 일반화는 열린 채로 남아 있다.", "학습 벽시계 효율성은 완전 종단간 RL보다 낮고, 정책-대-MPC 빈도 비율은 다리형 과제에 대해 여전히 민감한 하이퍼파라미터로 남아 있다.", "강하고 지속적인 외부 외란에 대한 강건성은 아직 체계적으로 평가되지 않았다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

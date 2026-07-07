@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Small-scale soft-bodied robot with multimodal locomotion</title>
+    <meta name="keywords" content="soft robot, multimodal locomotion, magneto-elastic actuation, millimeter-scale robot, shape-programmable matter, untethered microrobot, terrain transition, bioinspired gaits, magnetic field control, medical microrobotics">
+    <meta name="paper-authors" content="Wenqi Hu, Guo Zhan Lum, Massimo Mastrangeli, Metin Sitti">
+    <meta name="paper-journal" content="Nature, Vol. 554, pp. 81-85, 1 February 2018. DOI: 10.1038/nature25443. Received 19 Sep 2017; accepted 1 Dec 2017; published online 24 Jan 2018.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Small-scale soft-bodied robot with multimodal locomotion</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Wenqi Hu, Guo Zhan Lum, Massimo Mastrangeli, Metin Sitti</div>
+            <div class="journal">Nature, Vol. 554, pp. 81-85, 1 February 2018. DOI: 10.1038/nature25443. Received 19 Sep 2017; accepted 1 Dec 2017; published online 24 Jan 2018.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">이 Nature Letter는 무선(untethered) 자기-탄성 연성 밀리미터 스케일 로봇(5 마이크론 NdFeB 미세입자를 분산시키고 단일 파장 조화 자화로 프로그래밍한 실리콘 Ecoflex 시트)이 원격으로 인가되는 공간적으로 균일한 시변 자기장 하에서 다중모드 이동(multimodal locomotion)을 달성함을 보인다. 소변형 진행파 형상 변화, 대변형 'C'/'V' 형상 전환, 제어된 강체 회전을 결합하여, 동일한 로봇이 헤엄치고(해파리형, 레이놀즈 수 74-190), 액체 메니스커스를 기어오르고, 구르고, 걷고(자벌레 영감), 장애물을 뛰어넘고(선충 영감), 좁은 터널을 기어 통과하며, 액체와 고체 지형 사이를 가역적으로 전환한다. 저자들은 이론적 스케일링 모델을 실험과 대조하여 검증하고 응용 시연(pick-and-place, 화물 방출, 위(stomach) 팬텀 내비게이션, 적출 조직 내 초음파 유도 이동)을 보인다. 본 프로젝트와의 연결은 방법론적이라기보다 개념적이다: 이는 모드 전환과 지형 전이를 갖춘 단일 몸체 다중모드 이동(새 Vault 주제의 핵심)의 강력한 사례이지만, 밀리미터 스케일에서 외부 자기 작동을 사용하며 강화학습도, 다리도, 비행도 없다 — 따라서 RL-보행이나 날갯짓 요소가 아니라 다중모드-전이 프레이밍에 기여한다.</div>
+            <div class="keywords"><span class="keyword-chip">soft robot</span><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">magneto-elastic actuation</span><span class="keyword-chip">millimeter-scale robot</span><span class="keyword-chip">shape-programmable matter</span><span class="keyword-chip">untethered microrobot</span><span class="keyword-chip">terrain transition</span><span class="keyword-chip">bioinspired gaits</span><span class="keyword-chip">magnetic field control</span><span class="keyword-chip">medical microrobotics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 미세공장 조립, 생체공학, 의료를 위한 무선 소형(밀리미터-마이크로미터) 로봇의 필요성을 제시하며, 비정형 환경에서의 제한된 이동성을 핵심 장벽으로, 그리고 연성 다중모드 이동(강체 로봇보다 많은 자유도)을 그 장벽을 넘는 경로로 규정한다. 공간적으로 균일한 시변 자기장으로 작동하는 자기-탄성 연성 밀리미터 스케일 로봇을 도입하는데, 이 자기장은 어떤 순(net) 병진력도 가하지 않으면서 로봇의 형태(morphology)를 제어하고 조향한다. 기여는 액체와 고체 지형 사이를 가역적으로 전환하면서 헤엄치고, 메니스커스를 오르고, 구르고, 걷고, 뛰고, 기는 단일 몸체이며, 이론적 운동 모델로 뒷받침된다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Nature Letter로서 독립적인 관련 연구 절이 없으므로, 선행 연구는 본문 인용으로부터 재구성된다: 형상 프로그래밍 가능 자기 연성 물질과 파동형 헤엄을 위한 연속 분포 자화에 직접 기반하면서, 그 이전 로봇들이 형성할 수 없었던 'C'/'V' 대변형 형상을 추가한다. 이동 보행(gait)들은 명시적으로 생체모방적이며(해파리, 메니스커스를 오르는 곤충, 애벌레, 자벌레, 선충), 자기 미세조작 및 이동 로보피직스 문헌 내에 위치한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">로봇은 5 마이크론 NdFeB 경자성 미세입자를 분산시키고 길이 방향으로 단일 파장 조화 자화 프로파일로 프로그래밍한 직사각형 Ecoflex 실리콘 시트이다. 공간적으로 균일한 시변 자기장은 순력을 가하지 않으며, 대신 그 면내 성분이 자화와 상호작용하여 몸체를 변형시키는 공간적으로 변하는 토크를 생성하고(저자기장에서 소변형 사인/코사인 및 진행파 형상, 고자기장에서 대변형 'C'/'V' 형상), 변형된 형상의 순 자기 모멘트가 자기장과 정렬되며 강체 조향을 구동한다. 형상 변화와 조향을 결합하여 구르기, 걷기, 점프 보행을 프로그래밍하며, 해석적 및 경험적 스케일링 모델이 치수(L, w, h)를 각 모드와 연관시켜 설계 지침을 산출한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 단일 장치에서 최소 6가지 이동 모드를 시연한다: 레이놀즈 수 74-190에서의 해파리형 상향 헤엄, 메니스커스 오르기와 가역적 액체-공기 계면 전이, 방향성 구르기, 자벌레 걷기, 그리고 1 밀리미터 미만 채널을 통한 파동형 기어가기. 모드들은 상호 보완적임이 입증되며(걷기는 구르기가 넘지 못하는 틈을 건너고, 기어가기는 걷기를 막는 좁은 개구를 통과), 혼합 액체-고체 환경, 수술용 위 팬텀, 초음파 유도 적출 조직을 가로지르도록 연결되고, pick-and-place와 선택적 화물 방출 작업도 수행한다. 파동형 헤엄을 제외한 모든 모드에서 이론 모델이 실험과 잘 일치하여 스케일링 설계 지침을 검증한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토의는 자기 구배 기반 당김을 성능 향상 수단(예: 더 높은 점프)으로 저울질하지만, 그것에만 의존하는 것은 불안정하고 자기장-토크 이동보다 에너지 효율이 낮다고 경고한다. 주요 한계 — 온보드 작동의 부재(로봇을 외부 코일 작업공간에 한정)와 잔류 곡률 및 모델 오차를 야기하는 제작 잔류응력 — 를 명시하고, 기어가기와 해파리 헤엄이 해석적 모델링을 거부했음을 언급한다. 복잡한 지형, 1 밀리미터 미만 스케일링, 생체 내(in vivo) 의료 사용을 향한 전망으로 마무리하며, 로봇을 공학과 소형 생물 이동 연구 양쪽의 플랫폼으로 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 연구는 원격 균일 시변 자기장만으로 구동되는 단일 자기-탄성 연성 밀리로봇이 이동 모드의 전체 레퍼토리와 가역적 액체-고체 지형 전이, 그리고 기능적 조작을 달성하여 선행 소형 로봇들의 제한된 이동성을 극복한다고 결론짓는다. 검증된 이론적 스케일링 모델이 설계 지침(큰 길이와 작은 두께 선호)을 제공하며, 의료 관련 시연이 최소침습 응용을 가리키고, 향후 축소 및 더 복잡한 지형 대응을 계획한다. 본 이족 오니솝터 + RL 프로젝트에 대해서는 이전 가능한 방법 출처라기보다 모드 전환과 지형 전이에 대한 고가치 개념적 참조다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "비침습적으로 좁고 폐쇄된 공간에 접근할 수 있는 무선 소형 로봇(밀리미터에서 마이크로미터까지)은 미세공장 조립(조직 스캐폴드), 생체공학(단일세포 조작, 바이오센싱), 의료(표적 약물전달, 최소침습 수술)를 가능하게 할 수 있다."}, {"type": "bullet", "text": "핵심 장벽: 기존 소형 로봇들은 비정형 환경에서 장애물이나 질감/재질 변화를 극복하지 못해 이동성이 매우 제한적이다. 연성 로봇은 강체 대비 더 많은 자유도를 제공하므로 다중모드 이동을 통한 높은 이동성의 잠재력이 더 크다."}, {"type": "bullet", "text": "기여는 액체 내부와 표면에서 헤엄치고, 액체 메니스커스를 오르고, 고체 위에서 구르고 걷고, 장애물을 뛰어넘고, 좁은 터널에서 길 수 있는 자기-탄성 연성 밀리미터 스케일 로봇이다 — 액체와 고체 지형 사이를 가역적으로 전환하고 이동 모드를 전환하며, pick-and-place와 화물 방출 작업을 수행하고, 운동에 대한 이론 모델로 뒷받침된다."}, {"type": "bullet", "text": "자기 작동이 선택된 이유는 작동 자기장이 대부분의 생체 및 합성 재료를 무해하게 투과하기 때문이다. 본 연구는 외부(off-board) 작동만을 사용하지만, 온보드 연성 작동으로도 원리상 유사한 시변 형상을 생성할 수 있음을 언급한다."}, {"type": "bullet", "text": "프로젝트 관련성: 이는 하나의 몸체가 지형을 가로지르며 매끄러운 모드 전환과 함께 여러 이동 모드를 달성하는 전형적 사례로 — 개념적 수준에서 프로젝트의 다중모드 공중-지상 목표와 직접 유사하나, 전혀 다른(자기적, 스케일 의존적) 작동 원리로 구현된다."}, {"type": "bullet", "text": "서론은 또한 전반에 걸쳐 사용되는 작동 규약을 고정한다: 별도 언급이 없는 한 인가 자기장 B는 공간적으로 균일하여 순 병진력을 가하지 않고 형태와 진행 방향만 제어한다. 'robot'이라는 용어는 (외부 전자석이 아니라) 무선 연성 장치만을 지칭하며, 이는 마이크로로보틱스 문헌과 일치한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "형상 프로그래밍 가능 자기 연성 물질(Lum et al. 2016, PNAS)과 탄성체 파동형 헤엄을 위한 연속 분포 자화 프로파일(Diller et al. 2014)에 기반하지만, 그 연구들이 결여했던 핵심적인 'C'/'V' 대변형 형상을 추가한다."}, {"type": "bullet", "text": "선행 소형 연성/무선 로봇들과 대비된다: 프로그래밍 가능 연성 마이크로머신(Huang et al. 2016), 자가-보행 겔(Maeda et al. 2007), 걷고 헤엄치고 분해되는 자가-접힘 종이접기 로봇(Miyashita et al. 2015), SMA 기반 예쁜꼬마선충 영감 기어가기 로봇(Yuk et al. 2011) — 모두 더 좁은 이동성을 가진다."}, {"type": "bullet", "text": "이동 보행들은 명시적으로 생체모방적이다: 해파리 헤엄(수동적 에너지 회수), 메니스커스를 오르는 곤충(Hu & Bush 2005), 애벌레의 구르기와 기어가기(Brackenbury 1997), 자벌레 걷기(Wang et al. 2014), 점프하는 선충(Campbell & Kaya 1999)."}, {"type": "bullet", "text": "자기 미세조작 문헌에 위치한다: 무선 마이크로로보틱스를 위한 6-자유도 자기 작동(Diller et al. 2016), OctoMag 5-자유도 전자기 시스템(Kummer et al. 2010), 마이크로로봇 헤엄 분석(Abbott et al. 2009, '마이크로로봇은 어떻게 헤엄쳐야 하는가?')."}, {"type": "bullet", "text": "이동 로보피직스(Aguilar et al. 2016) — 로보틱스, 연성 물질, 동역학 시스템의 교차점에서 운동을 연구하는 분야 — 내에 위치시켜, 로봇을 소형 생물의 연성 몸체 이동을 연구하는 도구로 자리매김한다."}, {"type": "bullet", "text": "다중모드-연성-자유도 전제를 정당화하기 위해 더 넓은 연성 로보틱스 맥락을 인용한다: 연성 로봇의 설계/제작/제어(Rus & Tolley 2015, Nature), 완전 연성 자율 로봇(Wehner et al. 2016, Nature), 표면장력 지배 점프 로봇 곤충(Koh et al. 2015, Science) — 본 연구는 단일 장치에서 다수 모드와 가역적 지형 전이를 결합함으로써 이들과 구별된다."}]}, "method": {"content": [{"type": "bullet", "text": "재료/구조: 경자성 NdFeB 미세입자(평균 5 마이크론 직경)를 분산시키고 소수성(잠재적으로 생체적합) 표면을 가진 직사각형 실리콘 탄성체(Ecoflex 00-10) 시트로, 자화 공정을 통해 길이 방향으로 단일 파장 조화 자화 프로파일 m을 가지도록 프로그래밍된다."}, {"type": "bullet", "text": "작동 원리: 공간적으로 균일한 시변 자기장 B(몸체 좌표계로 표현)는 순 병진력을 가하지 않으며, 대신 면내 성분 B_xy가 m과 상호작용하여 로봇을 변형시키는 공간적으로 변하는 자기 토크를 생성하고, 변형된 형상의 유효 자기 모멘트 M_net이 B와 정렬되며 z축 둘레 강체 회전(조향)을 구동한다."}, {"type": "bullet", "text": "두 가지 형상 영역: 주축 방향으로 작은 |B_xy|(예: <5 mT)는 사인/코사인 소변형 형상을 산출하고(강체 토크 없는 작은 회전 자기장을 통해 진행파 생성); 주축을 따라 높은 |B_xy|(예: 20 mT)는 대변형 'C' 또는 'V' 형상을 산출한다."}, {"type": "bullet", "text": "모드 생성: 조향(M_net이 B와 비평행일 때의 강체 회전과 재정렬)을 형상 변화 메커니즘과 결합하여, 컨트롤러가 z축 둘레 각변위를 프로그래밍해 구르기, 걷기, 점프를 구현한다. 구르기는 'C' 형상에서 고세기 회전 자기장(예: 18.5 mT)을 사용한다."}, {"type": "bullet", "text": "걷기 보행(자벌레 영감): 주기적 B가 기울기 각과 곡률을 순차적으로 조정한다 — 로봇이 앞쪽 끝을 고정하고 앞으로 기울여 뒤쪽 끝을 끌어당긴 뒤, 뒤쪽을 고정하고 앞쪽을 신장시켜 사이클당 양의 보폭을 만들며, 보폭 길이와 주파수의 정밀한 조정을 가능하게 한다."}, {"type": "bullet", "text": "점프(선충 영감): 국소 y-z 평면에서의 B 시퀀스가 강체 회전(점프 방향 설정)과 탄성 변형을 모두 유도하여 기판을 충격적으로 타격하기 전 자유단 운동량을 최대화한다. 점프는 구르거나 걸어서 넘기 너무 높은 장애물을 넘는 데 사용된다."}, {"type": "bullet", "text": "스케일링 이론: 해석적 모델이 치수(L, w, h)를 점프, 구르기, 걷기, 메니스커스 오르기, 파동형 헤엄과 연관시키며, 기어가기와 해파리형 헤엄(유도하기 너무 어려움)은 경험적 피팅 모델을 사용한다 — 이를 종합하여 설계 지침(큰 L, 작은 h 선호; w는 해파리형 헤엄에만 영향)을 산출하며, 실용적 제작 한계는 h ≥ 40 마이크론, w ≥ 0.3 mm이다."}]}, "experiment": {"content": [{"type": "bullet", "text": "헤엄: 완전 침수 상태에서 로봇은 'C'/'V' 형상을 교대하는 해파리형, 시간 대칭이지만 속도 비대칭인 보행으로 중력에 맞서 위로 헤엄치며, 레이놀즈 수 74-190에서 관성 효과를 활용해 추진 유체 와류를 생성한다."}, {"type": "bullet", "text": "액체-계면 전이: 추가 에너지 없이 부력을 강화하기 위해 'C' 형상으로 변형하는 메니스커스 오르기; 소수성 표면 회전을 통한 수면 착지/박리; 하향 굽힘, 회전, 뒤집기를 통한 침수(벌크로 잠수) — 가역적 액체<->고체 전이를 시연한다."}, {"type": "bullet", "text": "고체 지형 모드: 'C' 형상에서 강체 기판 위 방향성 구르기(18.5 mT 회전 자기장), 보폭 조정 가능한 견고한 자벌레 걷기, 그리고 단면 0.645 mm x 2.55 mm의 관형 채널을 종방향 진행파를 사용해 기어 통과."}, {"type": "bullet", "text": "모드 상보성: 구부린 로봇은 자신의 직경보다 넓고 길이보다 좁은 틈을 구를 수 없지만 걸어서 건널 수 있다. 좁은 개구에 막히면 걷기에서 기어가기로 전환한다 — 모드 레퍼토리가 서로의 실패 사례를 보완함을 시연한다."}, {"type": "bullet", "text": "통합 내비게이션: 로봇은 일련의 모드를 사용해 혼합 액체-고체 환경을 가로지르고(구르기/잠수/표류/헤엄/오르기/착지/점프/걷기/기어가기) 수술용 인체 위 팬텀을 내비게이션한다. 초음파 영상은 은폐된 적출 닭 조직 내에서 구르는 모습을 가시화한다."}, {"type": "bullet", "text": "기능적 작업: 'C'로 구부려 나일론 화물(1 x 0.8 x 1.5 mm)에 걸어가 잡고, 굴러서 운반하며, 펴서 방출한다. 또한 빠른 자기장 반전 시 열리는 부속물에 묶인 종이 티슈 '약물 용기'(0.5 x 0.5 x 0.1 mm)의 동적 선택적 화물 방출을 수행한다."}, {"type": "bullet", "text": "모델 검증: 서로 다른 치수의 로봇들에 걸친 실험이 파동형 헤엄을 제외한 모든 모드에서 이론 모델과 잘 일치하며(불일치는 제작 잔류응력 탓으로 귀속), 미래 다중모드 소형 로봇 설계를 위한 스케일링 지침을 확인한다."}]}, "discussion": {"content": [{"type": "bullet", "text": "자기 구배 기반 당김력은 성능을 향상시킬 수 있고(예: 더 높은 점프) 더 탐구될 수 있으나, 그것만을 배타적으로 사용하는 것은 해롭다: 동역학이 본질적으로 불안정하고 자기장-토크 구동 이동보다 에너지 효율이 낮다."}, {"type": "bullet", "text": "명시된 한계: 온보드 작동의 부재가 로봇을 외부 코일 작업공간에 한정시켜, 넓은 개방 공간과 야외 탐사/모니터링에 부적합하게 만든다."}, {"type": "bullet", "text": "명시된 한계: 탈형 잔류응력이 작은 정지 상태 잔류 곡률을 야기하여, 모델 예측 오차를 도입하고 걷기 및 파동형 헤엄 속도의 일치를 부분적으로 저하시킨다(제작 개선으로 감소 가능)."}, {"type": "bullet", "text": "모델링 공백: 기어가기와 해파리형 헤엄은 해석적으로 유도하기 너무 어려워 경험적 피팅 모델에 의존했다 — 연성 몸체 다중모드 이동에 대한 미해결 해석적 과제다."}, {"type": "bullet", "text": "명시된 전망: 더 복잡한 지형(비뉴턴 유체, 입상 매질)에서의 이동을 연구하고, 1 밀리미터 미만 크기로 축소하며, 생체 내 의료 응용을 추구한다 — 로봇을 공학과 생물학(소형 생물 이동 연구) 양쪽의 플랫폼으로 자리매김한다."}, {"type": "bullet", "text": "프로젝트 관련성: 본 논문의 핵심 시연 — 매끄러운 지형 전이와 함께 여러 보행을 달성하는 하나의 변형 가능한 몸체 — 은 다중모드 이동 Vault 주제의 개념적 벤치마크이지만, 자기적이고 자기장-구속적이며 다리 없고 학습 없는 접근법은 RL 제어 다족 비행 로봇을 위한 이전 가능한 방법이 아니라 모드 전환 전략에 대한 영감을 제공한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "단일 자기-탄성 연성 밀리로봇이 원격 균일 자기장 제어 하에서 다중모드 이동(헤엄, 메니스커스 오르기, 구르기, 걷기, 점프, 기어가기)과 가역적 액체-고체 지형 전이를 달성하여 선행 소형 로봇들의 제한된 이동성을 극복한다."}, {"type": "bullet", "text": "이동 레퍼토리는 상호 보완적이다 — 모드들이 서로의 실패 사례를 보완한다(걷기가 구르기로 못 넘는 틈을 잇고, 기어가기가 걷기를 멈추게 하는 개구를 통과) — 이는 다중모드 로봇이 비정형 혼합 환경을 가로지르는 데 정확히 필요한 속성이다."}, {"type": "bullet", "text": "검증된 스케일링 분석은 작동 원리를 가로질러도 이전 가능한 지식이다: 어떤 기하 파라미터가 어떤 모드를 지배하는지 분리해내며, 이는 다족/날갯짓 다중모드 플랫폼도 경쟁하는 모드들을 균형 잡기 위해 필요로 할 종류의 설계 공간 매핑이다."}, {"type": "bullet", "text": "프로그래밍된 단일 파장 자화와 제어된 소/대 형상 변화 및 강체 회전이 이동 레퍼토리와 기능적 조작(pick-and-place, 화물 방출)을 모두 가능하게 하며, 이론적 스케일링 모델이 검증된 설계 지침을 제공한다."}, {"type": "bullet", "text": "시연된 의료 관련 내비게이션(위 팬텀, 초음파 유도 적출 조직)은 최소침습 응용을 가리키며, 향후 축소 및 복잡한 지형에서의 작동을 계획한다."}, {"type": "bullet", "text": "이족 오니솝터 + RL 프로젝트에 대해서는: 이를 방법 출처가 아니라 다중모드 모드 전환과 지형 전이에 대한 고품질 개념적 참조로 다루어야 한다 — 작동 스케일, 자기 원리, 다리/비행/RL의 부재가 이를 프로젝트의 핵심 기술 필요의 주변부에 위치시킨다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "로봇은 온보드 작동이 없어 넓은 개방 공간에서 작동할 수 없고 환경 탐사 및 모니터링 같은 야외 응용에 부적합하다(외부 전자기 코일 작업공간에 의존한다).", "source_quote": "The lack of an on-board actuation method prevents the proposed robot from operating in large open spaces, making it unsuitable for outdoor applications such as environment exploration and monitoring.", "source_section": "discussion"}, {"claim": "탈형 제작 공정이 잔류응력을 만들어 정지 상태에서 작은 잔류 곡률을 유도하며, 이는 예측 형상에 작은 오차를 야기하고 걷기 및 파동형 헤엄 속도의 모델 일치를 부분적으로 저하시킨다.", "source_quote": "the current demoulding process creates a pre-stress in the magneto-elastic material that induces a small residual curvature in the robot when it is in the rest state... it induces small errors in the predicted robot shapes... and partly affects the model matching of the experimental data for the walking and undulating swimming speeds.", "source_section": "discussion"}, {"claim": "자기 구배 기반 당김력을 배타적으로 사용하는 것은 해롭다. 그 작동 방식이 본질적으로 불안정하고 자기장-토크 기반 이동보다 에너지 효율이 낮기 때문이다.", "source_quote": "Using gradient-based pulling exclusively may however be detrimental, as the dynamics of this actuation method is inherently unstable. From a practical standpoint, gradient-based pulling methods are also less energy efficient than locomotion propelled via magnetic field-based torques.", "source_section": "discussion"}], "future_works": [{"claim": "자기 구배 기반 당김력을 자기장 토크와 결합하여 속도와 점프 높이 같은 이동 성능을 더욱 향상시키는 방안을 탐구한다.", "source_quote": "we show that the jumping height can be increased by adding magnetic gradient-based pulling forces (Supplementary Video 5), and we will explore other similar possibilities in the future.", "source_section": "discussion"}, {"claim": "로봇을 사용하여 비뉴턴 유체와 입상 매질 같은 다른 복잡한 지형에서의 소형 연성 몸체 이동을 연구한다.", "source_quote": "We intend to use our robot to study small-scale soft-bodied locomotion on other complex terrains such as within non-Newtonian fluids and on granular media.", "source_section": "discussion"}, {"claim": "로봇을 1 밀리미터 미만 크기로 축소하고 생체 내 의료 응용을 조사한다.", "source_quote": "We also plan to scale down the robots to the sub-millimetre scale and to investigate their potential in vivo medical applications.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["기존 소형 로봇들은 비정형 환경에서 장애물과 질감 또는 재질 변화를 극복하지 못해 이동성이 매우 제한적이다.", "비침습적으로 좁고 폐쇄된 공간에 접근할 수 있는 무선 소형 로봇은 미세공장 조립, 생체공학(단일세포 조작, 바이오센싱), 의료(표적 약물전달, 최소침습 수술) 응용을 가능하게 할 것이다.", "다중 파장 조화 자화를 가진 선행 연성 로봇들은 파동형 헤엄을 시연했지만, 다중모드 이동과 지형 전이를 실현하는 데 필요한 핵심 'C' 및 'V' 형상을 만들 수 없었다."], "addressed_by_this_work": ["소변형 및 대변형 형상 변화와 제어된 강체 회전이 최소 6가지 구별되는 이동 모드(해파리형 헤엄, 메니스커스 오르기, 구르기, 걷기, 점프, 기어가기)를 만들어내는 단일 파장 조화 자화를 가진 자기-탄성 연성 시트를 설계했다.", "액체와 고체 지형 사이의 가역적 전이와, 혼합 액체-고체 환경, 수술용 위 팬텀, 적출 조직 내 초음파 유도 이동의 완전한 내비게이션, 그리고 pick-and-place와 화물 방출 작업을 시연했다.", "이론적 스케일링 모델(로봇 크기에 걸쳐 실험으로 검증)을 유도하여 설계 지침을 제시했다: 더 큰 길이 L과 더 작은 두께 h가 다중모드 이동에 유리하며, 너비 w는 해파리형 헤엄에만 영향을 준다."], "remaining_unresolved": ["외부 자기 작동에 대한 의존이 로봇을 코일 작업공간에 한정시키고 넓은 개방 공간/야외 작동을 배제한다. 온보드 연성 작동은 향후 가능성으로만 제안된다.", "제작 잔류응력이 걷기와 파동형 헤엄에 대한 잔류 곡률과 모델 예측 오차를 도입한다.", "기어가기와 해파리형 헤엄에 대한 이론 모델은 해석적으로 유도하기 너무 어려워 대신 경험적 피팅 모델을 사용해야 했다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

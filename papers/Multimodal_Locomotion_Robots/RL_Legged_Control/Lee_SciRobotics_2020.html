@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning quadrupedal locomotion over challenging terrain</title>
+    <meta name="keywords" content="reinforcement learning, legged locomotion, privileged learning, teacher-student distillation, proprioceptive control, temporal convolutional network, automatic terrain curriculum, sim-to-real transfer, ANYmal quadruped, zero-shot generalization">
+    <meta name="paper-authors" content="Joonho Lee, Jemin Hwangbo, Lorenz Wellhausen, Vladlen Koltun, Marco Hutter">
+    <meta name="paper-journal" content="Science Robotics, vol. 5, no. 47, eabc5986 (2020). DOI:10.1126/scirobotics.abc5986. Preprint arXiv:2010.11251.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Learning quadrupedal locomotion over challenging terrain</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Joonho Lee, Jemin Hwangbo, Lorenz Wellhausen, Vladlen Koltun, Marco Hutter</div>
+            <div class="journal">Science Robotics, vol. 5, no. 47, eabc5986 (2020). DOI:10.1126/scirobotics.abc5986. Preprint arXiv:2010.11251.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">저자들은 전적으로 시뮬레이션에서 학습되었으나, 두 세대의 ANYmal 로봇에서 극한 자연 지형(진흙, 눈, 흐르는 물, 무성한 초목, 헐거운 잔해)으로 zero-shot 일반화되는—실제 DARPA Subterranean Challenge 배치 포함—blind(순수 proprioceptive) 사족 보행 제어기를 제시한다. 방법은 표준 sim-to-real 관행을 넘는 세 요소에 기반한다. 첫째, 2단계 privileged-learning 프로토콜: teacher policy를 privileged ground-truth 상태(지형 프로파일, contact 상태/force, 마찰, 외란)에 접근시켜 RL로 학습한 뒤, supervised imitation(DAgger)으로 on-robot proprioception만 소비하는 student policy로 distill한다. 둘째, student는 proprioceptive 관측의 확장된 history를 읽는 temporal convolutional network(TCN)로, 취약한 명시적 contact/slip 추정기에 의존하는 대신 contact과 미끄러짐 사건을 암묵적으로 추론하도록 학습한다. 셋째, particle filter로 policy 향상에 맞춰 중간 범위 traversability(너무 쉽지도 어렵지도 않은)의 절차 생성 지형 분포를 유지하는 자동 terrain curriculum이다. 운동은 Policies Modulating Trajectory Generators(PMTG) 아키텍처와 Hwangbo et al.에서 가져온 학습된 actuator(관절 PD) 모델로 생성된다. 제어기는 창발적 foot-trapping 반사를 보이고, 속도·에너지 효율(cost of transport)·계단 주파·10 kg 페이로드 robust성에서 최신 모델 기반 baseline을 능가하며, 학습에서 본 적 없는 조건에도 robust하다. Ko의 MARCO 이족 sim-to-real 연구에 대해 본 논문은 teacher-student privileged-learning 레시피의 정전적 인용 문헌이다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">privileged learning</span><span class="keyword-chip">teacher-student distillation</span><span class="keyword-chip">proprioceptive control</span><span class="keyword-chip">temporal convolutional network</span><span class="keyword-chip">automatic terrain curriculum</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">ANYmal quadruped</span><span class="keyword-chip">zero-shot generalization</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Introduction은 legged 보행을 바퀴·궤도 기계가 접근할 수 없는 지형으로 로보틱스를 확장하는 길로 동기 부여하며, 불규칙·변형성·미끄러움·차폐 표면을 가진 다양한 험지 자연 환경에서 동적 보행을 보인 공개 연구가 없었음을 지적한다. 그런 조건에서는 exteroceptive 센서가 물리적 지형 속성을 신뢰성 있게 측정할 수 없으므로 로봇은 결정적으로 proprioception에 의존해야 한다고 주장한다. 정교한 state machine과 명시적 contact/slip 추정에 기반한 기존 제어기는 복잡도가 폭증하고 취약하며, model-free RL은 대체로 실험실 평지에 국한되어 있었다. 본 절은 논문의 극도로 robust한 blind 제어기를 소개하고 세 핵심 요소—시퀀스 모델(TCN) policy, privileged learning, 자동 terrain curriculum—를 예고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 논의(Introduction과 Discussion에 엮임)는 본 연구를 기존 모델 기반 legged 제어와 기존 RL 보행에 대비해 위치시킨다. 기존 험지 제어기는 state machine, motion primitive, 반사, 명시적 contact 추정에 의존해 고되고 취약하다. 기존 RL 보행은 저자들의 이전 평지 ANYmal 연구와 기타 실험실 국한 연구를 포함해, 현실적 actuator 모델링과 물리 파라미터 randomization 같은 sim-to-real 관행을 확립했고 저자들도 이를 채택하지만 험지에는 불충분하다고 본다. privileged-learning 아이디어는 'learning by cheating'(Chen et al.)에서 차용했으나 teacher를 전문가 시연이 아니라 RL로 학습하며, curriculum은 자동 curriculum learning(POET, minimal criteria, Florensa et al.)을 끌어오되 전문가 집단이 아닌 단일 generalist 에이전트를 추구한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">제어 문제는 MDP로 정식화되고 2단계 privileged-learning 파이프라인으로 풀린다. teacher policy(MLP 인코더 + MLP)는 privileged ground-truth 정보(고도 스캔점을 통한 지형 프로파일, contact 상태/force, 마찰, 외란)와 로봇 상태를 받아 privileged 부분을 적응 행동을 이끄는 latent l-bar로 인코딩하며, 명령 방향으로의 빠른 전진을 보상하도록 TRPO로 학습된다. 이어 teacher는 supervised imitation(DAgger)으로 proprioceptive student로 distill된다: proprioceptive 관측 history를 읽는 temporal convolutional network이며, teacher의 action과 latent를 모두 맞추는 loss를 쓴다. 운동은 PMTG 아키텍처로 생성되는데, 다리별 주기 phase로 구동되는 발 궤적 생성기를 신경망의 frequency offset과 발 위치 잔차로 변조하고, 해석적 역기구학과 학습된 actuator 모델 위의 관절 PD 제어로 추종한다. 자동 terrain curriculum은 particle filter로 중간 범위 traversability의 절차 생성 지형 분포를 유지한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">제어기는 다양한 자연 환경(눈 비탈, 바위 더미, 개울, 젖은 이끼, 진흙, 빽빽한 초목)에서 두 세대 ANYmal에 배치되어 학습에서 본 적 없는 조건으로 zero-shot 일반화했고, 두 대의 ANYmal-B를 네 차례 60분 DARPA Subterranean Challenge 임무에서 무실패로 구동했다. 이끼/진흙/초목에서 최신 모델 기반 baseline과의 정량 비교는 더 높은 보행 속도와 더 낮은 기계적 cost of transport를 보인다. 실내 통제 실험은 이탈하는 잔해 위의 안정적 보행, 16.8 cm 계단을 넘는 창발적 foot-trapping 반사(정상 발 clearance 12.9-13.6 cm 초과), 우수한 계단 오름/내림 성공률, 22.7%(10 kg) 미학습 페이로드 robust성, 그리고 페이로드 유무와 무관하게 모든 명령 방향에서 더 작은 heading 오차를 시연한다. Ablation(각 5회 학습)은 TCN history 길이, privileged 학습, 적응형 curriculum이 각각 상당히 기여함을 확인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 본 연구가 최신 기술을 크게 진전시키며, 더 넓게는 시뮬레이션 학습이 시뮬레이터의 물리 세계 복잡성 표현 불능으로 근본적으로 제약된다는 가설을 반박한다고 주장한다. 현재 시뮬레이션은 compliant contact, 미끄러짐, 변형/붕괴 지형을 모델링할 수 없어 진흙·눈·초목·솟구치는 물은 로보틱스 시뮬레이터 너머에 있다. 그러나 rigid 절차 지형만으로 학습된 제어기가 야외 조건의 다양성에 부합하며, 이는 물리 세계의 전 다양성을 시뮬레이션할 필요가 없을 수 있음을 보인다. 이어 한계를 열거한다: 제어기는 trot만 하고(자연 gait 다양성보다 좁음), 오직 proprioception에 의존해 본질적으로 제한적이다(명령하면 절벽으로 걸어가고, 지형을 더듬어야 해 보수적). 저자들은 하이브리드 proprioceptive-exteroceptive 제어와 다양성 촉진 학습을 향후 과제로 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">기여를 종합하면, 논문은 극도로 robust한 blind 사족 보행 제어기가 전적으로 시뮬레이션에서 학습되어 자연 환경의 전 풍부함으로 zero-shot 전이될 수 있다고 결론짓는다. privileged learning(ground-truth 지형/contact 정보를 가진 teacher를 순수 proprioceptive student로 distill), proprioceptive history에서 contact과 미끄러짐을 암묵 추론하는 temporal-convolutional 시퀀스 모델, 그리고 난이도를 생산적 중간 범위로 유지하는 자동 particle-filter terrain curriculum의 결합이 단일 generalist 제어기를 낳는다. 이는 두 세대 ANYmal을 진흙·눈·물·초목·잔해로 몰고, 실제 경쟁에서 무실패로 성공하며, 속도·효율·계단 주파·페이로드 robust성·heading 정확도에서 최신 모델 기반 baseline을 능가하고, 학습에서 결코 지정되지 않은 창발적 반사를 보여, 물리 세계의 막대한 복잡성이 취약한 모델링이나 위험한 야외 시행착오 없이 길들여질 수 있음을 시사한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "legged 보행은 바퀴·궤도 기계의 안정성을 해치는 외딴 지형에 사족 동물이 접근하듯 로보틱스의 도달 범위를 극적으로 넓힐 수 있지만, 지금까지 다양한 험지 자연 환경에서 동적 보행을 시연한 공개 연구는 없었다.", "figure_refs": [1]}, {"type": "bullet", "text": "험지 환경은 고도로 불규칙한 프로파일, 변형성 지형, 미끄러운 표면, 지상 차폐물을 가지며, 그런 조건에서 기존 공개 제어기는 빈번한 발 미끄러짐, 균형 상실, 결국 파국적 실패를 보인다."}, {"type": "bullet", "text": "exteroceptive 센서(카메라, LiDAR)는 마찰과 compliance를 신뢰성 있게 측정하지 못하고 초목/눈/물에 방해받으며 로봇 유발 변화를 포착할 coverage/시간 해상도가 부족하므로, 로봇은 결정적으로 proprioception—자기 신체 구성을 높은 시간 해상도로 감지하는 것—에 의존해야 한다."}, {"type": "bullet", "text": "기존 접근은 motion primitive와 반사를 조율하는 정교한 state machine과 경험적 튜닝 임계값에 기반한 명시적 contact/slip 추정에 의존하는데, 진흙·눈·초목 같은 미모델링 요인 하에서 불규칙해지고 복잡도와 유지 비용이 폭증한다."}, {"type": "bullet", "text": "model-free RL이 대안으로 부상했으나 대체로 실험실 평지나 적당히 texture된 표면에 국한되었으며, 저자들의 이전 연구도 실험실 평지에서만 end-to-end 학습을 시연했다."}, {"type": "bullet", "text": "제시된 제어기는 관절 엔코더와 IMU(가장 내구성 있고 신뢰할 수 있는 센서)의 proprioceptive 측정만 쓰며, 두 세대 ANYmal을 진흙·모래·잔해·초목·눈·흐르는 물로 몰았고, DARPA Subterranean Challenge를 포함한 서로 다른 환경 적응에 튜닝이 필요 없었다.", "figure_refs": [2]}, {"type": "bullet", "text": "표준 sim-to-real 관행을 넘는 세 요소가 결과를 가능케 한다: proprioceptive history에 작용하는 시퀀스 모델 TCN policy(현재 상태 스냅샷의 MLP 대신), privileged learning(ground-truth 상태 teacher를 proprioceptive student로 distill), 그리고 지형을 적응적으로 합성하는 자동 terrain curriculum."}]}, "related_works": {"content": [{"type": "bullet", "text": "불균등 지형의 legged 보행을 위한 기존 제어기는 motion primitive와 반사 제어기를 조율하는 정교한 state machine을 쓰고, 흔히 경험적 튜닝 임계값을 통해 지면 contact과 미끄러짐 같은 상태를 명시적으로 추정한다."}, {"type": "bullet", "text": "그런 시스템은 시나리오가 늘수록 복잡도가 폭증하고 개발·유지가 고되며 corner case에 취약하게 남는다. 한편 발의 contact 센서는 야외 조건에서 신뢰성이 떨어진다."}, {"type": "bullet", "text": "legged 보행에 대한 기존 RL 적용(저자들의 평지 ANYmal 연구와 기타 노력 포함)은 대체로 실험실 평지나 적당히 texture된 표면에 초점을 맞췄다."}, {"type": "bullet", "text": "저자들은 확립된 sim-to-real 관행, 즉 actuator를 포함한 물리 시스템의 현실적 모델링과 시뮬레이션-현실 간 변동 물리 파라미터의 randomization을 재사용하지만, 이것만으로는 robust한 험지 보행에 불충분함을 발견했다."}, {"type": "bullet", "text": "privileged-learning 전략은 'learning by cheating'(Chen et al.)에서 영감을 받았으나, teacher policy를 전문가 시연에 의존하지 않고 강화학습으로 학습한다는 점에서 다르다.", "figure_refs": [4]}, {"type": "bullet", "text": "자동 terrain curriculum은 자동 curriculum learning(ACL)에서 영감을 받았다. paired open-ended trailblazer(POET)와 minimal-criteria 기법은 중간 범위 보상을 목표로 너무 어렵지도 사소하지도 않은 환경 파라미터를 선택한다."}, {"type": "bullet", "text": "본 연구는 open-ended search로 전문화 에이전트 집단을 진화시키는 POET과 달리 단일 generalist 에이전트를 추구한다는 점에서 다르다."}]}, "method": {"content": [{"type": "bullet", "text": "제어기는 명령을 따라 험지를 보행한다. 목표 base 속도를 추종하는 연구들과 달리, 험지에서 실현 가능한 목표 속도가 불분명한 경우가 많아(예: 오르막보다 내리막이 빠름) 목표 수평 방향과 {-1,0,1}의 선회 방향만 명령된다."}, {"type": "bullet", "text": "제어 문제는 마르코프 결정 과정(MDP)으로 정식화되며, teacher는 무한 horizon에 걸친 할인 보상 합을 최대화하도록 기성 RL 기법으로 학습된다.", "figure_refs": [4]}, {"type": "formula", "label": "RL 목적함수 (teacher)", "latex": "\\pi^{*}=\\arg\\max_{\\pi}\\;\\mathbb{E}_{\\xi\\sim\\pi}\\left[\\sum_{t=0}^{\\infty}\\gamma^{t} r_{t}\\right]", "description": "teacher policy는 무한 horizon에 걸친 기대 할인 보상 합을 최대화하도록 최적화된다. gamma는 할인 인자이고 xi는 policy가 생성하는 궤적이며, 보상은 명령 방향으로 더 빨리 전진할수록 높은 값을 준다."}, {"type": "bullet", "text": "teacher 상태 s_t = <o_t, x_t>는 로봇 관측 가능 측정 o_t(명령, 자세, base twist, 관절 위치/속도, leg phase, frequency, 이전 발 위치 목표, 그리고 t-0.01 s·t-0.02 s의 관절 위치 오차/속도)와 privileged 정보 x_t를 결합한다.", "figure_refs": [4]}, {"type": "bullet", "text": "privileged 정보 x_t는 실제 로봇에서 얻을 수 없는 발-지면 상호작용 양으로 구성된다: 지형 프로파일(각 발 주위 10 cm 원의 9개 스캔점 고도), 발 contact 상태와 force, 마찰 계수, 외부 외란 force. MLP 인코더가 x_t를 latent l-bar_t로 임베딩하며, 저자들은 이것이 지형에 따라 발 clearance를 바꾸는 등의 적응 행동을 이끈다고 가정한다."}, {"type": "bullet", "text": "teacher action은 leg frequency와 발 위치 잔차의 16차원 벡터다. policy는 두 MLP 블록(인코더 + action)이며 Trust Region Policy Optimization(TRPO)으로 학습된다."}, {"type": "bullet", "text": "proprioceptive student는 o_t만(privileged 항 제거) 쓰며, dilated causal convolutional layer 3개를 strided layer와 교차한 temporal convolutional network(TCN) 인코더로 history H = {h_{t-1}, ..., h_{t-N-1}}를 읽는다. TCN은 입력 history 길이의 투명한 제어, 긴 history 수용 능력, 하이퍼파라미터 robust성 때문에 선택되었다."}, {"type": "formula", "label": "Student imitation loss (Eq. 1)", "latex": "L:=\\big(\\bar{a}_{t}(o_{t},x_{t})-a_{t}(o_{t},H)\\big)^{2}+\\big(\\bar{l}_{t}(o_{t},x_{t})-l_{t}(H)\\big)^{2}", "description": "student는 teacher의 action a-bar와 teacher의 latent 임베딩 l-bar(bar 기호는 teacher 목표)를 모두 맞추도록 supervised learning으로 학습된다. 학습 데이터는 student policy를 roll-out하고 방문한 각 상태에 teacher 출력을 라벨링해 생성한다(DAgger dataset-aggregation 전략)."}, {"type": "bullet", "text": "운동 생성은 Policies Modulating Trajectory Generators(PMTG) 아키텍처를 쓴다: 다리별 주기 phase phi in [0, 2pi)(contact phase [0, pi), swing phase [pi, 2pi))가 base frequency f0 = 1.25 Hz에 학습된 다리별 offset을 더해 진행하고, 4개 발 궤적 생성기가 policy의 frequency offset과 발 위치 잔차로 변조되는 수직 stepping 운동을 만든다.", "figure_refs": [4]}, {"type": "bullet", "text": "발 위치 목표는 다리별 수평 프레임(조기 종료를 줄이고 초기 학습을 안정화하기 위해 base roll/pitch와 분리)에서 정의되며, 해석적 역기구학과 관절 위치 PD 제어로 추종된다. 시뮬레이션은 학습된 관절-PD actuator 모델(Hwangbo et al.)을 써서 하드웨어 fine-tuning 없는 sim-to-real 전이를 돕는다."}, {"type": "formula", "label": "지형 traversability (Eq. 3)", "latex": "\\mathrm{Tr}(c_{T},\\pi)=\\mathbb{E}_{\\xi\\sim\\pi}\\{\\nu(s_{t},a_{t},s_{t+1}\\mid c_{T})\\}\\in[0,1]", "description": "지형 난이도는 traversability, 즉 policy pi 하에서 c_T로 매개변수화된 지형을 건너는 기대 성공으로 측정된다. 라벨링 함수 nu는 명령 방향에 투영된 base 속도가 0.2 m/s를 넘으면 전이를 성공으로 표시한다. curriculum은 중간 범위 traversability Tr in [0.5, 0.9]를 목표로 하고, Sequential-Importance-Resampling particle filter로 policy 향상에 맞춰 그런 지형 파라미터 분포를 유지한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "제어기는 (기구학·관성·actuator가 다른) ANYmal-B와 ANYmal-C에 가파른 산길, 흐르는 물의 개울, 진흙, 빽빽한 초목, 헐거운 잔해, 눈 덮인 언덕에서 배치되었으며, 세대별로 정확히 동일한 제어기로 환경별 튜닝 없이 수행되었다.", "figure_refs": [1, 2]}, {"type": "bullet", "text": "DARPA Subterranean Challenge Urban Circuit에서 제어기는 이전 모델 기반 제어기를 대체해 두 대의 ANYmal-B를 네 차례 60분 임무에서 무실패로 구동했고 가파른 ~45도 계단(18 cm 단높이)을 주파했다. 저자들은 이를 model-free-RL로 학습된 legged 제어기의 첫 경쟁적 야외 사용으로 기록한다.", "figure_refs": [2]}, {"type": "bullet", "text": "이끼·진흙·초목에서 최신 모델 기반 baseline 대비 제시된 제어기는 더 높은 평균 속도와 더 낮은 기계적 cost of transport를 달성했고(예: 이끼 0.452 vs 0.199 m/s; baseline은 초목에서 완전 실패), baseline의 파국적 실패가 집계되지 않아 정량 표는 격차를 과소평가한다.", "figure_refs": [3]}, {"type": "bullet", "text": "학습에서 결코 지정되지 않은 창발적 foot-trapping 반사는 policy가 순수 proprioception만으로 발 걸림을 식별하고 16.8 cm 계단 위로 발을 들게 한다. 최대 발 clearance가 정상 보행의 12.9-13.6 cm에서 foot-trapping 시 18.5-22.5 cm로 상승하며, 반사는 발 contact으로 신호되지 않는 정강이 중간 충돌에도 일반화된다.", "figure_refs": [3, 6]}, {"type": "bullet", "text": "단일 계단 진단(높이별 10회 시도)에서 제어기는 오름과 내림 모두에서 baseline을 능가했고, baseline은 foot-trapping에 높은 민감도를 보여 종종 낙상을 야기했다.", "figure_refs": [3]}, {"type": "bullet", "text": "10 kg 페이로드(체중의 22.7%, 학습에서 결코 시뮬레이션되지 않음)에서도 제어기는 최대 13.4 cm 계단을 주파한 반면 baseline은 페이로드를 지고 어떤 계단도 넘지 못해, 상당한 모델 불일치에 대한 robust성을 입증했다.", "figure_refs": [3]}, {"type": "bullet", "text": "페이로드를 진 평지에서 제어기는 8방향 명령을 ~0.4 m/s로 추종하며 페이로드 유무와 무관하게 heading 오차를 일관되게 10도 이내로 유지한 반면, baseline은 비등방 속도, ~30도 횡 heading 오차를 보였고 0.6 m/s에서 실패했다.", "figure_refs": [3]}, {"type": "bullet", "text": "Ablation 연구(각 모델을 다른 seed로 5회 학습, 테스트당 100회 시도)는 TCN 메모리 길이, privileged 학습(teacher 없이 직접 학습한 student는 훨씬 나쁨), 적응형 terrain curriculum이 각각 성능에 상당히 기여함을 보인다.", "figure_refs": [5]}]}, "discussion": {"content": [{"type": "bullet", "text": "결과는 legged 로보틱스의 공개된 최신 기술을 크게 진전시키며, 방법론은 특정 결과를 넘어 폭넓게 응용된다."}, {"type": "bullet", "text": "본 연구 이전에는, 현재 기술이 compliant contact·미끄러짐·변형/붕괴 지형을 시뮬레이션할 수 없으므로 시뮬레이션 학습이 물리 세계 복잡성 표현의 한계로 근본적으로 제약된다고 가정할 수 있었다."}, {"type": "bullet", "text": "본 연구는 물리 세계의 놀라운 다양성을 시뮬레이션할 필요가 없을 수 있음을 보인다: compliance나 지상 차폐물이 없는 rigid 지형만으로 학습해도 배치 시 다양한 야외 조건에 부합한다."}, {"type": "bullet", "text": "첫 번째 한계: ANYmal이 물리적으로 여러 gait를 낼 수 있음에도 제어기는 trot gait만 보이며 이는 사족이 자연에서 쓰는 gait 패턴보다 좁다. 다양성을 강조하는 학습 프로토콜이 이를 끌어낼 것으로 가정된다."}, {"type": "bullet", "text": "두 번째 한계: 제어기는 오직 proprioception에 의존하므로 blind 보행은 본질적으로 제한적이고(명령하면 절벽으로 걸어감) 몸으로 환경을 더듬어야 해 gait가 보수적이다."}, {"type": "bullet", "text": "주요 향후 방향은 vision이 방해받을 때도 보행하되 가능할 때 exteroceptive 데이터를 쓰는 하이브리드 proprioceptive-exteroceptive 제어기로, 절벽 같은 치명적 특징의 지형 주파와 더 안전한 조건에서의 속도/효율 향상을 가능케 한다."}, {"type": "bullet", "text": "더 넓게는, 결과가 바퀴·궤도 로봇을 넘는 환경으로의 legged 기계 배치를 앞당기고, 복잡한 로봇 시스템을 시뮬레이션에서 학습해 물리 세계의 전 복잡성에 배치하는 새 지평을 연다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "오직 시뮬레이션에서만 학습된 순수 proprioceptive 보행 제어기가 물리 ANYmal 로봇에서 험지 자연 환경으로의 놀라운 zero-shot 일반화를 달성한다."}, {"type": "bullet", "text": "세 핵심 요소—privileged teacher-student 학습, proprioceptive history 위의 TCN 시퀀스 모델, 자동 terrain curriculum—가 함께 문헌의 대응물보다 훨씬 robust한 단일 generalist 제어기를 만든다."}, {"type": "bullet", "text": "제어기는 학습 중 마주치지 않은 조건—변형성 지형(진흙, 눈), 동적 발판(잔해), 지상 장애물(초목, 솟구치는 물)—에서도 robust성을 유지한다."}, {"type": "bullet", "text": "foot-trapping 반사 같은 창발 행동이 명시적 지정 없이 적응적으로 발달해, 반사를 수작업으로 만드는 기존 state-machine 제어기와 구별된다."}, {"type": "bullet", "text": "최신 모델 기반 baseline 대비 제어기는 더 빠르고 에너지 효율적이며 계단 주파가 우수하고 큰 미학습 페이로드에 robust하며 heading이 더 정확하다. 무실패 DARPA Subterranean Challenge 배치 포함."}, {"type": "bullet", "text": "본 연구는 자연 환경의 극단적 robust성이 훨씬 단순한 시뮬레이션 도메인 학습으로 달성될 수 있음을 시사하며, sim-to-real legged 로보틱스의 새 지평을 연다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "제어기는 trot gait만 보이는데, ANYmal 하드웨어가 물리적으로 여러 gait를 낼 수 있음에도 이는 사족이 자연에서 쓰는 gait 패턴 범위보다 좁다.", "source_quote": "First, the presented controller only exhibits the trot gait. This is narrower than the range of gate patterns discovered by quadrupeds in nature.", "source_section": "discussion"}, {"claim": "제어기는 오직 proprioception에 의존하므로 blind 보행은 본질적으로 제한적이다: 절벽으로 걸어가라고 명령하면 그렇게 하며, 더 온건한 조건에서도 로봇이 몸으로 환경을 더듬어야 해 gait가 보수적이다.", "source_quote": "Nevertheless, blind locomotion is inherently limited. If the machine is commanded to walk off a cliff, it will.", "source_section": "discussion"}, {"claim": "현재 시뮬레이션은 compliant contact, 미끄러짐, 변형/붕괴 지형을 표현할 수 없어, 진흙·눈·초목·솟구치는 물 같은 현상은 로보틱스 시뮬레이션 프레임워크 너머에 있으며 학습 중 한 번도 시뮬레이션되지 않았다.", "source_quote": "Present-day technology is severely limited in its ability to simulate compliant contact, slippage, and deformable and crumbling terrain.", "source_section": "discussion"}], "future_works": [{"claim": "제시된 방법론을 출발점으로 삼아, 동물처럼 vision이 방해받을 때도 보행하되 exteroceptive 데이터가 있을 때 이를 활용하는 하이브리드 proprioceptive-exteroceptive 제어기를 만든다.", "source_quote": "A major opportunity for future work is to use the presented methodology as a starting point in the development of a hybrid proprioceptive-exteroceptive controller that, like many animals, will be able to locomote even when vision and other external senses are disrupted, but will use exteroceptive data when it is provided.", "source_section": "discussion"}, {"claim": "ANYmal 하드웨어가 낼 수 있는 더 넓은 gait 패턴 범위를 끌어내도록 다양성을 강조하는 학습 프로토콜과 목적함수를 개발한다.", "source_quote": "We hypothesize that training protocols and objectives that emphasize diversity can elicit these.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["불균등 지형의 legged 보행을 위한 기존 제어기는 motion primitive와 반사를 촉발하는 정교한 state machine과 경험적 튜닝 임계값에 기반한 명시적 contact/slip 추정에 의존하는데, 복잡도가 폭증하고 개발이 고되며 진흙·눈·초목 같은 미모델링 조건에서 불규칙해지거나 실패한다.", "exteroceptive 센서(카메라, LiDAR)는 지형 마찰/compliance를 신뢰성 있게 측정하지 못하고 초목/눈/물에 가려지며 로봇 유발 변화를 놓치므로 제어기는 결정적으로 proprioception에 의존해야 하는데, 다양한 험지 자연 환경에서 동적 보행을 시연한 공개 연구는 없었다.", "model-free RL은 대체로 평지나 적당히 texture된 실험실 지형에 국한되어 있었고, 저자들은 표준 sim-to-real 관행(현실적 actuator 모델링, 파라미터 randomization)에 더해 험지에서의 직접 RL이 합리적 예산 내 학습하기에는 감독 신호가 너무 희소해 불충분함을 발견했다."], "addressed_by_this_work": ["2단계 privileged-learning 프로토콜이 ground-truth 지형/contact 정보를 가진 teacher를 학습한 뒤 (DAgger imitation으로) 순수 proprioceptive student로 distill해, 직접 RL이 결여한 조밀한 감독을 제공하고 실제 로봇에 배치 가능한 policy를 산출한다.", "확장된 proprioceptive history를 읽는 TCN student가 contact과 미끄러짐을 암묵적으로 추론하도록 학습해, 취약한 명시적 contact/slip 추정기를 대체하고 학습 중 지정되지 않은 창발적 반사(예: foot-trapping 회복)를 만든다.", "particle filtering을 쓰는 자동 terrain curriculum이 학습 내내 절차 생성 지형을 중간 범위 traversability로 유지해, 제어기가 점진적으로 더 robust해지고, rigid 절차 지형만으로 학습하면서도 변형성·미끄러움·차폐 자연 환경에 zero-shot 일반화된다."], "remaining_unresolved": ["제어기는 trot gait와 blind proprioception에 국한되므로, 다중 gait 다양성, 그리고 절벽 같은 치명적 지형 특징을 다루면서 안전 조건에서 속도/효율을 높이는 하이브리드 proprioceptive-exteroceptive 제어기가 미해결로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

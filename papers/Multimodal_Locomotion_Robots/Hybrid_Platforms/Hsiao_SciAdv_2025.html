@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Hybrid locomotion at the insect scale: Combined flying and jumping for enhanced efficiency and versatility</title>
+    <meta name="keywords" content="insect-scale robot, hopping locomotion, flapping-wing micro-aerial vehicle, multimodal locomotion, dielectric elastomer actuator, energetic efficiency, passive elastic leg, attitude control">
+    <meta name="paper-authors" content="Yi-Hsuan Hsiao, Songnan Bai, Zhongtao Guan, Suhan Kim, Zhijian Ren, Pakpong Chirarattananon, Yufeng Chen">
+    <meta name="paper-journal" content="Science Advances, Vol. 11, eadu4474, 9 April 2025 (Applied Sciences and Engineering) · DOI: 10.1126/sciadv.adu4474">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Hybrid locomotion at the insect scale: Combined flying and jumping for enhanced efficiency and versatility</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Yi-Hsuan Hsiao, Songnan Bai, Zhongtao Guan, Suhan Kim, Zhijian Ren, Pakpong Chirarattananon, Yufeng Chen</div>
+            <div class="journal">Science Advances, Vol. 11, eadu4474, 9 April 2025 (Applied Sciences and Engineering) · DOI: 10.1126/sciadv.adu4474</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 비행의 다재다능함과 지상 이동의 효율성 사이의 절충을 다루며, 날갯짓 마이크로 비행체(flapping-wing micro-aerial vehicle)와 수동 신축식 다리를 결합하여 곤충 스케일에서 <span class="term">hopping</span> 이동을 달성하는 1그램 미만(<1 g) 로봇을 제시한다. 긴 공중 단계 동안 자세 및 고도 제어를 수행하는 한편, 짧은(8-12 ms) 입각(stance) 단계 동안 수동 다리가 에너지를 회수(>80%)함으로써, 로봇은 1.5-20 cm 높이와 2-8.4 Hz로 연속적으로 도약한다. 비행과 비교하면 hopping은 전력 소비를 최대 64%까지 줄이고 탑재 용량을 10배 이상(2 g까지, 추정 최대 >7 g) 증가시킨다. 로봇은 측방 설정점을 추종하고, 장애물을 극복하며, 나무/얼음/유리/흙/잔디 및 떠 있는 연잎 위를 도약하고, 공중 충돌에서 복구하며, 공중제비를 수행하고, 심지어 더 큰 쿼드로터 위에서도 도약한다. 본 연구는 1그램 미만 로봇에서 이전에 달성된 적 없는 역량을 시연하며 자율 전력 마이크로로봇을 향한 길을 연다.</div>
+            <div class="keywords"><span class="keyword-chip">insect-scale robot</span><span class="keyword-chip">hopping locomotion</span><span class="keyword-chip">flapping-wing micro-aerial vehicle</span><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">dielectric elastomer actuator</span><span class="keyword-chip">energetic efficiency</span><span class="keyword-chip">passive elastic leg</span><span class="keyword-chip">attitude control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 곤충 스케일 로봇에서 이동 다재다능함과 에너지 효율 사이의 핵심 절충을 정립하며, 다리 기반 기어가기는 효율적이지만 지형에 제한되는 반면 비행은 다재다능하지만 전력과 탑재 용량에 제약된다는 점을 지적한다. 곤충에 편재하는 hopping이 두 가지를 융합하지만, 중간 스케일(mesoscale) hopping 설계는 빠른 동역학(<20 ms 지면 접촉)과 제작/제어상의 난제 때문에 1그램 미만 영역으로 축소되지 않는다고 주장한다. 저자들은 날갯짓 마이크로 비행체에 수동 탄성 다리를 추가하는 것을 동기로 삼는다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 서론과 논의에 걸쳐 엮여 있으며, 선행 마이크로로봇 이동 패러다임을 대비한다: 다리 기반 기어가기/달리기, 정전 기어오르기, 단발 점프, 중간 스케일 hopping. 본 논문은 강체 구동 정밀 마이크로로봇 및 소프트 로봇에 대비하여 자신을 위치시키며, 두 선행 부류 모두 1그램 미만 스케일에서 민첩성과 강건성을 동시에 달성하지 못한다고 주장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법은 로봇 설계/제작, 다리 특성화, 계산적으로 효율적인 hopping 컨트롤러를 다룬다. 두 종류의 1그램 미만 로봇(8날개 및 4날개)은 각각 4개의 날갯짓 유전체 탄성중합체 액추에이터(dielectric-elastomer-actuator) 모듈(질량의 ~80%)과 수동 신축식 다리(~20%)를 탑재한다. hopping 주기는 공중 단계가 지배하며(시간의 >90%); 제어는 짧은 동력 상승을 통해 높이를 조절하고 경험적으로 적합된 착지-대-이륙 매핑을 사용하여 착지 자세를 설정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 hopping 정확도, 효율, 탑재 용량, 지형 적응성, 민첩성을 평가한다. 로봇은 4-20 cm 높이에서 설정점을 추종하며 RMS 착지 오차가 2.1 cm에서 증가하고, 32 cm/s 측방 hopping 속도에 도달하며, 2 g 탑재물을 운반하고, 비행 대비 전력과 COT를 상당히 감소시킨다. 또한 다양한 지형, 동적으로 회전하는 판 위를 도약하고, 충돌에서 복구하며, 공중제비를 하고, 29-g 쿼드로터 위에서도 도약한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 지능형 기계적 설계(수동 다리, 소프트 DEA, 컴플라이언트 메커니즘)와 알고리즘적 설계(효율적인 추정/계획/제어)가 선행 강체 또는 소프트 마이크로로봇으로는 달성 불가능했던 효율적이고 강건하며 민첩한 1그램 미만 hopping을 어떻게 함께 가능하게 하는지를 종합한다. 에너지 및 탑재 용량 이득을 미래 전력 자율성의 기반으로 강조하고 현실적인 배터리 예산을 정량화한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 날갯짓 마이크로 비행체에 수동 탄성 다리를 추가함으로써 1그램 미만 로봇에서 최초로 효율적이고 다재다능하며 강건한 hopping을 시연하여, 이 스케일에서 이전에 보인 적 없는 역량을 달성했다고 결론짓는다. 이들은 탑재 용량과 효율 향상을 자율적 곤충 스케일 로봇을 향한 디딤돌로 규정한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "곤충은 비정형 환경에서 다재다능함과 각 이동 모드의 에너지 비용 사이의 균형을 맞추기 위해 다중 모드 전략(기어가기, 기어오르기, 점프, 활공, 비행)을 사용한다."}, {"type": "bullet", "text": "에너지 효율은 호버링에 대해서는 양력-대-전력 비로, 병진에 대해서는 <span class=\"term\">cost of transport (COT)</span>로 정량화되며, 이는 논문 전반에서 사용되는 지표를 제공한다."}, {"type": "bullet", "text": "대부분의 그램 스케일 마이크로로봇은 평평한 지면에서는 효율적이지만 나뭇잎이나 꽃과 같이 거칠고 미끄럽거나 유연한 표면에서는 미끄러지거나 얽히는 다리 기반 설계를 사용한다."}, {"type": "bullet", "text": "비행은 높은 장애물 통과 다재다능함을 제공하지만 높은 전력을 요구하고 매우 제한된 탑재 용량을 제공하며, 기존 1그램 미만 비행 로봇은 온보드 에너지원을 탑재할 수 없다."}, {"type": "bullet", "text": "점프하는 곤충은 래치 매개 스프링 작동(latch-mediated spring actuation)을 사용하여 0.7 m(체장의 115배)를 초과한다; 1그램 미만 점프 로봇은 ~0.64 m에 도달하지만 자세/착지를 제어하거나 연속 점프를 위해 재장전할 수 없다."}, {"type": "bullet", "text": "hopping(연속 점프)은 35-100 g의 중간 스케일 로봇에서만 정립되어 있으며, 대부분 다중 링크와 스프링을 갖춘 스프링 부하 역진자(spring-loaded inverted pendulum) 모델에 기반한다."}, {"type": "bullet", "text": "hopping을 곤충 스케일로 축소하는 것은 동역학이 훨씬 빨라지고(지면 접촉 <20 ms는 마이크로액추에이터 제어 대역폭을 초과함) 1 mm 미만의 스프링/플렉셔를 제작하기 어렵기 때문에 난해하다.", "figure_refs": [1]}, {"type": "bullet", "text": "저자들의 이전 35-g Hopcopter는 쿼드콥터에 추가된 수동 신축식 다리가 제어성과 효율을 향상시킴을 보였으며, 이는 기계적 복잡성을 줄이기 위해 그 개념을 1그램 미만 스케일에 적용하도록 동기를 부여한다.", "figure_refs": [1]}]}, "related_works": {"content": [{"type": "bullet", "text": "다리 기반 그램 스케일 마이크로로봇(refs 4-8)은 다양한 보행과 속도를 시연하지만 주로 평평한 지면에서만 효율적이다."}, {"type": "bullet", "text": "정전 흡착 기어오르기 마이크로로봇(refs 9, 10)은 수직 표면을 오를 수 있지만 낮은 속도와 신뢰성으로 매끄러운 표면에 국한된다."}, {"type": "bullet", "text": "스프링-래치 단발 점프 1그램 미만 로봇(refs 16, 17, 21, 22)은 높은 점프(~0.64 m)에 도달하지만 에너지를 느리게 저장하고 착지 후 방향을 재설정하거나 재장전할 수 없다."}, {"type": "bullet", "text": "중간 스케일 hopping 로봇(refs 18-20, 23)은 비행 중 직렬-탄성 메커니즘에 에너지를 저장하고 입각 동안 방출하며, 대부분 스프링 부하 역진자 모델을 사용한다.", "figure_refs": [3]}, {"type": "bullet", "text": "저자들의 35-g Hopcopter(ref 20)는 착지-대-이륙 매핑을 실시간으로 해석적으로 계산했는데, 이는 고주파 저고도 hopping에 부적합한 높은 계산 비용을 갖는다."}, {"type": "bullet", "text": "소프트 로봇은 강건성과 안전성을 강조하지만 속도, 정밀도, 제어성이 제한되어 민첩한 기동과 지형 횡단을 저해한다."}, {"type": "bullet", "text": "강체 구동 마이크로로봇(refs 11, 42, 43)은 곤충 같은 정밀도, 비행, 점프, 달리기를 달성하지만 충돌 시 손상 위험이 있어 곤충 같은 강건성이 결여되어 있다."}, {"type": "bullet", "text": "이전의 0.7-g 비행 로봇(ref 13)은 몸체 뒤집기는 가능했지만 여기서의 hopping 로봇과 달리 지면에 닿기 전에 고도 안정성을 복구할 수 없었다.", "figure_refs": [5]}]}, "method": {"content": [{"type": "bullet", "text": "각 로봇은 1 g 미만이며 330-400 Hz로 작동하는 전력 밀도가 높은 유전체 탄성중합체 액추에이터(DEA)로 구동되는 4개의 날갯짓 추진 모듈을 갖추어, 최대 양력-대-무게 비 1.25와 36 cm/s 측방 비행 속도를 제공한다.", "figure_refs": [1]}, {"type": "bullet", "text": "두 가지 다리 설계가 평가된다: 150 mg, 8 cm 테이퍼형 탄소 섬유 적층 스프링(강성 122 N/m)과 3D 프린팅 케이스 내의 220 mg, 5.3 cm 강철 압축 스프링(유효 강성 72 N/m); 둘 다 낙하 시험에서 80% 이상의 에너지를 회수한다.", "figure_refs": [1]}, {"type": "bullet", "text": "hopping 주기는 짧은(8-12 ms) 수동 입각 단계와, 동력 상승과 저전력(~15%) 자세 제어로 분할되는 긴(>200 ms) 공중 단계를 갖는다.", "figure_refs": [1]}, {"type": "bullet", "text": "높이는 동력 상승의 지속 시간을 명령함으로써 조절된다: 로봇은 직립 자세를 유지하고 양력 delta*mg를 생성하며, 총 기계적 에너지가 목표 위치 에너지 mg*h_D에 도달하면 저전력 모드로 전환한다."}, {"type": "bullet", "text": "궤적의 정점에서 컨트롤러는 탄도 궤적을 가정하여 착지 위치와 속도를 추정한 다음, 다음 착지 위치와 원하는 이륙 속도를 계획한다.", "figure_refs": [1]}, {"type": "formula", "label": "Eq. (1) - 탄도 착지 위치 추정", "latex": "\\hat{p}_{LD} = p + \\dot{p}\\,\\hat{t} - \\tfrac{1}{2} g\\,\\hat{t}^{2} e_3", "description": "순간 위치 $p$, 속도 $\\dot{p}$, 추정 착지까지의 시간 $\\hat{t}$, 그리고 z-단위 벡터 $e_3$를 따른 중력으로부터의 추정 착지 위치."}, {"type": "bullet", "text": "계획기는 수렴 속도를 설정하는 증분 이득으로 착지 위치 오차를 원하는 설정점을 향해 점진적으로 감소시킨다.", "figure_refs": [2]}, {"type": "formula", "label": "Eq. (4) - 착지 위치 계획 갱신", "latex": "p_{PLAN,LD} = \\hat{p}_{LD} + \\gamma\\,(p_D - \\hat{p}_{LD})", "description": "다음 계획된 착지 위치는 추정 착지 위치 $\\hat{p}_{LD}$와 원하는 위치 $p_D$ 사이를 증분 이득 $\\gamma$로 보간한다."}, {"type": "formula", "label": "Eq. (5) - 원하는 이륙 속도", "latex": "\\dot{p}_{PLAN,TO} = \\frac{1}{\\sqrt{8h_D/g}}(p_{PLAN,LD} - \\hat{p}_{LD}) + e_3\\sqrt{2 g h_D}", "description": "이륙 속도는 측방 항(첫째)과 탄도 공중 단계 지속 시간 $t_{air}=\\sqrt{8h_D/g}$에서 유도된 수직 항(둘째)을 결합한다."}, {"type": "bullet", "text": "낙하 시험 실험은 착지 속도/각도와 이륙 속도/각도 사이의 경험적 선형 매핑을 산출하며, 최적 적합 계수는 k_v=0.84, k_theta=3.15(4날개)와 k_v=0.91, k_theta=2.35(8날개)이다.", "figure_refs": [1]}, {"type": "formula", "label": "Eqs. (6)-(7) - 경험적 착지-대-이륙 매핑", "latex": "\\lVert\\dot{p}_{TO}\\rVert = k_v\\,\\lVert\\dot{p}_{LD}\\rVert, \\qquad \\psi = k_\\theta\\,\\theta_{LD}", "description": "이륙 속도는 착지 속도에 $k_v$만큼 비례한다; 입각 단계 회전 각도 $\\psi$는 착지 오프셋 각도 $\\theta_{LD}$에 $k_\\theta$만큼 비례한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "4날개 로봇은 4, 7, 10, 20 cm 높이에서 설정점을 추종했다; 4-cm 경우는 거의 탄도 궤적과 2.1 cm RMS 착지 오차로 ~5 Hz로 도약하며, 이 오차는 점프 높이에 따라 증가한다.", "figure_refs": [2]}, {"type": "bullet", "text": "상대 착지 정확도(오차/점프 높이)는 선행 시스템과 비슷한 0.3-0.5였던 반면, 절대 정확도는 저고도 고주파 hopping 덕분에 더 높았다.", "figure_refs": [2]}, {"type": "bullet", "text": "설정점 전환 중 로봇은 평균 측방 속도 32 cm/s(비행 시 36 cm/s 대비)에 도달했고 5.5-cm 높이의 장애물을 뛰어 오르내렸다.", "figure_refs": [2]}, {"type": "bullet", "text": "탑재 용량은 hopping 중 2 g(로봇 무게의 >200%)에 도달했으며, 비행 시 200 mg에 불과한 것에 비해 추정 최대 탑재 용량은 7 g을 초과한다; 2-g 탑재물로 공칭 양력의 33%만 필요했다.", "figure_refs": [3]}, {"type": "bullet", "text": "hopping 전력은 호버링 비행 대비 45-64% 감소 범위에 있었다; hopping 설계는 유효 양력을 200% 증가시키고 전력을 40% 이상 감소시켰으며, 이는 호버링 양력-대-전력 비의 3.3배에 해당한다.", "figure_refs": [3]}, {"type": "bullet", "text": "비행과 hopping의 COT는 각각 2.57e3과 1.27e3이었고(각각 36, 32 cm/s 하에서), 유도된 모델은 고정 착지 각도 하에서 COT가 hopping 높이와 무관함을 예측한다.", "figure_refs": [3]}, {"type": "formula", "label": "탄도 주파수-높이 한계", "latex": "f = \\sqrt{\\frac{g}{8h}}", "description": "hopping 주파수 $f$를 도약 높이 $h$와 관계 짓는 상한; 로봇의 낮은 관성 덕분에 선행 플랫폼 및 동물보다 1.6-10.5배 높은 주파수로 도약할 수 있었다."}, {"type": "bullet", "text": "단일 적응형 컨트롤러가 나무, 얼음, 유리, 유리+물, 흙, 잔디를 처리했다; 잔디는 유리보다 83% 더 많은 추력과 61% 더 많은 토크를 요구했으며, 표면-대-표면 전환은 단일 표면 정확도와 일치했다.", "figure_refs": [4]}, {"type": "bullet", "text": "동적으로 회전하는 판 위에서 로봇은 주파수가 4.2-8.4 Hz로, 상대 도약 높이가 1.5-6.4 cm로 변하는 동안 5.3-cm의 실험실 좌표계 hopping 높이를 유지했다.", "figure_refs": [5]}, {"type": "bullet", "text": "3 cm 높이에서 두 번의 막대 충돌 후, 컨트롤러는 6.1e-5 N*m의 복원 토크를 명령하여 113 ms 이내에 자세 편차를 54.8 deg에서 5.2 deg로 줄이고 6번의 hopping 주기 이내에 위치를 복구했다.", "figure_refs": [5]}, {"type": "bullet", "text": "로봇은 0.93의 정점 정규화 양력 F/mg(공칭 hopping보다 45%만 높음)로 15.1 cm 높이에서 0.13 s 만에 공중제비를 수행했다.", "figure_refs": [5]}, {"type": "bullet", "text": "0.97-g 로봇은 29-g Crazyflie 2.1 쿼드로터 위에서 도약하여 19-cm 간격을 건넜으며 200 ms 이내에 자세를 복구했고, 떠 있는 연잎 위에서 반복적으로 도약했다.", "figure_refs": [6]}]}, "discussion": {"content": [{"type": "bullet", "text": "hopping은 수동 에너지 회수 다리를 능동 제어 날개와 짝지음으로써 가능해지며, 힘/토크 제어를 비현실적인 <20 ms 입각 단계에서 더 긴 공중 단계로 이동시킨다."}, {"type": "bullet", "text": "전력 밀도가 높은 DEA는 강체 모터와 압전 세라믹이 견딜 수 없는 큰 내부 응력 하에서 고주파(330-400 Hz) 날갯짓과 동력 상승 및 저전력 제어 사이의 빠른 전환을 가능하게 한다."}, {"type": "bullet", "text": "소프트 액추에이터와 컴플라이언트 메커니즘은 강체 구동 비행 로봇 사이에서 드문 특성인 로봇 수준의 충돌 복원력을 부여한다."}, {"type": "bullet", "text": "로봇은 (느리고 부정확한) 소프트 또는 (취약한) 강체 선행 마이크로로봇과 달리, 도전적인 지형을 횡단하면서 주기적인 다리-지면 충격을 견디며 민첩성과 강건성을 동시에 달성한다."}, {"type": "bullet", "text": "비행 대비 보고된 정량적 이득: 1.5-20 cm, 2-8.4 Hz 작동 범위 전반에서 탑재 용량 10배 증가, 최대 64% 전력 감소, 51% COT 감소."}, {"type": "bullet", "text": "서로 다른 크기의 기계 사이의 충격적 상호작용(더 큰 쿼드로터 위에서 도약하기)은 이동 역량을 확장할 수 있으며, 이는 비슷한 무게의 플랫폼에서는 불가능할 것이다."}, {"type": "bullet", "text": "전력 자율성 예산은 2 g을 운반하는 동안 0.47 W를 추정하며, ~0.3 g 센서, 0.7 g 부스트 전자장치, 1 g 배터리를 할당하여 200 Wh/kg 배터리 밀도와 10-20% 변환 효율에서 ~2-5분의 hopping을 산출한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "공중 단계 양력/토크를 위한 4개의 날갯짓 모듈과 입각 단계 에너지 회수를 위한 수동 다리를 사용하여 복잡한 지형을 효율적으로 횡단하는 1그램 미만 hopping 로봇이 제시되었다."}, {"type": "bullet", "text": "탑재 용량 10배 증가와 51% COT 감소로 1.5-20 cm 및 2-8.4 Hz에 걸친 저고도 고주파 hopping을 시연했다."}, {"type": "bullet", "text": "피드백 제어 하에서 로봇은 설정점을 추종하고, 높은 장애물을 극복하며, 나무, 유리, 얼음, 흙, 잔디 위에서 도약했다."}, {"type": "bullet", "text": "작은 관성과 큰 토크 생성 덕분에 뛰어난 강건성과 민첩성을 보였으며, 동적으로 기울어진 표면 위에서 도약하고, 공중 충돌에서 복구하며, 공중제비를 수행했다."}, {"type": "bullet", "text": "더 큰 쿼드로터 위로 점프하기와 떠 있는 연잎 위에서 도약하기 등, 1그램 미만 로봇이 이전에 달성한 적 없는 독특한 경량 스케일 작업을 시연했다."}, {"type": "bullet", "text": "전력 밀도가 높은 소프트 액추에이터, 컴플라이언트 메커니즘, 강체 부속물을 계산적으로 효율적인 제어와 통합한 것이 민첩하고 강건한 마이크로 스케일 이동의 핵심 동인으로 식별된다."}, {"type": "bullet", "text": "상당한 효율 및 탑재 용량 이득은 곤충 스케일 로봇을 위한 미래의 온보드 센싱, 전력, 자율성을 가능하게 하는 것으로 위치시킨다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "로봇은 온보드 에너지나 연산이 아닌 오프보드 전력 및 제어에 의존한다.", "source_quote": "Although the robot relies on offboard power and control, the substantial payload and efficiency improvement open opportunities for future study on autonomous locomotion.", "source_section": "discussion"}, {"claim": "착지 오차가 점프 높이에 따라 증가하기 때문에, 가변 높이 hopping은 키 큰 얇은 물체가 아닌 계단 같은 평평한 장애물만 횡단할 수 있다.", "source_quote": "Although variable height hopping enables obstacle traversal as demonstrated in Fig. 2L, it is limited to overcoming stair-like flat obstacles.", "source_section": "experiment"}, {"claim": "높은 점프의 착지 정확도를 개선하려면 하강 단계 위치 제어가 필요하며, 이는 점프 효율을 감소시킬 것이다.", "source_quote": "To improve landing accuracy when performing high jumps, the robot needs to exert position control during the descent phase, which would reduce jumping efficiency.", "source_section": "experiment"}, {"claim": "저고도 hopping의 에너지 이점은 일정한 자세 제어 노력과 고정된 전력 오프셋 때문에 매우 낮은 도약 높이에서 감소한다.", "source_quote": "However, the energetic benefit diminishes at very low hop heights because of a combination of attitude control effort and the constant power offset.", "source_section": "experiment"}], "future_works": [{"claim": "증가된 탑재 용량으로 가능해진 온보드 센서, 전자장치, 전원을 통합하여 이동 자율성을 추구한다.", "source_quote": "The 10 times payload increase opens opportunities for incorporating onboard sensors, electronics, and power sources.", "source_section": "discussion"}, {"claim": "충격적 로봇 간 상호작용을 사용하여 이종 로봇 군집 내에서 충돌 친화적 거동을 연구한다.", "source_quote": "It opens opportunities for studying collision-friendly behaviors within a heterogeneous robot swarm, as well as extending robot locomotion capabilities to a wide range of delicate and challenging terrains.", "source_section": "discussion"}, {"claim": "현실적인 배터리-및-센서 탑재 예산으로 수 분간 도약할 수 있는 자율 마이크로로봇을 개발한다.", "source_quote": "we expect that the robot would hop for 2 to 5 min under this energetic and payload budget. This analysis opens opportunities for developing autonomous microrobots that can traverse challenging terrains.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["곤충 스케일 로봇은 제약된 에너지 특성에 직면하며 자신보다 훨씬 큰 장애물을 극복해야 한다.", "지상(다리 기반) 마이크로로봇은 효율적이지만 거칠고 미끄럽거나 유연하거나 장애물이 많은 지형에서 어려움을 겪는다.", "비행은 다재다능하지만 전력 소모가 크고 매우 제한된 탑재 용량을 제공하여 온보드 에너지/센서를 막는다.", "중간 스케일(35-100 g) hopping 설계는 스케일링 법칙, 제작 한계, <20 ms 지면 접촉 내 제어 필요성 때문에 1그램 미만 로봇으로 축소되지 않는다.", "기존 1그램 미만 점프 로봇은 자세/착지를 제어하거나 연속 점프를 위해 재장전할 수 없다."], "addressed_by_this_work": ["수동 탄성 다리를 능동 제어 날갯짓 날개와 결합하여 힘/토크 제어를 긴 공중 단계로 이동시킴으로써, 1 g 미만 로봇에서 hopping을 달성한다.", "hopping은 비행 대비 전력을 최대 64% 줄이고 탑재 용량을 10배 이상 증가시켜 에너지 제약을 완화한다.", "단일 적응형 컨트롤러로 로봇이 나무, 얼음, 유리, 흙, 잔디, 유연한 연잎을 횡단하고 표면 간 전환을 할 수 있게 한다.", "경험적 착지-대-이륙 매핑은 연속적인 제어 점프를 갖춘 계산적으로 효율적인 고주파 저고도 hopping을 가능하게 한다.", "낮은 관성과 큰 토크 생성이 충돌 복구와 공중제비를 제공하여 강건한 민첩 자세 제어를 시연한다."], "remaining_unresolved": ["완전한 온보드 전력 및 제어 자율성은 달성되지 않았으며; 로봇은 여전히 테더/오프보드 상태이다.", "착지 정확도가 점프 높이에 따라 저하되므로, 효율을 희생하지 않고는 키 크고 얇은 장애물에 착지하기 어렵다.", "장시간 자율 작동은 추정치(2-5분)일 뿐이며 실험적으로 시연되지 않았다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

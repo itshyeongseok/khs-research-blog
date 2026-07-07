@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-World Humanoid Locomotion with Reinforcement Learning</title>
+    <meta name="keywords" content="reinforcement learning, humanoid locomotion, sim-to-real transfer, zero-shot deployment, causal transformer, in-context adaptation, domain randomization, teacher-student distillation, proprioceptive control, emergent behaviors">
+    <meta name="paper-authors" content="Ilija Radosavovic, Tete Xiao, Bike Zhang, Trevor Darrell, Jitendra Malik, Koushil Sreenath">
+    <meta name="paper-journal" content="Science Robotics (2023). Preprint arXiv:2303.03381v2.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Real-World Humanoid Locomotion with Reinforcement Learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Ilija Radosavovic, Tete Xiao, Bike Zhang, Trevor Darrell, Jitendra Malik, Koushil Sreenath</div>
+            <div class="journal">Science Robotics (2023). Preprint arXiv:2303.03381v2.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">저자들은 대규모 모델-프리 강화학습을 전적으로 시뮬레이션(Isaac Gym, 4개 A100 GPU 상의 수천 개 무작위화 환경)에서 사용하여 실물 크기 Digit 로봇(~1.6 m, 45 kg, 폐쇄 운동 사슬)의 실세계 휴머노이드 보행 컨트롤러를 학습하고, 이를 야외에서 제로샷(zero-shot)으로 배치한다. 컨트롤러는 고유수용성(proprioceptive) 관측-행동 쌍의 이력을 입력받아 다음 행동을 예측하는 인과 트랜스포머(causal transformer)로, 대규모 언어 모델에 빗대어 로봇과 지형에 대한 문맥 내 적응(in-context adaptation)을 가능하게 한다. 학습은 두 단계 레시피를 사용한다: 완전 관측성을 가진 교사 상태 정책을 RL로 학습한 뒤, 학생 관측 정책(트랜스포머)을 교사를 향한 KL-발산 증류와 지속적 RL을 결합하여 PPO로 학습한다. 배치된 정책은 광장, 인도, 트랙, 잔디에서 일주일간 야외 보행을 무낙상·무안전 갠트리로 수행하고, 밀기·적재 하중·경사를 견디며, 로봇 제조사의 컨트롤러를 능가한다. 특히 인간형 반대측 팔 흔들기, 발 걸림 회복, 지형 의존적 보행 변화가 명시적 보상 없이 창발(emerge)한다. 본 프로젝트의 날갯짓 + 이족 + RL-보행 목표에 대해, 이는 RL 이족 보행 정책을 어떻게 학습하고 제로샷 전이하는지에 관한 핵심 참조다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">humanoid locomotion</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">zero-shot deployment</span><span class="keyword-chip">causal transformer</span><span class="keyword-chip">in-context adaptation</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">teacher-student distillation</span><span class="keyword-chip">proprioceptive control</span><span class="keyword-chip">emergent behaviors</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 범용 실세계 휴머노이드 이동을 고전적 모델 기반 제어가 취약하게 다루는 오랜 목표로 규정하고, 대신 전적으로 시뮬레이션에서 학습되고 제로샷으로 배치되는 강화학습 컨트롤러를 제안한다. 컨트롤러는 자기회귀 언어 모델에 명시적으로 빗대어 고유수용성 관측-행동 쌍의 이력에 대한 인과 트랜스포머로 설정되며, 이력에 조건화함으로써 로봇과 지형에 대한 문맥 내 적응을 산출한다. 폐쇄 운동 사슬을 가진 실물 크기 Digit 휴머노이드를 대상으로 4개 A100 GPU 상의 Isaac Gym에서 대규모로 학습하고, 창발적 인간형 거동과 함께 일주일간의 무낙상 맹목(blind) 야외 보행을 보고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 세 갈래에 걸친다: 정확한 모델과 튜닝을 필요로 하는 고전적 모델 기반 휴머노이드 제어(영점 모멘트점, 궤적 최적화, 전신 제어 결합 MPC); 사족과 Cassie 같은 소형 이족에서는 성숙했으나 실물 크기 휴머노이드의 야외 강건 제로샷 전이는 드물게 보여진 다족 이동 강화학습; 그리고 문맥 내 학습이 트랜스포머 컨트롤러를 동기 부여하는 자연어 처리의 시퀀스 모델. 저자들은 표준 sim-to-real 도구로서 교사-학생 특권 증류 프레임워크와 도메인 무작위화에 기반하며, 이후 벤치마크하는 LSTM/TCN 메모리 아키텍처에 대한 더 확장 가능한 대안으로 트랜스포머를 위치시킨다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이동은 인과 트랜스포머(4개 블록, ~1.4M 파라미터, 16-스텝 문맥)가 고유수용성 관측-행동 쌍의 이력을 제어 관절에 대한 PD 설정점과 예측 게인으로 사상하는 POMDP로 정식화되며, 자기 어텐션이 문맥 내 적응 메커니즘을 제공한다. 학습은 두 단계 레시피를 따른다: 특권 교사 상태 정책을 RL로 학습한 뒤, 트랜스포머 학생을 PPO 기반 RL과 교사를 향한 KL-발산 증류를 결합하여 학습한다(증류 가중치는 0으로 점차 감소). 폐쇄 운동 사슬은 Isaac Gym에서 가상-스프링/교대-서브스텝 모델로 근사되고, 동역학·지형·명령·감지에 대한 광범위한 도메인 무작위화가 제로샷 전이를 가능하게 하며, 정책은 1 kHz 저수준 PD 루프 위에서 50 Hz로 동작한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">정책은 실물 Digit 로봇에 제로샷으로 배치되어 광장, 인도, 트랙, 잔디에서 무낙상·무갠트리·맹목(고유수용성 전용) 감지로 일주일간 야외 운용된다. 교란(요가공 던지기, 막대 찌르기, 케이블 당기기), 미경험 적재 하중, 경사에 강건하고, 약 1 m/s에 도달하며, 특히 계단과 불안정한 지면에서 제조사 컨트롤러를 능가한다. 인간형 반대측 팔 흔들기, 발 걸림 회복, 지형 의존적 보행 변화가 명시적 보상 없이 창발하며, 절제 실험은 트랜스포머가 MLP/TCN/LSTM을 능가하고 더 큰 문맥이 도움이 되며 모방-더하기-RL 결합 레시피가 둘 중 어느 하나만보다 낫다는 것을 확인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토의는 도메인 무작위화와 함께 전적으로 시뮬레이션에서 학습된 단일 모델-프리 RL 정책이 제로샷 전이 하에서 강건한 실세계 휴머노이드 보행을 구동할 수 있다고 주장하며, 모델링되지 않은 동역학·하드웨어 변동·변화하는 지형의 처리를 인과 트랜스포머의 문맥 내 적응 덕으로 돌린다. 보상 설계 없이 인간형 및 회복 거동이 창발하는 것을, 손으로 설계한 보행 참조가 아니라 규모와 이력 조건화가 자연스러운 이동을 산출할 수 있다는 증거로 해석한다. 잔존 단점 — 모터 차이로 인한 좌우 비대칭, 불완전한 속도 추종, 매우 강한 교란 하의 낙상 — 을 솔직히 언급하고, 트랜스포머를 새로운 입력 양식으로 확장 가능한 확장적 전진 경로로 프레이밍한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 실세계 휴머노이드 이동이 시뮬레이션에서 학습되고 실물 크기 Digit 로봇에 제로샷으로 배치된 모델-프리 RL로 종단 간 학습될 수 있으며, 이력 조건화 인과 트랜스포머와 두 단계 교사-학생 레시피로 sim-to-real 간극을 메운다고 결론짓는다. 컨트롤러는 일주일간 무낙상으로 야외 보행하고, 제조사 컨트롤러를 능가하며, 창발적 인간형 거동을 보여, 확장 가능한 트랜스포머 기반 학습을 범용 휴머노이드 이동을 향한 경로로 위치시킨다. 본 프로젝트에 대해 이는 RL 이족 보행 정책을 실물 다족 하드웨어로 학습하고 제로샷 전이하는 핵심 템플릿이다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "인간 환경에서 작동하는 범용 휴머노이드 로봇 구축은 오랜 목표이지만, 고전적 접근법은 정확한 모델과 광범위한 수작업 엔지니어링에 의존하여 실세계에서 취약하다."}, {"type": "bullet", "text": "저자들은 <span class=\"term\">reinforcement learning</span>으로 실세계 휴머노이드 이동을 학습하되, 전적으로 시뮬레이션에서 학습하고 그 결과 정책을 하드웨어에 <span class=\"term\">zero-shot</span>으로 배치할 것을 제안한다."}, {"type": "bullet", "text": "컨트롤러는 고유수용성 관측과 행동의 이력을 문맥으로 받아 다음 행동을 예측하는 <span class=\"term\">causal transformer</span>로 설정되며, GPT 같은 자기회귀 대규모 언어 모델에 명시적으로 빗대어진다."}, {"type": "bullet", "text": "이력에 조건화함으로써 <span class=\"term\">in-context adaptation</span>이 가능해진다: 모델은 명시적 시스템 식별 없이 최근 관측-행동 시퀀스로부터 관측되지 않은 양(예: 접촉, 외력, 지형)을 추론할 수 있다."}, {"type": "bullet", "text": "플랫폼은 <span class=\"term\">Digit</span>(Agility Robotics)으로, 다리가 리프-스프링 4절 링크를 통해 구동되는 폐쇄 운동 사슬을 포함하는 실물 크기 휴머노이드(~1.6 m, 45 kg, 30 자유도)이며, 시뮬레이션과 제어 모두를 어렵게 만든다."}, {"type": "bullet", "text": "학습은 4개 A100 GPU 상에서 병렬로 수천 개 무작위화 환경에 걸쳐 <span class=\"eng\">Isaac Gym</span>에서 대규모로 수행된 뒤, 실세계 미세조정 없이 하드웨어로 전이된다."}, {"type": "bullet", "text": "배치된 정책은 광장, 인도, 육상 트랙, 잔디에서 고유수용성(맹목) 감지만을 사용하여 무낙상·무안전 갠트리로 일주일간 야외 보행한다."}, {"type": "bullet", "text": "핵심 발견은 인간형 거동 — 반대측 팔 흔들기, 발 걸림 회복, 지형 의존적 보행 변화 — 이 보상에 명시적으로 지정되지 않은 채 학습 과정에서 <span class=\"term\">emerge</span>한다는 것이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "고전적 휴머노이드 이동은 모델 기반 제어가 지배한다: 영점 모멘트점(zero-moment-point) 방법, 궤적 최적화, 그리고 전신 컨트롤러와 결합된 모델 예측 제어로, 정확한 동역학 모델과 세심한 튜닝을 필요로 한다."}, {"type": "bullet", "text": "다족 이동 강화학습은 주로 사족(예: ANYmal)에서 성공했으며, 여기서 도메인 무작위화와 특권-교사 증류를 통한 sim-to-real 전이가 표준 레시피가 되었다."}, {"type": "bullet", "text": "선행 휴머노이드 RL 연구는 대체로 시뮬레이션에 머물거나 더 작거나 제약된 이족(예: Cassie)을 다루었으며, 비정형 야외 환경에서 실물 크기 휴머노이드로의 강건한 제로샷 전이 시연은 더 적었다."}, {"type": "bullet", "text": "먼저 특권 상태 정책을 학습한 뒤 이를 배치 가능한 관측 정책으로 증류하는 교사-학생 프레임워크가 저자들이 기반하고 확장하는 방법론적 골격으로 인용된다."}, {"type": "bullet", "text": "자연어 처리의 트랜스포머와 시퀀스 모델이 컨트롤러 설계를 동기 부여하며, 여기서 문맥 내 학습은 단일 모델이 가중치 갱신 없이 프롬프트나 이력으로부터 거동을 적응시키게 한다."}, {"type": "bullet", "text": "순환 및 시간-합성곱 아키텍처(LSTM, TCN)는 이동 정책에 메모리를 부여하는 데 사용되어 왔다. 저자들은 트랜스포머를 더 확장 가능한 대안으로 위치시키고 이후 이 기준선들과 비교한다."}, {"type": "bullet", "text": "동역학, 지형, 감지에 대한 도메인 무작위화가 sim-to-real 간극을 메우는 핵심 도구로 식별되며, 본 논문은 자신의 무작위화 방식을 이 문헌 내에 위치시킨다."}]}, "method": {"content": [{"type": "bullet", "text": "이동 문제는 <span class=\"term\">partially observable Markov decision process (POMDP)</span>로 정식화된다: 정책은 전체 상태를 결코 보지 못하고 관측과 행동의 이력으로부터 숨겨진 동역학을 추론해야 한다."}, {"type": "bullet", "text": "관측은 고유수용성(관절 위치/속도, 베이스 방향과 각속도, 속도 명령)이며, 행동은 16개 제어 관절에 대한 PD 설정점과 8개 다리 관절에 대한 예측 PD 게인을 지정한다."}, {"type": "bullet", "text": "컨트롤러는 4개 블록, 임베딩 차원 192, 4개 어텐션 헤드, MLP 비율 2.0, [512, 512]의 입력 MLP와 [256, 128]의 행동 MLP를 가진 인과 트랜스포머로, 16 타임스텝의 문맥 윈도우와 함께 총 약 1.4M 파라미터다."}, {"type": "bullet", "text": "자기 어텐션은 각 타임스텝이 최근 관측-행동 이력에 주의를 기울이게 하며, 이것이 로봇과 지형에 대한 문맥 내 적응을 가능하게 하는 메커니즘이다.", "figure_refs": []}, {"type": "formula", "label": "자기 어텐션", "latex": "\\mathrm{Attention}(Q,K,V)=\\mathrm{softmax}\\!\\left(\\frac{QK^{\\top}}{\\sqrt{d_k}}\\right)V", "description": "과거 관측-행동 임베딩 시퀀스에 대한 스케일드 닷-프로덕트 어텐션; Q, K, V는 쿼리, 키, 값 사영이고 d_k는 키 차원이다. 이는 트랜스포머가 문맥 내 적응을 위해 문맥을 집약하는 연산이다."}, {"type": "bullet", "text": "학습은 두 단계 레시피를 사용한다. 1단계는 완전 관측성을 가진 <span class=\"term\">teacher</span> 상태 정책([512, 512, 256, 128]의 MLP)을 RL로 학습한다."}, {"type": "bullet", "text": "2단계는 <span class=\"term\">student</span> 관측 정책(트랜스포머)을 RL과 교사를 향한 증류를 결합하여 학습하므로, 학생은 보상을 최대화하는 것과 특권 정책을 모방하는 것을 모두 배운다."}, {"type": "formula", "label": "학생 목적함수", "latex": "\\mathcal{L}(\\pi_o)=\\mathcal{L}_{\\mathrm{RL}}(\\pi_o)+\\lambda\\, D_{\\mathrm{KL}}\\!\\left(\\pi_o\\,\\|\\,\\pi_s\\right)", "description": "관측(학생) 정책은 RL 목적함수와 교사 상태 정책을 향한 KL-발산 증류 항의 합으로 최적화된다; 가중치 lambda는 학습 지평의 중간까지 0으로 점차 감소하여 학생이 모방에서 순수 RL로 전환된다."}, {"type": "bullet", "text": "최적화는 액터와 크리틱 간 가중치 공유가 없는 액터-크리틱 설정에서 <span class=\"eng\">PPO</span>를 사용하며, 오프라인 데이터 없이 온-폴리시로 학습된다."}, {"type": "bullet", "text": "Digit 다리의 폐쇄 운동 사슬은 Isaac Gym에서 가상-스프링 근사와 교대-서브스텝 적분 방식으로 모델링된다; 고충실도 Agility 시뮬레이터는 하드웨어 시험 전 안전하지 않은 후보 정책을 걸러내는 데에만 사용된다."}, {"type": "bullet", "text": "강건한 제로샷 전이를 가능하게 하기 위해 동역학(질량, 마찰, 모터 특성), 지형(평탄, 거침, 경사), 속도 명령, 관측 노이즈와 지연에 대해 광범위한 <span class=\"term\">domain randomization</span>이 적용된다."}, {"type": "bullet", "text": "배치 시 정책은 50 Hz로 동작하며 로봇의 1 kHz 저수준 PD 루프가 추종하는 PD 설정점을 출력한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "정책은 실물 Digit 로봇에 제로샷으로 배치되어 광장, 인도, 육상 트랙, 잔디에서 고유수용성 감지만을 사용하여 무낙상·무안전 갠트리로 일주일간 야외 운용된다."}, {"type": "bullet", "text": "외부 교란에 대한 강건성이 시연된다: 로봇에 요가공 던지기, 막대로 찌르기, 케이블 당기기로부터 정책이 회복한다."}, {"type": "bullet", "text": "로봇은 학습 중 본 적 없는 다양한 적재 하중(배낭과 가방)을 운반하여, 변화된 동역학에 대한 적응을 시연한다."}, {"type": "bullet", "text": "경사를 횡단하고(최대 10% 구배로 학습, 약 8.7%까지의 실제 경사에서 시험), 정지에서 약 1초 이내에 약 1 m/s의 빠른 보행 속도에 도달한다."}, {"type": "bullet", "text": "학습된 컨트롤러는 특히 계단과 불안정한 지면에서 제조사(Agility) 컨트롤러를 능가한다.", "figure_refs": []}, {"type": "bullet", "text": "창발적 <span class=\"term\">contralateral arm swing</span>이 이를 장려하는 어떤 보상이나 참조-동작 항도 없이 나타나, 인간 보행을 반영한다."}, {"type": "bullet", "text": "창발적 <span class=\"term\">foot-trapping recovery</span>가 관찰된다: 발이 걸리면 로봇은 다리를 더 높고 빠르게 들어 회복한다 — 학습 시나리오에 존재하지 않던 거동이다."}, {"type": "bullet", "text": "내리막에서 더 작은 보폭을 취하는 등 지형 의존적 보행 변화가 창발한다; 트랜스포머 뉴런과 은닉 상태 활성화의 PCA 및 t-SNE 분석이 모델이 이러한 지형- 및 문맥-의존적 거동을 부호화함을 검증하는 데 사용된다."}, {"type": "bullet", "text": "절제 실험은 트랜스포머가 MLP, TCN, LSTM 컨트롤러를 능가하고; 더 큰 문맥 윈도우가 성능을 향상시키며; 모방-더하기-RL 결합 레시피가 순수 모방 또는 순수 RL 어느 하나만보다 낫다는 것을 보인다."}]}, "discussion": {"content": [{"type": "bullet", "text": "결과는 도메인 무작위화와 함께 전적으로 시뮬레이션에서 학습된 단일 모델-프리 RL 정책이 제로샷으로 전이될 때 강건한 실세계 휴머노이드 보행을 구동할 수 있음을 보인다."}, {"type": "bullet", "text": "인과 트랜스포머의 문맥 내 적응이 배치 시점에 모델링되지 않은 동역학, 하드웨어 변동, 변화하는 지형을 처리하는 정책의 능력에 기여한 것으로 평가된다."}, {"type": "bullet", "text": "명시적 보상 설계 없이 창발하는 인간형 및 회복 거동은, 손으로 설계한 보행 참조가 아니라 규모와 이력 조건화가 자연스러운 이동을 산출할 수 있음을 시사한다."}, {"type": "bullet", "text": "저자들은 잔존 단점을 언급한다: 정책은 완벽히 대칭적이지 않으며, 로봇 양측 간 물리적 모터 차이로 인해 측방 왼쪽으로 더 잘 걷는다."}, {"type": "bullet", "text": "또한 로봇이 명령된 속도를 완벽히 추종하지 못하며, 매우 강한 케이블 당기기 같은 과도한 외부 교란은 여전히 낙상을 유발할 수 있음을 관찰한다."}, {"type": "bullet", "text": "저자들은 트랜스포머 모델이 데이터와 연산으로 확장하기 더 쉽고 실세계 휴머노이드 이동을 위한 학습 확장을 촉진할 것이며, 추가 입력 양식을 통합하도록 자연스럽게 확장될 수 있다고 주장한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 실세계 휴머노이드 이동이 시뮬레이션에서 학습되고 실물 크기 Digit 로봇에 제로샷으로 배치된 모델-프리 강화학습으로 학습될 수 있음을 시연한다."}, {"type": "bullet", "text": "두 단계 교사-학생 레시피 — 특권 상태 교사 더하기 KL 증류와 지속적 PPO를 결합하여 학습된 트랜스포머 학생 — 는 sim-to-real 이족 RL의 이전 가능한 방법론적 핵심으로, 프로젝트의 RL 지상-보행 요소에 직접 적용 가능하다."}, {"type": "bullet", "text": "프로젝트 관련성: 맹목·고유수용성 전용·이력 조건화 정식화와 동역학/지형/감지에 대한 도메인 무작위화 방식은 이족-다리 오니솝터가 자신의 지상 모드에 재사용할 강건한 RL 보행의 구체적 레시피를 제공하며, 날갯짓 공중 모드는 별도로 추가되어야 한다."}, {"type": "bullet", "text": "관측-행동 쌍의 이력에 조건화된 인과 트랜스포머가 문맥 내 적응을 제공하고, PPO와 도메인 무작위화를 갖춘 두 단계 교사-학생 레시피가 sim-to-real 간극을 메운다."}, {"type": "bullet", "text": "컨트롤러는 일주일간 무낙상으로 야외에서 강건하게 보행하고, 제조사 컨트롤러를 능가하며, 창발적 인간형 팔 흔들기, 발 걸림 회복, 지형 의존적 보행을 보인다."}, {"type": "bullet", "text": "저자들은 트랜스포머 기반의 확장 가능한 학습을 범용 실세계 휴머노이드 이동을 향한 유망한 경로로 위치시킨다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "학습된 정책은 완벽히 대칭적이지 않으며, 로봇의 좌우 측 간 물리적 모터가 약간 다르기 때문에 한쪽 측방으로 더 잘 걷는다.", "source_quote": "We find that our policy is not perfectly symmetrical, and the robot is better at walking toward the lateral left than the lateral right, which we believe is due to the differences in the physical motors on the left and right sides of the robot.", "source_section": "discussion"}, {"claim": "로봇은 명령된 속도를 완벽히 추종하지 못한다.", "source_quote": "We also observe that the robot does not perfectly track the commanded velocity.", "source_section": "discussion"}, {"claim": "충분히 큰 외부 교란은 여전히 로봇을 넘어뜨릴 수 있다.", "source_quote": "Finally, we note that excessive external disturbances, such as a very strong cable pull, can cause the robot to fall.", "source_section": "discussion"}], "future_works": [{"claim": "트랜스포머 모델이 데이터와 연산으로 잘 확장되므로, 이 접근법은 실세계 휴머노이드 이동을 위한 학습을 촉진하도록 규모를 키울 수 있다.", "source_quote": "We believe that transformer models, which are easier to scale with data and compute, will facilitate scaling learning for real-world humanoid locomotion.", "source_section": "discussion"}, {"claim": "고유수용성을 넘어선 추가 입력 양식이 트랜스포머 컨트롤러에 통합될 수 있다.", "source_quote": "For example, the transformer model can be naturally extended to incorporate additional input modalities.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["고전적 모델 기반 휴머노이드 컨트롤러는 정확한 동역학 모델, 세심한 튜닝, 지형별 엔지니어링을 필요로 하여 비정형 실세계 환경에서의 강건성을 제한한다.", "강화학습 정책은 흔히 시뮬레이션에서만 학습·평가되며, 이를 폐쇄 운동 사슬을 가진 실물 크기 휴머노이드로 낙상 없이 전이하는 것은 어렵다.", "메모리 없는 순방향 정책은 실세계 배치 중 마주치는 모델링되지 않은 동역학, 하드웨어 변동, 변화하는 지형에 온라인으로 적응할 수 없다."], "addressed_by_this_work": ["단일 모델-프리 RL 정책이 수천 개의 도메인 무작위화 시뮬레이션 환경에 걸쳐 학습되고 제로샷으로 배치되어, 지형별 엔지니어링 없이 다양한 지형에서 야외 강건 보행하고 제조사 컨트롤러를 능가한다.", "두 단계 교사-학생 레시피(특권 교사 RL 정책, 그 다음 KL 증류 더하기 지속적 RL로 학습된 트랜스포머 학생)와 Isaac Gym에서의 폐쇄 운동 사슬에 대한 가상-스프링/교대-서브스텝 모델이 실물 Digit 로봇으로 일주일간 야외 운용에 걸쳐 무낙상으로 전이되는 정책을 산출한다.", "관측-행동 쌍의 이력에 조건화하는 인과 트랜스포머가 문맥 내 적응을 수행하여, 메모리 없는 정책이 달성할 수 없는 창발적 발 걸림 회복과 지형 의존적 보행 변화를 가능하게 한다."], "remaining_unresolved": ["하드웨어 모터 차이로 인한 좌우 비대칭과 불완전한 명령-속도 추종이 지속되며, 매우 강한 외부 교란은 여전히 낙상을 유발할 수 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

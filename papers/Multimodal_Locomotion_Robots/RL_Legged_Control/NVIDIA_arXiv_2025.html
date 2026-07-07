@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Isaac Lab: A GPU-Accelerated Simulation Framework for Multi-Modal Robot Learning</title>
+    <meta name="keywords" content="Isaac Lab, GPU-accelerated simulation, reinforcement learning, sim-to-real, domain randomization, manager-based workflow, OpenUSD, PhysX, actuator models, robot learning">
+    <meta name="paper-authors" content="NVIDIA Isaac Lab Team (core contributors incl. Mayank Mittal, Nathan Ratliff, Yunrong Guo, Nikita Rudin, Clemens Schwarke, Pascal Roth, Ritvik Singh, David Hoeller, Antoine Richard, et al.)">
+    <meta name="paper-journal" content="arXiv preprint (NVIDIA technical report), November 2025 · Open-source: https://github.com/isaac-sim/IsaacLab">
+    <meta name="paper-tier" content="3">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Isaac Lab: A GPU-Accelerated Simulation Framework for Multi-Modal Robot Learning</div>
+                <span class="tier-badge tier-3">Tier 3 — 미등록</span>
+            </div>
+            <div class="authors">NVIDIA Isaac Lab Team (core contributors incl. Mayank Mittal, Nathan Ratliff, Yunrong Guo, Nikita Rudin, Clemens Schwarke, Pascal Roth, Ritvik Singh, David Hoeller, Antoine Richard, et al.)</div>
+            <div class="journal">arXiv preprint (NVIDIA technical report), November 2025 · Open-source: https://github.com/isaac-sim/IsaacLab</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary"><span class="term">Isaac Lab</span>는 NVIDIA의 오픈소스 <span class="eng">GPU</span>-native 시뮬레이션 프레임워크로, 대규모 multi-modal robot learning을 위해 Isaac Gym의 후속작으로 제시되었으며 NVIDIA Isaac Sim 위에 구축되어 scene authoring에는 OpenUSD, 고정밀 물리에는 PhysX, photorealistic rendering에는 RTX를 사용한다. 이는 그동안 파편화되어 있던 robot-learning 관행들을 모듈식·조합 가능한 단일 플랫폼으로 통합하여, 비선형 actuator 모델, 다중 주파수 sensor 시뮬레이션, controller, teleoperation, 절차적 scene 생성, 그리고 <span class="term">domain randomization</span> 도구를 한데 모은다. 환경은 구조화된 manager-based workflow(MDP를 재사용 가능한 observation/action/reward/termination/command/curriculum manager로 분해)나 오버헤드가 낮은 direct workflow 중 하나로 구성되며, 둘 다 수천 개의 환경을 전부 GPU 상에서 병렬 실행한다. 본 프레임워크는 state-based 작업에서 최대 약 160만 frames/s의 처리량과 multi-GPU에서 거의 선형적인 확장성을 보고하며, reinforcement learning(SKRL/RSL-RL/RL-Games/SB3를 통한 PPO 계열 on-policy)과 imitation learning(RoboMimic, Isaac Lab Mimic 합성 데이터)을 모두 지원한다. 이는 locomotion, whole-body control, navigation, contact-rich 및 dexterous manipulation, healthcare 로보틱스, generalist foundation model을 위한 sim-to-real 엔진으로 자리매김하며, 미분 가능한 GPU 가속 Newton physics engine과의 통합을 가장 중요한 향후 과제로 제시한다.</div>
+            <div class="keywords"><span class="keyword-chip">Isaac Lab</span><span class="keyword-chip">GPU-accelerated simulation</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">sim-to-real</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">manager-based workflow</span><span class="keyword-chip">OpenUSD</span><span class="keyword-chip">PhysX</span><span class="keyword-chip">actuator models</span><span class="keyword-chip">robot learning</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 비용이 크고 편향된 실세계 데이터 수집의 대안으로서 통제 가능하고 재현 가능하며 위험이 없는 시뮬레이션을 동기로 제시하고, <span class="eng">GPU</span> 가속 물리 기반 시뮬레이터가 소비자용 하드웨어에서의 확장 가능한 학습을 가능케 하여 로보틱스 연구를 민주화했다고 주장한다. 이는 <span class="term">Isaac Lab</span>을 Isaac Gym의 자연스러운 후속작으로 자리매김시키며, NVIDIA Isaac Sim 위에 RTX rendering, PhysX physics, OpenUSD로 구축되어 파편화된 robot-learning 관행을 단일하고 모듈식이며 확장 가능한 프레임워크로 통합하는 것을 목표로 한다고 밝힌다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 부분은 통상적인 관련 연구 절이라기보다, 본 프레임워크가 기반하거나 대체하는 핵심 기술과 경쟁 접근들을 개관한다: OpenUSD를 파편화된 로보틱스 포맷(SDF, URDF, MJCF) 및 엔터테인먼트용 game engine과 대비하고, 이를 가능케 하는 토대로서 PhysX 물리 스택과 RTX rendering을 검토한다. Isaac Lab을 Isaac Gym이 개척한 GPU-native 시뮬레이터 계보 안에 위치시키면서 그 사용성과 scene 풍부성의 한계를 보완한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">설계 절은 Isaac Lab의 bottom-up 아키텍처를 상세히 다루는데, 핵심 시뮬레이션 인프라(OpenUSD scene authoring, Direct-GPU/Tensor API를 갖춘 PhysX, tiled RTX rendering)에서 출발하여 robot-learning 추상화로 쌓아 올린다. 통합 asset 인터페이스, 구성 가능한 implicit/explicit actuator 모델, 3개 클래스의 sensor suite, controller, teleoperation, <span class="term">domain randomization</span>을 갖춘 절차적 scene 생성, 그리고 두 가지 task 구성 패러다임(manager-based 및 direct workflow)을 설명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">성능 평가는 3개 <span class="eng">GPU</span> 플랫폼(L40, RTX Pro 6000, GeForce 5090)과 분산 multi-GPU 설정에서 headless 모드로 시뮬레이션 처리량을 벤치마크하며, state-based 및 perceptive 작업에 대해 frames per second를 보고한다. camera와 Warp ray-caster 구현의 sensor 수준 처리량을 분리 측정하고 manager-based와 direct workflow를 비교하여, 정밀도·메모리·속도 간의 트레이드오프를 정량화한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">순수 성능을 넘어, 이 절은 프레임워크가 가능케 하는 학습 기법들을 논의하고 이를 채택한 로보틱스 연구의 폭을 개관한다. reinforcement learning(SKRL/RSL-RL/RL-Games/SB3/Ray를 갖춘 Gymnasium API), teacher-student distillation과 end-to-end perception-in-the-loop, population-based training, <span class="term">domain randomization</span>, 합성 데이터 생성을 갖춘 imitation learning을 다루고, locomotion, whole-body control, navigation, manipulation, healthcare, generalist foundation model 전반의 응용을 보여준다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 <span class="term">Isaac Lab</span>이 고정밀 물리, 확장 가능한 rendering, 모듈식 아키텍처를 direct 및 manager-based 학습 workflow를 갖춘 하나의 확장식 프레임워크로 통합한, 로보틱스 시뮬레이션 도구의 중요한 진보라고 정리한다. 미분 가능한 GPU 가속 Newton physics engine의 통합을 - Isaac Lab - Arena 평가 플랫폼과 함께 - 차세대 로보틱스 연구의 중심 플랫폼이 되기 위한 경로로 제시한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "견고한 로봇 시스템은 복잡한 실세계 환경에서의 평가에 점점 더 의존하지만, 물리적 상호작용 데이터는 비용·시간이 크고 안전이 중요한 상황(고속 충돌, 하드웨어 고장, 예측 불가능한 인간 환경)에서 위험하며 정상 조건에 편향되어 있다."}, {"type": "bullet", "text": "시뮬레이션은 통제 가능·재현 가능·위험 없는 환경을 제공하며, 고정밀 시뮬레이터는 물리·sensor·환경 복잡성을 사실적으로 모델링하여 대규모 데이터 수집, 체계적 stress test, 그리고 현실로 더 잘 전이되는 알고리즘을 가능케 한다."}, {"type": "bullet", "text": "<span class=\"eng\">GPU</span> 가속 물리 기반 시뮬레이터가 로보틱스 연구를 민주화했다: 전통적 CPU 기반 시뮬레이터(PyBullet, RaiSim, MuJoCo)는 고정밀 물리와 대규모 병렬화에 어려움을 겪는 반면, 현대 GPU 시뮬레이터는 대규모 병렬성을 활용해 다수의 동시 환경을 구동한다."}, {"type": "bullet", "text": "agent-environment 루프를 전부 <span class=\"eng\">GPU</span>에서 실행하면 비용이 큰 CPU-GPU 데이터 전송을 피할 수 있는데, 이는 큰 batch size에서 이득을 보는 on-policy <span class=\"eng\">RL</span>에 특히 유리하고 슈퍼컴퓨터 없이도 가능하게 하여 진입 장벽을 낮춘다."}, {"type": "bullet", "text": "NVIDIA Isaac Gym(Makoviychuk et al., 2021)은 PhysX를 사용해 복잡한 로봇 작업의 end-to-end <span class=\"eng\">RL</span>을 단일 GPU에서 최초로 시연한 획기적 기여로, 시뮬레이션 결과를 PyTorch tensor로 직접 노출하여 학습 시간을 며칠에서 몇 시간으로 단축했다."}, {"type": "bullet", "text": "<span class=\"term\">Isaac Lab</span>은 GPU-native 패러다임을 대규모 multi-modal learning으로 이어간다: NVIDIA Isaac Sim 위에 구축되어 photorealistic 시각화를 위한 RTX rendering, 고정밀 물리를 위한 PhysX, 구조화된 월드 authoring을 위한 핵심 데이터 레이어 OpenUSD를 결합한다."}, {"type": "bullet", "text": "PhysX 엔진은 Isaac Gym 대비 filtered contact reporting, mimic joint system, closed-loop kinematic chain, 변형 객체(cloth 및 soft body), rigid·deformable body를 위한 coupled solver 등의 개선을 추가한다."}, {"type": "bullet", "text": "Mittal et al.(2023)의 설계(Orbit 프레임워크)에 기반하여, Isaac Lab은 독립적으로 재구현되던 robot-learning 관행을 비선형 actuator 모델, 다중 주파수 sensor 시뮬레이션, 저수준 controller 인터페이스, 절차적 환경 생성, <span class=\"term\">domain randomization</span>을 갖춘 모듈식·확장식 프레임워크로 통합한다.", "figure_refs": [1]}, {"type": "bullet", "text": "핵심적으로 Isaac Lab은 환경 설계를 재사용 가능하고 조합 가능한 구성요소로 조직하는 manager-based API를 설계하지만, 그 사용은 선택적이며 연구자는 간단한 single-script 설정도 사용할 수 있다."}, {"type": "bullet", "text": "명시된 핵심 기여: NVIDIA Omniverse 기반 모듈식·확장식 프레임워크; 고급 sensor 시뮬레이션(tiled RTX rendering, Warp 기반 custom sensor); 매끄러운 teleoperation 및 데이터 수집(spacemouse, VR headset); reinforcement learning·imitation learning·sim-to-real 연구를 위한 즉시 사용 가능한 광범위한 환경 suite."}]}, "related_works": {"content": [{"type": "bullet", "text": "로보틱스 시뮬레이션 생태계는 CAD 모델, kinematic/dynamic 기술, sensor parameter 전반에 걸쳐 파편화되어 있다; 기존 도구가 이 문제를 잘 보여준다: Gazebo는 평면적이고 경직된 XML 기반 SDF를 사용해 대규모 photorealistic 월드와 closed-loop kinematic chain을 다루기 어렵다."}, {"type": "bullet", "text": "다른 XML 기반 로보틱스 포맷(URDF, MJCF)도 비슷한 한계를 가진다; MJCF는 물리 중심이라 scene 풍부성이 제한되고, URDF는 sensor를 위해 Gazebo 전용 태그를 사용한다."}, {"type": "bullet", "text": "현대 game engine(Unity, Unreal)은 photorealistic rendering과 좋은 scene authoring을 제공하지만 엔터테인먼트용으로 설계되었고; AirSim은 진입 장벽을 낮추나 시뮬레이션을 단일체적 'game'으로 컴파일하여 어떤 수정이든 기저 game engine으로 되돌아가야 한다."}, {"type": "bullet", "text": "통합 포맷으로 OpenUSD(Pixar, 2016)를 채택한다: 3D scene을 primitive(prim)의 계층적 scene graph(stage)로 표현하고 geometry·material·physics에 대한 schema 기반 구조화 속성을 가지며, layering/비파괴적 composition으로 협업 authoring을, reference/instancing으로 효율적 재사용을 지원한다.", "figure_refs": [2]}, {"type": "bullet", "text": "USD Physics schema(Alliance for Open USD, AOUSD가 발전)는 rigid body, collision, joint, material을 표준화하여 로보틱스 도구가 엔진 간에 scene을 공유하게 한다; 엔진별 확장으로 PhysxSchema(NVIDIA PhysX)와 MjcPhysics schema(NVIDIA + Google DeepMind, MuJoCo용)가 있다."}, {"type": "bullet", "text": "상호 보완적 OpenUSD schema가 표현을 풍부하게 한다: Semantics schema는 perception/learning을 위해 prim에 범주 레이블을 부여하고, Camera prim은 가상 sensor를 기술하며, Material schema는 표면 속성을 담아 geometry·dynamics·semantics·sensing·appearance를 하나의 기술로 통합한다."}, {"type": "bullet", "text": "NVIDIA PhysX 5 SDK가 물리 토대다: 과거 NVIDIA Flex 기능을 통합한 오픈소스 multi-physics 엔진으로, FEM 기반 soft-body dynamics와 액체/팽창체용 Position-Based Dynamics(PBD)를 포함하며 rigid·articulated·deformable body를 specialized solver 간 two-way coupling으로 지원한다."}, {"type": "bullet", "text": "PhysX는 로보틱스용으로 진화하여 force-torque load-cell emulation, 고급 actuator 및 friction 모델, 그리고 로봇 assembly의 고정밀 비볼록 geometry에 특히 유용한 Signed Distance Field(SDF) collision 처리를 갖췄다."}, {"type": "bullet", "text": "Omniverse RTX renderer가 rendering 토대를 제공한다: RGB와 합성 ground-truth(depth, surface normal, semantic segmentation)를 위한 물리 기반 ray tracing에, DLSS 업스케일링과 photorealism을 위한 NVIDIA MDL material을 갖춘다.", "figure_refs": [4]}, {"type": "bullet", "text": "Isaac Lab은 Isaac Gym(Makoviychuk et al., 2021)이 확립하고 locomotion, whole-body control, in-hand manipulation, dexterous grasping, 산업 assembly에 쓰인 GPU-native 시뮬레이터 계보 안에 위치하며, 기존의 가파른 학습 곡선과 제한된 scene 풍부성을 해결한다."}]}, "method": {"content": [{"type": "bullet", "text": "핵심 인프라는 세 기술 위에 놓인다: scene authoring을 위한 OpenUSD(미터·Z-up의 로보틱스 관례, URDF/MJCF/mesh 변환기, 고수준 config wrapper 포함), 물리를 위한 PhysX, photorealistic하고 ground-truth가 풍부한 Omniverse RTX renderer."}, {"type": "bullet", "text": "PhysX는 CPU 또는 GPU에서 실행되며, Direct-GPU API가 simulation state와 control을 GPU 메모리에서 CUDA tensor로 직접 읽고 쓸 수 있게 하여 end-to-end GPU 파이프라인의 CPU-GPU 전송 병목을 제거한다. 단, GPU 접근은 state/control에 한정되고 parameter는 여전히 CPU로 설정한다."}, {"type": "bullet", "text": "NVIDIA Omniverse Physics(OmniPhysics)가 PhysX를 Omniverse와 통합한다: USD에서 PhysxSchema 속성을 파싱하여 PhysX에 매핑하고 시뮬레이션을 실행하며(성능을 위해 우회하지 않는 한) 결과를 USD에 다시 쓰고, prototype 환경을 수천 개 인스턴스로 복제하는 replication API를 제공한다.", "figure_refs": [3]}, {"type": "bullet", "text": "OmniPhysics Tensor API는 시뮬레이션 데이터를 view로 조직된 batched·device-resident 배열로 노출하며(SimulationView, RigidBodyView, ArticulationView), USD prim-path 패턴 매칭(예: '/World/envs/*/Robot')으로 선택하고, 배열의 첫 차원은 로봇 수 N과 같다.", "figure_refs": [3]}, {"type": "bullet", "text": "Asset(rigid object, articulation, deformable)은 저수준 USD/View API를 감싸는 고수준 인터페이스를 공유한다; 사용자 정의 속성(초기 상태, collision filter group)과 파생량을 통합하며, lazy-update 캐싱으로 각 속성을 시뮬레이션 step당 첫 접근 시에만 가져온다."}, {"type": "bullet", "text": "Actuator는 원하는 joint action과 articulation motion 사이의 인터페이스로, implicit actuator(PhysX joint PD controller 사용, 저샘플링률에서 더 안정·정확)와 explicit actuator(이산 시간으로 applied effort 계산, 고샘플링률에서 하드웨어에 더 부합)로 나뉜다.", "figure_refs": [8]}, {"type": "bullet", "text": "explicit actuator 변형으로 Ideal PD, DC Motor(4사분면 torque-speed effort limit), Delayed PD(action을 버퍼링해 통신 지연 모델링, Spot 응용에 사용), Remotized PD(linkage 구동 distal joint의 위치 의존 effort limit), Neural-Net actuator(현실적 동특성을 위한 학습된 LSTM(Rudin et al., 2022) 또는 MLP(Hwangbo et al., 2019) 모델)가 있다."}, {"type": "bullet", "text": "sensor suite는 3개 클래스를 갖는다: physics-based(FrameTransformer, finite-difference 가속도에 noise/drift modifier를 더한 IMU, contact pair를 필터링하고 짧은 contact history를 갖는 ContactSensor), rendering-based camera(Pinhole/Fisheye; USD-Camera, 병렬화된 Tiled-Camera), Warp 기반 RayCaster(single-time-instant ray casting으로 height scanner, solid-state/rotating LiDAR emulation).", "figure_refs": [9]}, {"type": "bullet", "text": "GPU 병렬화된 visuo-tactile sensor는 compliant contact 모델(stiffness/damping, 명시적 변형 없음)로 soft contact를 모델링하고, tiled-camera depth와 penalty 기반 force 모델을 사용해 상호작용을 RGB tactile 이미지와 normal/shear contact-force field로 변환한다.", "figure_refs": [10]}, {"type": "bullet", "text": "controller는 고수준 입력으로부터 joint 수준 명령을 생성하며 3개 범주를 갖는다: inverse kinematics(특이점 처리를 갖춘 Jacobian 기반 differential IK, NullSpacePostureTask로 확장된 Pink QP 라이브러리), force control(joint impedance 및 operational-space controller), motion planning(GPU 병렬 충돌 인지 계획을 위한 cuRobo MotionGen)."}, {"type": "bullet", "text": "teleoperation은 arm/gripper delta-pose 제어를 위한 keyboard·spacemouse 장치와 Extended Reality(Apple Vision Pro)를 아우른다: 감지된 hand joint를 end-effector pose로 매핑하여 waist task와 null-space task로 IK를 풀고, NVIDIA CloudXR로 re-projection과 AR overlay를 갖춰 저지연 스트리밍한다."}, {"type": "bullet", "text": "scene 생성은 절차적 script 기반 terrain(Trimesh primitive, heightfield), 스캔된 mesh, 대화식 GUI 편집, 외부 생성기(SceneSynthesizer, Infinigen, Objaverse) 통합을 지원한다; multi-asset spawning은 환경별 asset 교체와 sim-to-real 전이를 위한 절차적 기하학적/시각적 <span class=\"term\">domain randomization</span>을 가능케 한다.", "figure_refs": [11]}, {"type": "bullet", "text": "두 가지 task 패러다임을 제공한다. manager-based workflow는 MDP를 재사용 가능한 manager(observation, action, reward, termination, command, curriculum, event, recording)로 분해하며 Gym 호환 space와 term 수준 로깅을 갖는다; direct workflow는 성능 민감 파이프라인을 위한 저오버헤드 절차적 제어를 노출한다. 둘은 같은 환경 step function(Algorithm 2)을 공유한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "처리량은 환경 학습에 대한 frames per second(FPS)로 측정되며, 환경 step 수를 시뮬레이션 시간과 학습 시간의 합으로 나눈 값으로 정의되어 RTX core 수와 VRAM 용량이 다른 3개 GPU에서 평가된다."}, {"type": "formula", "label": "Eq. (1) - Environment learning throughput (FPS)", "latex": "FPS = \\frac{\\#\\ \\text{of environment steps}}{\\text{simulation time} + \\text{learning time}}", "description": "학습 처리량을 초당 step된 환경 전이 수로 정의하며, 물리/rendering 시뮬레이션 시간과 정책 학습 시간을 모두 반영한다."}, {"type": "bullet", "text": "환경 처리량은 PhysX 일부와 메인 학습 루프의 병목으로 인해 single-core CPU 성능에도 의존한다; GeForce 5090 워크스테이션은 빠른 8-core 9800X3D 한 개를, 서버들은 고코어 AMD EPYC CPU 두 개를 사용한다."}, {"type": "bullet", "text": "state-based(proprioceptive) manipulation으로 DextrAH grasp-and-lift 작업과 Franka cabinet-drawer 작업을 벤치마크했다; 최신 Blackwell GPU가 L40 대비 성능을 개선하고, 분산 학습은 GPU 수에 거의 완벽히 선형으로 확장한다.", "figure_refs": [13]}, {"type": "bullet", "text": "GPU 8개와 16,384개 환경에서 DextrAH teacher 작업은 학습 시 90만 FPS 이상에, Franka cabinet 작업은 160만 FPS 이상에 도달한다.", "figure_refs": [13]}, {"type": "bullet", "text": "perceptive 작업(1.6m x 1.2m Warp RayCaster height scanner를 쓰는 Unitree G1·Agility Digit humanoid의 rough-terrain locomotion과 end-to-end perceptive DextrAH)에서는 처리량이 rendering 비용에 지배되어 state-based보다 낮지만 최신 GPU와 분산 학습으로 개선된다; Digit 작업은 더 높은 solver 반복이 필요한 closed-loop kinematic chain도 다룬다.", "figure_refs": [14, 15]}, {"type": "bullet", "text": "sensor 구현 비교에서 RayCasterCamera는 단일 GPU에서 우수하고, 다수 GPU·대규모 환경 수에서는 Tiled-Camera가 더 나은 병렬화를 달성하여 결국 이를 능가한다."}, {"type": "bullet", "text": "ANYmal rough-terrain locomotion 작업의 workflow 비교에서 direct workflow는 단일 RTX Pro 6000에서 평균 약 3.53%만 더 높은 처리량을 보이며, 환경 수가 커지고 perception이 지배적인 작업에서는 그 격차가 무시할 만해진다 - 즉 manager-based workflow는 구조와 유연성을 더하면서도 비등한 효율을 제공한다.", "figure_refs": [16]}, {"type": "formula", "label": "Eq. (2) - Sensor throughput (FPS)", "latex": "FPS = \\frac{\\#\\ \\text{of rendering steps}}{\\text{simulation time}}", "description": "학습 시간을 제외하고 단위 시뮬레이션 시간당 rendering step 수를 측정하여, 서로 다른 sensor 구현의 순수 시뮬레이션 비용을 분석한다."}, {"type": "bullet", "text": "분리된 camera 벤치마크(각 sensor를 ANYmal-D에 장착, 환경별로 scene 복잡도 증가)에서 USD-Camera는 최고 정밀도이나 48개 병렬 camera를 넘으면 Out-of-Memory가 발생하는 반면, Tiled-Camera와 RayCasterCamera는 훨씬 작은 메모리 풋프린트로 수천 개 환경까지 확장된다.", "figure_refs": [17]}, {"type": "bullet", "text": "Warp RayCaster 확장성은 추적 asset 증가에 따른 sub-linear 처리량 감소, 해상도·환경 수 증가에 따른 처리량 상승, 그리고 20k-200k face 범위 내 mesh 복잡도의 미미한 영향을 보인다 - mesh 단순화가 아니라 ray density와 GPU 선택이 지배적 레버임을 시사한다.", "figure_refs": [18]}]}, "discussion": {"content": [{"type": "bullet", "text": "Isaac Lab은 Gymnasium API를 준수하여 환경이 어떤 Gym 호환 라이브러리에서도 동작하며, SKRL, RSL-RL, RL-Games, Stable-Baselines3, Ray에 대한 기본 지원을 제공하여 <span class=\"eng\">RL</span> workflow의 서로 다른 측면을 보완한다."}, {"type": "bullet", "text": "perception을 RL에 통합하는 두 패러다임을 지원한다: teacher-student distillation(특권 state 기반 teacher가 RGB/depth student를 online imitation(예: DAgger)으로 지도)과 end-to-end perception-in-the-loop(풍부한 공간 단서를 활용하고 teacher-student 정보 격차를 회피).", "figure_refs": [19]}, {"type": "bullet", "text": "pixel로부터의 end-to-end 학습은 emergent active-perception 행동을 만들 수 있다; 최초의 sim-to-real multi-fingered hand 시스템(Singh et al., 2025), egocentric-vision humanoid loco-manipulation(Luo et al., 2025), attention 기반 장거리 navigation(Yang et al., 2025) 등이 이를 보여준다."}, {"type": "bullet", "text": "Population-Based Training(DexPBT)은 각자의 hyperparameter를 가진 독립 <span class=\"eng\">RL</span> worker를 실행하고, 주기적으로 최상위 worker의 가중치와 hyperparameter가 최하위 worker를 대체하며 genetic mutation으로 다양성을 더해, 고DoF·sparse-reward 작업의 고분산 학습을 완화한다(6D reposing은 worker 8개로 약 16시간에 수렴).", "figure_refs": [20]}, {"type": "bullet", "text": "<span class=\"term\">domain randomization</span>은 물리(friction, armature, gravity, mass)와 rendering(texture, material, lighting) parameter를 randomize하여 불변성을 획득하고 sim-to-real 전이를 개선한다; Isaac Lab은 구성 가능한 난이도 curriculum을 통한 Automatic Domain Randomization(ADR)도 지원한다.", "figure_refs": [21]}, {"type": "bullet", "text": "imitation learning은 RoboMimic 통합으로 지원되며, demonstration(인간 teleoperation 또는 합성)을 표준 HDF5로 저장하고, HuggingFace Hub 통합을 위한 LeRobot 포맷 변환 유틸리티를 제공한다."}, {"type": "bullet", "text": "Isaac Lab Mimic은 소수의 인간 demonstration을 object-centric 하위 작업으로 분할하고 rigid transform을 적용해 재결합함으로써 다수의 합성 demonstration을 생성한다; SkillGen은 GPU 가속 motion planning을 더해 충돌 인지·확장 가능한 demonstration 생성을 제공한다.", "figure_refs": [22]}, {"type": "bullet", "text": "Locomotion: 대규모 병렬 학습 레시피를 11개 로봇 형태(A1, G1, H1, Go1/2, Anymal-B/C/D, Cassie, Digit, Spot)로 확장했다; RAI의 오픈소스 Spot 파이프라인은 custom actuator class로 actuator 지연과 torque limit을 모델링하여 최대 5.2 m/s(기본 한계의 약 3배)에서 zero-shot sim-to-real을 달성한다.", "figure_refs": [23]}, {"type": "bullet", "text": "Whole-body control: Isaac Lab에서 HOVER 프레임워크를 재구현하여 원래 Isaac Gym 버전을 광범위한 sim-to-sim/sim-to-real 평가로 개선하고, 장기 horizon loco-manipulation, perceptive pedipulation, (인간 motion capture 기반) Boston Dynamics Atlas의 athletic skill을 시연한다.", "figure_refs": [24]}, {"type": "bullet", "text": "Navigation: 사실적 sensor 생태계가 vision 기반 navigation(ViPlanner end-to-end semantic planner, NaVILA vision-language-action), recurrent-memory 장거리 navigation, 그리고 imitation learning·residual RL·distillation을 결합한 cross-embodiment mobility(COMPASS)의 zero-shot sim-to-real을 가능케 하며, VLA foundation model(GR00T N1.5)에도 데이터를 공급한다.", "figure_refs": [25, 26]}, {"type": "bullet", "text": "Manipulation: Factory/AutoMate assembly 환경은 SDF 기반 contact, contact reduction, Gauss-Seidel solver를 사용해 약 80-100개의 NIST 스타일 assembly 작업에서 80-99% zero-shot sim-to-real 성공률에 도달한다; FORGE는 force-aware 제어를, TacSL은 visuo-tactile sensing을 더하며, DextrAH-RGB는 최초의 end-to-end raw-RGB dexterous arm-hand 정책이다.", "figure_refs": [27, 29]}, {"type": "bullet", "text": "더 넓은 응용으로 healthcare 로보틱스(Isaac for Healthcare: 수술, GPU ray tracing 기반 ultrasound B-mode 영상, sim-to-real needle manipulation을 갖춘 telesurgery)와 generalist foundation model(부분적으로 Isaac Lab Mimic 합성 데이터로 사전학습되고 시뮬레이션에서 online RL post-training되는 GR00T N1/N1.5 VLA 모델)이 있다.", "figure_refs": [32]}]}, "conclusion": {"content": [{"type": "bullet", "text": "Isaac Lab은 NVIDIA Isaac Sim 위에 PhysX와 RTX rendering으로 구축되어 고정밀 물리, 확장 가능한 rendering, 모듈식 아키텍처를 단일 확장식 프레임워크로 통합하며, direct 및 manager-based 학습 workflow를 모두 갖춘 고처리량 시뮬레이션을 제공한다."}, {"type": "bullet", "text": "명시된 핵심 기여는 정확하고 고성능인 sensor 시뮬레이션 및 actuation 모델링, 광범위한 환경 모음, motion generation·imitation learning 도구로서, foundation-model 학습, RL fine-tuning, 대규모 perception 시스템을 가능케 한다."}, {"type": "bullet", "text": "이 프레임워크는 널리 쓰이는 학습 라이브러리와 통합되고 산업 표준 API(Gymnasium)를 준수하여 빠른 실험과 배포를 촉진한다."}, {"type": "bullet", "text": "가장 중요한 향후 마일스톤은 Newton physics engine과의 통합이다 - rigid·articulated·deformable 동역학을 위한 최첨단 solver를 제공하는 GPU 가속·확장식·미분 가능 시뮬레이터(NVIDIA, Google DeepMind, Disney Research가 NVIDIA Warp 위에 개발).", "figure_refs": [33, 34]}, {"type": "bullet", "text": "Newton은 시불변 Model과 시변 State, 그리고 교체 가능한 Solver를 분리하고, PyTorch/JAX 상호운용을 위해 OOP 대신 flat tensor/array 데이터를 사용하며, hidden state를 노출하지 않고(solver를 순수 함수로) omni.newton extension을 통해 Isaac Lab과 통합된다; canonical solver(XPBD, Featherstone, Semi-Implicit Euler)에 새 solver(MuJoCo Warp Solver, closed loop용 Disney의 Kamino maximal-coordinate solver)가 합류한다."}, {"type": "bullet", "text": "Newton 통합은 RL locomotion·manipulation·vision 작업의 일부를 지원하는 실험적 Isaac Lab feature branch에서 진행 중이며, PhysX 대비 sim-to-sim 비교와 sim-to-real 검증을 거쳐 향후 몇 달 내 PhysX와의 기능 동등성을 목표로 하고 궁극적으로 기본 엔진 지위를 지향한다."}, {"type": "bullet", "text": "NewtonUSD schema는 엔진 비종속적 물리 속성 표현을 위한 staging ground 역할을 하며, 일반화된 시뮬레이션 parameter를 향후 AOUSD의 USD Physics 표준에 포함시키는 것을 목표로 한다."}, {"type": "bullet", "text": "Isaac Lab - Arena는 체계적이고 확장 가능한 GPU 가속 정책 평가 프레임워크(오픈소스 예정)로 도입되어, manipulation·locomotion·loco-manipulation 전반의 확장 가능한 metric/데이터 수집/평가 라이브러리를 갖추고 파편화된 설정 오버헤드를 줄인다.", "figure_refs": [35]}, {"type": "bullet", "text": "향후 벤치마킹 계획에는 contact-rich assembly를 NIST Assembly Task Board 전체 집합으로 확장하는 것과, dexterous manipulation suite를 비정형 가정 환경의 multi-fingered humanoid hand를 포함해 산업·물류·가정 서비스 도메인으로 크게 확장하는 것이 포함된다."}, {"type": "bullet", "text": "지속적인 rendering·데이터 생성·확장성 개선과 결합하여, Isaac Lab은 차세대 로보틱스 혁신의 중심 플랫폼으로 자리매김할 위치에 있으며, 대규모 연구를 지원하고 시뮬레이션에서 실세계 배포로의 경로를 가속한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "현재 PhysX 설계상의 제약으로 인해 GPU에서 직접 접근할 수 있는 것은 simulation state와 control뿐이며, friction, mass, contact offset, joint armature 같은 simulation parameter는 여전히 느린 CPU API를 통해 설정해야 해서 런타임 domain randomization이 제한된다.", "source_quote": "Simulation parameters, such as friction coefficients, rigid-body masses, and joint properties, must still be set via the PhysX CPU APIs due to current design constraints.", "source_section": "method"}, {"claim": "환경 처리량은 GPU뿐 아니라 PhysX 일부와 메인 학습 루프의 single-core CPU 성능에 의해 병목이 생기며, 이 병목 제거는 아직 미해결 목표로 남아 있다.", "source_quote": "Eliminating these bottlenecks is an important goal for future releases of Isaac Lab and the Newton physics engine.", "source_section": "experiment"}, {"claim": "고정밀 USD-Camera는 메모리 요구량이 커서 48개를 초과하는 병렬 camera에서 Out-of-Memory 오류가 발생하며, 이는 대규모 perceptive learning에서의 활용을 제한한다.", "source_quote": "Out-of-Memory errors occur when simulating more than 48 cameras in parallel, for both RGB and depth modalities.", "source_section": "experiment"}, {"claim": "병렬화된 Tiled-Camera는 post-processing이 tiled layout이 아니라 단일 이미지에 최적화되어 있어 속도를 위해 photorealistic 품질을 일부 희생한다.", "source_quote": "While this approach may slightly reduce photorealistic quality due to post-processing being optimized for single images rather than tiled layouts, it provides significant speedups.", "source_section": "method"}, {"claim": "LiDAR나 radar 같은 active sensor는 RTX renderer에서 지원되지만 tiled rendering과의 통합은 아직 제공되지 않으며, RayCasterCamera의 RGB 및 semantic 출력도 여전히 개발 중이다.", "source_quote": "Although active sensors such as LiDARs and radars are already supported by the Omniverse RTX renderer, their integration with tiled rendering is forthcoming.", "source_section": "method"}, {"claim": "scale, collider type 같은 mesh 관련 속성은 시뮬레이션이 시작되기 전에만 randomize할 수 있어, 실행 중 기하학적 domain randomization의 범위가 제한된다.", "source_quote": "Mesh-related attributes, such as scale and collider type, can only be randomized before the simulation begins playing (Algorithm 1).", "source_section": "discussion"}, {"claim": "manager-based workflow는 직접 튜닝한 direct workflow에 비해 약간의 오버헤드를 유발하는데, 이는 물리 계산 자체보다는 주로 CPU orchestration과 kernel-launch 지연에서 비롯된다.", "source_quote": "While a manager layer can introduce modest overhead compared with a hand-tuned direct workflow, most of that overhead is CPU orchestration and kernel-launch latency rather than physics itself.", "source_section": "method"}], "future_works": [{"claim": "GPU 가속·미분 가능한 Newton physics engine을 통합하고 향후 몇 달 내 PhysX backend와 기능 동등성(feature parity)에 도달시켜, 궁극적으로 이를 기본 엔진으로 삼는다.", "source_quote": "This work represents a critical step toward establishing Newton as the default physics engine for high-fidelity and scalable robotics simulation within Isaac Lab.", "source_section": "conclusion"}, {"claim": "다양한 로보틱스 도메인을 아우르는 표준화·확장 가능한 정책 평가/벤치마킹 플랫폼(Isaac Lab - Arena)을 구축하고 오픈소스로 공개한다.", "source_quote": "Additionally, we aim to build a standardized platform for policy evaluation and benchmarking across diverse robotic domains.", "source_section": "conclusion"}, {"claim": "contact-rich assembly 환경을 NIST Assembly Task Board 벤치마크의 전체 과제 집합으로 확장한다.", "source_quote": "A natural next step is to extend these contact-rich environments to cover the full set of NIST benchmark tasks, further broadening their applicability and impact.", "source_section": "conclusion"}, {"claim": "dexterous manipulation suite를 산업·물류·가정 서비스 도메인으로 크게 확장하고, 비정형 가정 환경에서 동작하는 multi-fingered hand 탑재 humanoid 플랫폼을 목표로 한다.", "source_quote": "Looking ahead, we plan to significantly expand this suite to include more complex and realistic scenarios across industrial, logistics, and domestic-service domains.", "source_section": "conclusion"}, {"claim": "NVIDIA RTX real-time ray tracing과의 더 깊은 통합으로 rendering을 강화하고, 대규모 perception 학습을 위한 성능과 확장성을 끌어올린다.", "source_quote": "In addition to physics improvements, future releases will enhance rendering capabilities through deeper integration with NVIDIA's RTX real-time ray tracing technologies, allowing more photorealistic and physically accurate visuals for vision-based learning.", "source_section": "conclusion"}, {"claim": "CUDA Graphs를 활용한 manager term의 graphed execution을 탐구하여 manager-based workflow의 MDP 계산 런타임 오버헤드를 줄인다.", "source_quote": "We foresee manager term graphed executions as a plausible roadmap to bootstrap the MDP calculation runtime, thus narrowing any remaining gap.", "source_section": "method"}], "motivation_resolution": {"motivating_problems": ["로봇과의 물리적 상호작용 데이터 수집은 비용과 시간이 많이 들고 안전이 중요한 상황에서 위험하며, 정상(normative) 조건에 편향되어 있어 비정형·극한 시나리오에 시스템이 대비되지 못한다.", "전통적인 CPU 기반 시뮬레이터는 고정밀 물리, 복잡한 sensor 모델, 대규모 병렬화의 계산 요구를 충족하기 어렵고, 이를 확장하려면 비용이 큰 CPU 클러스터가 필요하다.", "로보틱스 시뮬레이션 생태계가 파편화되어 있어 robot-learning 및 sim-to-real 관행이 프로젝트마다 독립적으로 재구현되며 상당한 중복 노력을 초래한다.", "기존 scene/description 포맷(SDF, URDF, MJCF)은 photorealism, 복잡한 하위 시스템 모델링(예: closed-loop kinematic chain), 협업 authoring을 제한한다.", "저수준 GPU 시뮬레이션 상태/속성을 노출하면 학습 곡선이 가팔라져 비전문가 robot-learning 사용자를 소외시킨다."], "addressed_by_this_work": ["PhysX Direct-GPU API와 OmniPhysics Tensor API view를 통한 end-to-end GPU-native 파이프라인을 제공하여 CPU-GPU 전송 병목을 제거하고, 수천 개 병렬 환경을 최대 약 160만 FPS, multi-GPU에서 거의 선형 확장으로 구동한다.", "OpenUSD를 통합된 schema 기반 scene 레이어로 채택하고 URDF/MJCF/mesh 변환기를 제공하여 포맷 파편화를 해소하고 풍부하고 협업 가능한 photorealistic scene authoring을 가능하게 한다.", "비선형 actuator 모델, 다중 주파수 sensor, controller, teleoperation, 절차적 생성, domain randomization을 모듈식 프레임워크로 통합하여 중복 재구현을 줄인다.", "구조화된 manager-based workflow(MDP를 재사용 가능한 manager로 분해)와 오버헤드가 낮은 direct workflow를 모두 제공하여, 성능과 Gymnasium API 호환성을 유지하면서 진입 장벽을 낮춘다."], "remaining_unresolved": ["PhysX와 학습 루프의 single-core CPU 병목이 여전히 처리량을 제한하며, 이는 향후 릴리스와 Newton engine의 목표 과제로 남아 있다.", "물리 parameter(mass, friction, armature)의 런타임 randomization은 PhysX 설계 한계로 여전히 CPU에 묶여 있고, mesh 속성은 시뮬레이션 시작 전에만 randomize할 수 있다.", "sensor 커버리지가 불완전하다: active LiDAR/radar의 tiled-rendering 통합과 RayCasterCamera의 RGB/semantic 출력이 아직 완성되지 않았다.", "표준화된 도메인 횡단 벤치마킹 플랫폼(Isaac Lab - Arena)이 발표되었으나 아직 공개되지 않아, 재현 가능한 도메인 횡단 정책 평가가 여전히 성숙 단계에 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

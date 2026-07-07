@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Sim-to-Real Learning of All Common Bipedal Gaits via Periodic Reward Composition</title>
+    <meta name="keywords" content="reinforcement learning, bipedal locomotion, sim-to-real transfer, periodic reward composition, reward shaping, gait specification, Cassie biped, dynamics randomization, LSTM policy, multi-gait control">
+    <meta name="paper-authors" content="Jonah Siekmann, Yesh Godse, Alan Fern, Jonathan Hurst">
+    <meta name="paper-journal" content="2021 IEEE International Conference on Robotics and Automation (ICRA). Preprint arXiv:2011.01387v2.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Sim-to-Real Learning of All Common Bipedal Gaits via Periodic Reward Composition</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Jonah Siekmann, Yesh Godse, Alan Fern, Jonathan Hurst</div>
+            <div class="journal">2021 IEEE International Conference on Robotics and Automation (ICRA). Preprint arXiv:2011.01387v2.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">저자들은 참조 궤적(운동을 과도하게 제약하고 얻기 어려움)과 과소 명세된 참조-프리 보상(높은 거동 분산을 산출) 양쪽을 피하면서, sim-to-real 강화학습을 위해 보상 함수를 통해 이족 보행을 어떻게 지정할지를 다룬다. 주기적 보상 구성(periodic reward composition)을 제안한다: 각 보상 성분은 위상 계수, 주기 시간에 대한 Von Mises 분포로 정의된 확률적 위상 지시자, 측정량(발 힘 또는 발 속도)의 곱이므로, 스윙 위상은 발 힘을 벌하고 스탠스 위상은 발 속도를 벌한다. 발별 주기-오프셋 파라미터와 위상 비를 도입함으로써, 단일 파라메트릭 보상이 모든 일반적 이족 보행 — 서기, 걷기, 달리기, 깡충뛰기, 갤로핑, 스키핑 — 을 정의한다. 관절 위치 목표와 PD 게인을 출력하는 LSTM 정책을 MuJoCo Cassie 시뮬레이터에서 PPO와 동역학 무작위화로 학습하고 실물 Cassie 이족 로봇으로 sim-to-real 전이하여, 개별 보행과 모든 2박자 보행 사이를 연속적으로 전환하는 단일 멀티-보행 정책을 시연하며, 야외 실험으로 검증한다. 본 프로젝트의 날갯짓 + 이족 + RL-보행 목표에 대해, 이는 참조 동작 없이 강건하고 이전 가능한 이족 보행을 산출하는 보상 설계의 핵심 참조다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">periodic reward composition</span><span class="keyword-chip">reward shaping</span><span class="keyword-chip">gait specification</span><span class="keyword-chip">Cassie biped</span><span class="keyword-chip">dynamics randomization</span><span class="keyword-chip">LSTM policy</span><span class="keyword-chip">multi-gait control</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 실물 로봇에서 모든 일반적 이족 보행을 학습하는 것을 미해결 문제로 규정하며, 그 핵심은 원하는 보행을 보상 함수를 통해 전달하는 것으로, 이는 보행을 이끌어낼 만큼 충분히 구체적이면서도 강건한 변형을 허용할 만큼 느슨해야 한다. 참조-궤적 보상은 운동을 과도하게 제약하는 반면 참조-프리 보상은 과소 명세되거나 단일 거동에 특화된다고 주장하며, 보행이 주기적 스윙(발이 공중)과 스탠스(발이 지면) 위상으로 정의된다는 관찰에 기반한 원칙적 프레임워크를 동기 부여한다. 기여는 이 주기적 보상-구성 프레임워크와, 운동 포착(motion-capture) 데이터 없이 Cassie에서 모든 일반적 이족 보행과 전환하는 멀티-보행 정책의 sim-to-real 시연이다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 캐릭터 애니메이션(운동학 기반 운동 포착 방법과 더 어려운 물리 기반 토크 제어), 참조 동작을 모방하는 궤적-정합 RL, 그리고 거동 품질을 흔히 경시하여 안전하지 않거나 단일 거동 정책을 산출하는 참조-프리 RL에 걸친 이동 합성을 조망한다. 모든 일반적 이족 보행이 단일 수동 모델에서 창발한다는 생체역학 발견에 기반하여 보행을 하나의 파라미터화된 주기 군으로 다루는 것을 정당화한다. 본 연구를 선행 Cassie sim-to-real RL(Xie et al.과 저자들의 메모리 기반 제어)의 계보에 위치시키고, 이를 PD-게인 델타와 주기적 보상 정식화로 확장한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">방법은 이동을 순환 위상 변수로 색인되는 비정상(non-stationary) 주기적 보상을 가진 MDP로 제기하며, 총 보상은 위상별 성분들의 편향된 합으로, 각 성분은 부호 있는 위상 계수, Von Mises로 평활화된 확률적 위상 지시자, 측정량(발 힘 또는 발 속도)의 곱이다 — 스윙 중 힘을, 스탠스 중 속도를 벌한다. 발별 주기-오프셋 파라미터와 위상 비가 이 단일 파라메트릭 보상을 전체 이족 보행 집합으로 바꾼다(반주기 오프셋 = 걷기/달리기, 영 오프셋 = 깡충뛰기, 4-위상 = 스키핑), 학습은 확률적 보상의 결정론적 기댓값을 최적화한다. LSTM 정책이 2000 Hz PD 루프 위에서 40 Hz로 관절 위치 목표와 PD-게인 델타를 출력하며, sim-to-real 전이를 위해 PPO, 동역학 무작위화, 미러 손실로 학습된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">정책은 cassie-mujoco-sim 시뮬레이터에서 PPO로 학습되었다(각각 1억 5천만 샘플, 24-36시간); 고정된 위상 비와 오프셋을 가진 깡충뛰기·걷기·달리기·스키핑 단일-보행 정책은 직관적이었던 반면, 멀티-보행 정책을 위해 오프셋과 비를 함께 변화시키는 것은 더 어려웠고 거동별 전환 벌점과 파라미터 공간의 전용 서기 영역을 요구했다. 그 결과 단일 일반 컨트롤러가 모든 정상상태 2박자 보행과 서기 사이를 전환한다. 사실상 맹목인 Cassie의 야외 실험은 인도를 오르내리는 깡충뛰기, 연석에 한 발을 올린 걷기, 요철 위 달리기, 볼록한 도로에서의 보행 전환, 잔디에서의 회전, 달리며 계단 내려가기를 보이며, 측정된 지면 반력이 정책이 엄격한 발-위치 추종이 아니라 의도된 주기적 접촉 일정을 따름을 확인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">토의는 확률적·참조-프리 보상이 정책으로 하여금 임의의 공간 궤적에 고정되지 않고 풍부한 상호작용 공간을 탐색하게 하면서도, 하나의 구성적 보상과 단일 전환 정책 안에서 전체 일반적 이족 보행 집합을 표현하게 한다고 주장한다. 멀티-보행 학습을 안정화하는 설계 선택 — 보상을 [0,1]로 유지하는 유계 1 - exp(-|x|) 비용 커널과 충돌하는 목적을 막는 서기-계수 게이팅 — 을 설명한다. 사족 보행, 다른 이족 형태, 비주기적 거동으로 프레임워크를 일반화하는 데 대한 미해결 질문을 표시하며 마무리한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 확률적 주기적 보상-구성 프레임워크가 참조 궤적 없이 모든 일반적 이족 보행 — 걷기, 달리기, 깡충뛰기, 갤로핑, 스키핑 — 의 학습을 가능하게 하고, 단일 정책이 모든 2박자 거동을 포착하고 연속적으로 전환할 수 있다고 결론짓는다. 학습된 모든 보행은 실물 Cassie 이족 로봇으로 sim-to-real 전이되고 야외 교란 하에서 강건하게 유지되며, 사족 보행, 다른 형태, 비주기적 동작을 향한 미해결 방향을 가진다. 본 프로젝트에 대해 이는 운동 포착 참조 없이 강건하고 이전 가능한 이족 보행을 산출하는 보상 설계의 핵심 참조다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "RL을 사용하여 자연에서 발견되는 모든 일반적 이족 보행을 실물 로봇에서 학습하는 것은 미해결 문제로 규정되며, 핵심 과제는 원하는 보행을 보상 함수를 통해 어떻게 전달하는가이다."}, {"type": "bullet", "text": "보행은 특징적 주기 구조를 가지면서도 교란에 유연하게 적응해야 하는 동적 과정으로 간주되며, 이는 두 가지 보상-설계 요구를 함의한다: 보상은 보행 특성을 만들 만큼 충분히 구체적이어야 하지만, 강건하거나 효율적인 변형을 막을 만큼 제약적이어서는 안 된다."}, {"type": "bullet", "text": "참조-궤적 보상(예: 운동 포착 모방)은 구체성을 다루지만 유연성의 필요를 무시하는데, 궤적은 변화하는 조건 하에서 보행을 실현하는 데 필요한 변형의 작은 일부만을 포착하기 때문이다."}, {"type": "bullet", "text": "참조-프리 보상은 흔히 매우 과소 명세되어(OpenAI Gym 벤치마크처럼) 지루한 휴리스틱 보상-성형 반복을 요구하거나, 다른 보행으로 확장되지 않는 단일 거동을 중심으로 구조화된다."}, {"type": "bullet", "text": "첫 번째 기여는 모든 주기적 이족 보행을 자연스럽게 포착하는 원칙적 보상-설계 프레임워크로, 일반적 보행이 각 발에 대한 주기적 스윙 위상(발이 공중)과 스탠스 위상(발이 지면)으로 정의된다는 관찰에서 동기 부여된다."}, {"type": "bullet", "text": "스윙 대 스탠스의 근본적 구분은 발 힘과 발 속도의 상보적 존재와 부재이며, 프레임워크는 스윙 중 힘을, 스탠스 중 속도를 벌함으로써 이를 활용한다."}, {"type": "bullet", "text": "두 번째 기여는 이 프레임워크를 운동 포착 데이터셋이나 참조 궤적 없이 Cassie 로봇에서 모든 일반적 이족 보행 — 걷기, 달리기, 갤로핑, 스키핑, 깡충뛰기 — 의 sim-to-real RL에 대해 시연하는 것이다."}, {"type": "bullet", "text": "프레임워크의 보행 파라미터를 정책에 명령 입력으로 제공함으로써, 저자들은 깡충뛰기, 갤로핑, 달리기, 걷기를 하고 보행 사이를 전환할 수 있는 멀티-보행 정책도 학습한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "이동 합성은 여러 분야에서 연구되어 왔다: 캐릭터 애니메이션에서 운동학 기반 방법은 운동 포착 데이터를 사용하며, 딥러닝 변형은 변화하는 지면 형상에 적응하거나 행동 유형을 혼합한다."}, {"type": "bullet", "text": "물리 기반 캐릭터 애니메이션은 물리 엔진에서 토크를 통해 캐릭터를 제어하지만, 복잡한 동작에 대해서는 운동학 기반 방법보다 사용하기 현저히 더 어렵다."}, {"type": "bullet", "text": "궤적-정합 RL 보상은 시뮬레이션 물리 하에서 참조(운동 포착류) 궤적을 모방하도록 정책을 학습시켜, 현실적이지만 궤적에 제약된 거동을 산출한다."}, {"type": "bullet", "text": "이동을 위한 참조-프리 RL은 흔히 주관적 거동 품질에 거의 중점을 두지 않아, 실세계에서 실행하기에 비효율적이거나 실현 불가능하거나 안전하지 않은 정책을 산출한다."}, {"type": "bullet", "text": "참조 궤적 없이 물리적으로 현실적인 거동을 우선시하는 접근법도 존재하지만, 그 보상 함수는 단일 거동에 특화되어 다른 보행으로 확장하기가 간단치 않다."}, {"type": "bullet", "text": "모든 일반적 이족 보행이 단일 수동 모델에서 창발한다는 생체역학 결과는 보행을 별개의 엔지니어링된 거동이 아니라 하나의 주기 군의 파라미터화된 구성원으로 다루는 것을 동기 부여한다."}, {"type": "bullet", "text": "선행 Cassie sim-to-real 연구(Xie et al.; Siekmann et al.의 메모리 기반 제어)는 본 논문이 PD-게인 델타와 주기적 보상 정식화로 확장하는 방법론적 계보다."}]}, "method": {"content": [{"type": "bullet", "text": "문제는 연속 상태·행동 공간과, 정규화 구간 [0,1]에 걸쳐 반복적으로 순환하는 주기-시간 변수로 색인되는 비정상 주기적 보상을 가진 이산 시간 마르코프 결정 과정(MDP)으로 제기된다."}, {"type": "bullet", "text": "총 보상은 주기적 성분들의 편향된 합으로, 각 성분은 주기의 특정 위상 동안 원하는 보행 특성을 포착한다.", "figure_refs": []}, {"type": "formula", "label": "보상 구성", "latex": "R(s,\\varphi)=\\beta+\\sum_i R_i(s,\\varphi)", "description": "주기적 보상은 상수 편향 beta 더하기 위상별 보상 성분들의 합이다; 각 성분은 정규화 주기 시간 phi의 자기 위상 동안에만 활성화된다."}, {"type": "bullet", "text": "각 보상 성분은 측정량이 보상되는지 벌받는지를 부호로 설정하는 위상 계수, 이진 위상 지시자, 그리고 발 힘이나 발 속도의 노름 같은 실수값 측정량의 곱이다."}, {"type": "formula", "label": "보상 성분", "latex": "R_i(s,\\varphi)=c_i\\cdot I_i(\\varphi)\\cdot q_i(s)", "description": "위상 계수 c_i(부호가 보상 대 벌점을 결정), 위상 지시자 I_i(phi)(주기 시간 phi에서 목표 위상이 활성인지), 위상 측정 q_i(s)(예: 발 힘 또는 속도의 노름). 스윙의 경우 발 힘이 벌받고(c = -1) 속도는 무시되며(c = 0); 스탠스의 경우 속도가 벌받고 힘은 무시된다."}, {"type": "bullet", "text": "위상 지시자는 활성 구간이 Von Mises 분포를 따르는 시작·종료 시간으로 한정되는 이진 확률 변수로, 정확한 위상 경계에 대한 불확실성이 공유 분산 파라미터로 포착되어 위상 전환에서 보상을 평활화하고 학습을 안정화한다."}, {"type": "bullet", "text": "학습은 확률적 보상의 결정론적 기댓값을 최적화한다; 기댓값의 선형성에 의해 기대 수익은 확률적 보상을 쓰든 그 기댓값을 쓰든 동일하다."}, {"type": "bullet", "text": "이족 보행은 좌우 발에 동일한 스윙/스탠스 위상 시퀀스를 주되 주기-오프셋 파라미터로 어긋나게 하여 만들어진다: 반주기 오프셋은 걷기/달리기를, 영 오프셋은 깡충뛰기를, 4-위상 구성은 스키핑을 산출한다.", "figure_refs": []}, {"type": "formula", "label": "이족 보상 (식 2)", "latex": "\\mathbb{E}[R_{\\mathrm{bipedal}}(s,\\varphi)]=\\mathbb{E}[C_{\\mathrm{frc}}(\\varphi+\\theta_{\\mathrm{left}})]\\,q_{\\mathrm{leftfrc}}(s)+\\mathbb{E}[C_{\\mathrm{frc}}(\\varphi+\\theta_{\\mathrm{right}})]\\,q_{\\mathrm{rightfrc}}(s)+\\mathbb{E}[C_{\\mathrm{spd}}(\\varphi+\\theta_{\\mathrm{left}})]\\,q_{\\mathrm{leftspd}}(s)+\\mathbb{E}[C_{\\mathrm{spd}}(\\varphi+\\theta_{\\mathrm{right}})]\\,q_{\\mathrm{rightspd}}(s)", "description": "기대 이족 보상: 힘과 속도 위상-계수 합 C_frc와 C_spd가 발별 주기 오프셋 theta_left와 theta_right로 평가되어 해당 좌/우 발 힘과 속도 측정량과 곱해진다. 오프셋을 변화시키면 걷기, 갤로핑, 깡충뛰기가 정의된다."}, {"type": "bullet", "text": "정책은 크기 128의 순환 은닉층 두 개와 크기 30의 선형 출력을 가진 LSTM으로, 10개의 원하는 관절 위치 더하기 중립 오프셋에 더해지는 10개의 P 게인과 10개의 D 게인에 대응한다; 로봇의 PD 컨트롤러가 2000 Hz로 동작하는 동안 정책은 40 Hz로 동작한다."}, {"type": "bullet", "text": "정책 입력은 추정된 로봇 상태, 원하는 전진 및 측방 속도 명령, 위상 비, 그리고 좌우 주기 오프셋으로 주기 시간을 사인파적으로 부호화하는 두 개의 클록 입력이다."}, {"type": "bullet", "text": "동역학 무작위화(정책 실행 속도, 관절 질량과 댐핑, 지면 마찰, 지면 경사, 관절-인코더 오프셋, 각각 롤아웃마다 균등 표집)가 sim-to-real 전이를 촉진하는 데 사용되며, 대칭적 이동을 장려하기 위해 미러 손실이 추가된다."}, {"type": "bullet", "text": "정책은 재생 버퍼에서 궤적 배치를 표집하는 순환 적응을 사용하여 PPO로 학습되며, 액터의 차원과 일치하는 순환 크리틱을 사용한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "정책은 32개 궤적(최대 300 타임스텝)의 배치, 액터·크리틱에 대한 학습률 0.0001, 50,000-샘플 재생 버퍼, 반복당 4 에폭으로 PPO로 학습되었으며, cassie-mujoco-sim MuJoCo 시뮬레이터에서 1억 5천만 샘플(정책당 24-36시간) 후 종료되었다."}, {"type": "bullet", "text": "깡충뛰기, 걷기, 달리기, 스키핑의 단일-보행 정책은 학습 내내 위상 비와 주기 오프셋을 일정하게 유지하여 직관적으로 학습되었다."}, {"type": "bullet", "text": "위상 비를 변화시키는 멀티-보행 정책은 체공 시간을 늘리거나 줄여 깡충뛰고 걷기에서 달리기로 전환하는 것을 학습하지만, 주기 오프셋과 위상 비 양쪽을 함께 변화시키는 것은 비대칭 걷기나 융합된 바람직하지 않은 거동으로 붕괴할 수 있는 어려운 학습 문제다."}, {"type": "bullet", "text": "명령된 보행을 분리하기 위해 거동별 전환 벌점(예: 깡충뛰기를 위한 발-모으기 비용과 서기 벌점)이 도입되어, 단일 일반 컨트롤러가 모든 정상상태 2박자 보행과 제자리 서기 사이를 전환할 수 있게 한다."}, {"type": "bullet", "text": "서기 거동은 보행-파라미터 공간의 서기 영역(스윙-대-스탠스 비가 0 근처)과, 서기가 명령될 때 속도-추종 및 이동 항을 비활성화하면서 행동-차이 및 발-대칭 비용을 활성화하는 평활 계수를 정의하여 추가된다."}, {"type": "bullet", "text": "야외 실험은 로봇이 사실상 맹목임에도 강건성을 시연한다: 멀티-보행 정책은 인도를 오르내리며 깡충뛰고, 한 발을 연석에 올린 채 걷고, 작은 요철 위를 달리고, 볼록한 도로에서 모든 2박자 보행 사이를 전환하고, 잔디에서 회전하며, 달리면서 다섯 계단을 내려간다."}, {"type": "bullet", "text": "계단과 인도 턱에서 발이 작은 턱에서 미끄러지고 지면 경사에 순응하는 것이 관찰되어, 학습된 정책이 엄격한 발-위치 추종이 아니라 힘 프로파일을 우선시함을 나타낸다."}, {"type": "bullet", "text": "측정된 시뮬레이션 지면 반력과 힘 위상 계수의 기댓값 사이의 비교는, 정책이 기댓값이 -1 근처일 때 발 힘 인가를 삼가고 0 근처일 때 힘을 인가함을 확인하여, 주기적 보상이 의도된 접촉 일정을 성형함을 검증한다."}]}, "discussion": {"content": [{"type": "bullet", "text": "확률적·참조-프리 보상 프레임워크는 정책으로 하여금 공간을 통한 임의의 궤적에 인위적으로 제약되지 않고 학습 중 풍부한 상호작용 공간을 탐색하게 한다."}, {"type": "bullet", "text": "동일한 구성적 보상이 전체 일반적 이족 보행 집합을 표현하며, 단일 정책이 운동 중에도 모든 2박자 거동을 학습하고 연속적으로 전환할 수 있다."}, {"type": "bullet", "text": "비용 항에 사용된 유계 1 - exp(-|x|) 커널은 보상을 0과 1 사이로 유지하며, 서기 계수로 항을 선택적으로 게이팅하면 제자리에 서 있으면서 명령된 속도를 맞추려는 것 같은 충돌을 방지한다."}, {"type": "bullet", "text": "보행이 관절 궤적이 아니라 힘/속도 접촉 일정으로 지정되기 때문에, 학습된 정책은 지형 불규칙성(턱에서 미끄러지는 발, 경사 순응)을 견딘다 — 주기적-보상 추상화가 취약한 추종이 아니라 강건성을 산출한다는 증거다."}, {"type": "bullet", "text": "프레임워크는 '어떤 보행'(명령으로 공급되는 주기 파라미터 집합)을 '그것을 어떻게 실행할지'(학습된 정책)로부터 의도적으로 분리하며, 이것이 단일 네트워크가 연속적으로 명령 가능한 멀티-보행 컨트롤러로 기능하게 한다."}, {"type": "bullet", "text": "저자들은 프레임워크를 사족 보행, 다른 이족 형태, 비주기적 일회성 거동에 적용하는 데 대한 미해결 질문을 언급한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 논문은 어떤 참조 궤적도 없이 동물에서 관찰되는 모든 일반적 이족 보행의 학습을 가능하게 하는 확률적 주기적 보상-구성 프레임워크를 도입한다."}, {"type": "bullet", "text": "보상 설계는 형태-경량(morphology-light)이다 — 발별 힘과 속도 측정량과 위상 타이밍에만 의존한다 — 이는 로봇별 손-튜닝 참조 보행을 요구하지 않고도 프로젝트의 이족-보행 모드를 위한 강력한 후보 보상 템플릿으로 만든다."}, {"type": "bullet", "text": "프로젝트 관련성: 이는 Radosavovic의 아키텍처-및-전이 레시피를 보상-명세 절반으로 보완한다 — 함께 이들은 다중모드 날갯짓/이족 로봇의 지상 RL 보행 모드를 어떻게 학습할지를 개괄하며, 주기적-위상 추상화는 순환적 날갯짓 모드를 위한 보상 설계에도 정보를 줄 수 있다."}, {"type": "bullet", "text": "걷기, 달리기, 깡충뛰기, 갤로핑, 스키핑 같은 개별 보행이 각각 학습될 수 있고, 모든 2박자 거동이 이들 사이를 연속적으로 전환할 수 있는 단일 정책으로 포착될 수 있음을 보인다."}, {"type": "bullet", "text": "학습된 모든 보행은 실물 Cassie 이족 로봇으로 sim-to-real 전이되고 야외 교란 시험에서 강건하게 유지된다."}, {"type": "bullet", "text": "미해결 방향에는 프레임워크를 사족 보행, 다른 이족 형태, 비주기적 일회성 동작으로 확장하는 것이 포함된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [{"claim": "프레임워크가 사족 보행 공간이나 다른 이족 형태로 확장되는지는 미해결 질문이다.", "source_quote": "Some questions which remain unanswered include how easily this framework might be applied to the space of possible quadrupedal gaits, or other bipedal morphologies.", "source_section": "conclusion"}, {"claim": "프레임워크의 수정된 버전을 비주기적 동작에 적용하여 일회성 거동을 학습할 수 있다.", "source_quote": "A modified version of this framework could also be applied to aperiodic motions to learn one-off behaviors.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["보상 함수를 통해 원하는 보행을 RL 에이전트에 전달하는 것은 어렵다: 참조 궤적은 보행 변형의 좁은 일부만을 포착하고 학습된 운동을 과도하게 제약하며, 고품질 참조 동작은 애초에 얻기 어렵다.", "참조-프리 보상 함수는 흔히 과소 명세되어(예: '앞으로 이동') 정책 거동에 막대한 분산을 야기하거나, 결국 단일 보행에 특화되어 일반화되지 않는 지루한 시행착오 보상 성형을 요구한다.", "교란에 적응할 만큼 충분히 느슨하고 sim-to-real 전이할 만큼 신뢰할 수 있으면서도 전체 일반적 이족 보행 스펙트럼을 자연스럽게 표현할 수 있는 원칙적 프레임워크가 존재하지 않았다."], "addressed_by_this_work": ["주기적 보상 구성은 보행을 발 힘과 속도를 보상하거나 벌하는 확률적 주기 위상의 시퀀스로 지정하여, Von Mises 위상 경계가 학습을 안정화하는 평활화를 더하는 직관적이고 참조-궤적-프리한 보상 설계를 제공한다.", "발별 주기-오프셋 파라미터와 위상 비로 제어되는 단일 파라메트릭 보상이 서기, 걷기, 달리기, 깡충뛰기, 갤로핑, 스키핑을 정의하며, 멀티-보행 정책이 모든 2박자 보행 사이를 연속적으로 전환하는 것을 학습한다.", "MuJoCo Cassie 시뮬레이터에서 PPO와 동역학 무작위화로 학습된 학습된 보행들은 실물 Cassie 이족 로봇으로 sim-to-real 전이되고, 로봇이 사실상 맹목인 상태에서 연석, 요철, 계단 같은 야외 교란에 강건하게 유지된다."], "remaining_unresolved": ["프레임워크를 사족 보행, 다른 이족 형태, 비주기적 일회성 거동으로 확장하는 것은 향후 과제로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

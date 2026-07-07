@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>An agile monopedal hopping quadcopter with synergistic hybrid locomotion</title>
+    <meta name="keywords" content="hybrid hopping-flying robot, monopedal hopping, passive telescopic leg, multimodal locomotion, spring-loaded inverted pendulum, thrust-based hopping control, aerodynamic stabilizer, hopping agility, micro aerial vehicle endurance">
+    <meta name="paper-authors" content="Songnan Bai, Qiqi Pan, Runze Ding, Huaiyuan Jia, Zhengbao Yang, Pakpong Chirarattananon">
+    <meta name="paper-journal" content="Science Robotics, vol. 9, issue 89, eadi8912 (10 April 2024). DOI: 10.1126/scirobotics.adi8912">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">An agile monopedal hopping quadcopter with synergistic hybrid locomotion</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Songnan Bai, Qiqi Pan, Runze Ding, Huaiyuan Jia, Zhengbao Yang, Pakpong Chirarattananon</div>
+            <div class="journal">Science Robotics, vol. 9, issue 89, eadi8912 (10 April 2024). DOI: 10.1126/scirobotics.adi8912</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">Hopcopter는 나노 쿼드콥터(Crazyflie 2.1)에 수동형 사전인장 신축식 다리를 보강한 34.8 g의 하이브리드 호핑-비행 로봇으로, 에너지가 지지(stance) 단계의 다리 구동이 아니라 공중 단계에서 로터에 의해 주입된다. 로봇을 스프링 부하 도립진자(SLIP) 점질량으로 모델링함으로써 저자들은 착지 상태로부터 이륙 상태를 예측하고, 고도 제어와 측면 제어를 분리하는 추력 기반 모델 기반 호핑 제어기를 구축한다. 이 로봇은 1.63 m 점프 높이에서 주기 평균 수직 호핑 민첩성 2.38 m/s(Salto-1P보다 30% 높음)에 45 ms 미만의 지지 시간으로 도달하며, 빠른 회전과 비행 방향 반전을 위해 14g 초과 순간·1.2g 초과 평균 측면 가속도를 만드는 비행 중 점프를 수행하고, 분리 가능한 4.9 g 공력 안정기가 온보드 관성 센싱만으로 야외에서 안정적으로 호핑하게 한다. 하이브리드 호핑은 동일 쿼드콥터 호버링 대비 지구력을 4~8배 연장한다. 프로젝트의 플래핑윙 + 이족 보행 + 강화학습 목표에 대해 Hopcopter는 강력한 공중-지상 통합 예시이지만, 구동식 다관절 다리나 학습된 보법이 아니라 단일 수동 탄성 다리와 고전적 모델 기반/Poincaré 제어에 의존한다.</div>
+            <div class="keywords"><span class="keyword-chip">hybrid hopping-flying robot</span><span class="keyword-chip">monopedal hopping</span><span class="keyword-chip">passive telescopic leg</span><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">spring-loaded inverted pendulum</span><span class="keyword-chip">thrust-based hopping control</span><span class="keyword-chip">aerodynamic stabilizer</span><span class="keyword-chip">hopping agility</span><span class="keyword-chip">micro aerial vehicle endurance</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">점프와 비행을 융합하는 동물들에서 동기를 얻어, 본 논문은 마이크로 공중 비행체에 수동 탄성 신축식 다리를 보강하고 지지 단계가 아니라 공중 단계에서 구동되는 35 g 로봇 Hopcopter를 소개한다. 이는 지지 단계 에너지 주입이 호핑 주파수를 제한하고 점프 높이 제어를 고정하거나 복잡하게 만드는 기존 래치형 및 비래치형 점프기의 민첩성 병목을 우회한다. 모델 기반 제어기가 평균 수직 속도를 탄도 한계에 근접시키고 Salto-1P를 능가하게 하며, 이후 능동 공력 안정기가 외부 위치 센싱의 필요성을 제거한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 점프 로봇 분야 — 연소 구동 점프기, 고정 높이의 래치형 캠/폴 메커니즘, 능동 트리거 래치형 메커니즘, Salto/Salto-1P 같은 비래치형 직접 구동 및 직렬 탄성 점프기 — 를 Raibert의 스프링-질량 호핑 제어 계보와 함께 검토한다. 이어서 기존 점프+비행 로봇(PogoDrone 및 고립된 점프에 한정된 이전 탄성 다리 쿼드로터 포함)과 LEO 같은 비행 가능 다리 로봇을 검토한다. Hopcopter는 기계적으로 단순한 수동 다리, 더 높은 출력 효율, 그리고 고유하게 하강 시에만 작동하는 분리 가능 공력 안정기로 이들과 차별화된다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Hopcopter는 27 g Crazyflie 2.1 쿼드콥터와 사전인장 고무 밴드가 로봇 무게보다 한 자릿수 큰 예하중을 지니는 22 cm 수동 신축식 다리를 결합하여, 지지 단계를 중력으로부터 분리된 스프링 부하 도립진자 점질량으로 모델링할 수 있게 한다. 지면 접촉점 둘레의 각운동량이 보존되므로, 이륙 상태가 착지 상태로부터 해석적으로 예측되며(측정값과 약 1~2도 RMSE로 일치), 제어를 위한 상태 천이 사상을 제공한다. 모델 기반 호핑 제어기가 착지 자세를 조절해 고도를 측면 운동에서 분리하고, 하강 시에만 작동하는 분리 가능한 4.9 g 케이블 작동 공력 안정기가 온보드 IMU만으로 안정화를 가능하게 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">130회 연속 점프에 걸쳐 동역학 모델이 검증되었고(이륙 상태 RMSE ~1.0~1.6도), 궤적 추종은 대체로 탄도적인 공중 단계에도 불구하고 데시미터 수준의 착지 정확도로 원형 및 계단 경로를 따랐다. 호핑 민첩성은 45 ms 미만의 지지 덕분에 1.63 m 높이에서 2.38 m/s(Salto-1P보다 30% 높음)에 도달했고, 비행 중 점프는 급선회와 반전을 위해 14g 초과 순간·1.2g 평균 측면 가속도를 만들었다. Poincaré 사상 분석은 자세 제어기와 공력 안정기가 개별적으로는 불충분하나 함께하면 56회 이상의 피드백 없는 호핑을 가능하게 함을 보였으며, 계단·복도·거친 지형 위 현장 시연과 호버링 대비 4~8배 지구력 향상을 보였다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 Hopcopter의 수동 신축식 다리가 트리거, 지지 단계 구동, 가변 기계적 이점을 없앰으로써 기계적으로 더 단순하며, 추력으로 설정되는 조절 가능 점프 높이로 짧은 지지, 높은 주파수, 기록적 민첩성을 낸다고 주장한다. 비행과 호핑의 융합은 빠른 속도/방향 변화와 충돌 손상 완화를 가능하게 하며, 자세 제어기와 공력 안정기가 피드백 없는 호핑 자율성을 확립한다. 그들은 회전익기와 LEO 같은 다리 로봇 대비 에너지 이점을 강조하고, 이 설계가 기존 회전익기에 쉽게 개조됨을 언급하여 추력 제한 마이크로 플랫폼에 특히 가치 있다고 본다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">Hopcopter는 수동 사전인장 신축식 다리를 통해 구동을 공중 단계로 옮기는 것이 지속적이고 높이 조절 가능하며 높은 민첩성을 갖는 호핑을 지속 비행과 융합함을 시연하며, 이는 정확한 SLIP 착지-이륙 상태 사상으로 뒷받침된다. 하강 시에만 작동하는 분리 가능 공력 안정기가 센서 경량 호핑과 강인한 현장 기동성을 달성하고, 하이브리드 이동은 호버링 대비 큰 지구력 향상을 제공한다. 이 플랫폼은 설득력 있는 공중-지상 통합 사례이지만, 단일 수동 탄성 다리와 고전적 모델 기반 제어는 프로젝트가 궁극적으로 겨냥하는 구동식 다관절 다리 보행 및 학습된 보법과 대조된다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "이 연구는 우수한 기동성을 위해 점프와 비행을 융합하는 동물 — 수목성 새(앵무, 참새), 곤충(메뚜기, 거품벌레, 벼룩), 활공하는 날다람쥐와 Draco 도마뱀 — 에서 동기를 얻어 하이브리드 점프-비행 이동의 이점을 주장한다."}, {"type": "bullet", "text": "지속적으로 점프하고 비행하는 로봇 개발은 기존 점프 메커니즘이 제한적이기 때문에 어려운 것으로 규정된다: <span class=\"term\">래치형</span> 메커니즘은 저장된 엘라스토머 에너지를 방출하기 위해 걸쇠를 사용하지만 점프 높이가 미리 정해진 장력에 고정된다."}, {"type": "bullet", "text": "<span class=\"term\">비래치형</span>(직접 구동 및 직렬 탄성) 점프기는 높이를 조절할 수 있지만 에너지 저장 없이는 높은 순간 출력을 생성할 수 없으며, 엘라스토머를 추가하면 구조가 복잡해지면서도 여전히 무시할 수 없는 지지 시간(보통 57 ms 초과)이 필요하다."}, {"type": "bullet", "text": "지지 체류 시간이 핵심 민첩성 병목으로 식별된다: 로봇은 구동기가 에너지를 주입하도록 지지 단계에 시간을 써야 하며, 이는 호핑 주파수와 따라서 민첩성을 제한한다."}, {"type": "bullet", "text": "기존의 점프+비행 로봇은 점프 보조 이륙을 위해 점프 메커니즘을 공중 플랫폼과 직접 결합했지만, 대부분은 지속적 호핑, 점프 높이 미세 조정, 또는 지속 비행을 달성하지 못했다."}, {"type": "bullet", "text": "본 논문은 마이크로 공중 비행체에 수동 탄성 신축식 다리를 보강하여 기계적으로 단순하고 효율적인 설계에서 기존 로터를 점프에 활용하는 하이브리드 호핑-비행 로봇 <span class=\"term\">Hopcopter</span>를 소개한다."}, {"type": "bullet", "text": "결정적 기여는 로봇이 지지 단계가 아니라 공중 단계에서 구동된다는 점이다: 수동 다리가 탄성 반발로 운동 에너지를 흡수·복원하는 동안 추력이 손실을 보상하고 자세와 속도를 안정화하여, 조절 가능한 점프 높이로 지속적 호핑을 가능하게 한다."}, {"type": "bullet", "text": "35 g 시제품이 제작되고 그 호핑 동역학이 식별되었다; 모델 기반 호핑 제어기가 오프보드 위치 측정을 사용해 로봇을 안정화하며, 평균 수직 호핑 속도가 이론적 탄도 한계에 근접하고 Salto-1P와 같은 최첨단 점프기를 능가한다."}, {"type": "bullet", "text": "외부 위치 센싱 의존성을 제거하기 위해, 로봇은 온보드 관성 피드백만으로 측면 호핑 속도와 자세를 안정화하도록 착지 자세를 형성하는 능동 공력 안정기를 장착한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "연소 구동 로봇 점프기는 기존의 한 부류로 언급되지만, 본 논문이 겨냥하는 래치형/비래치형 전기기계 주류와는 대체로 분리되어 있다."}, {"type": "bullet", "text": "캠-이스케이프먼트나 폴-앤-래칫 수동 트리거를 사용하는 래치형 점프기(예: 역캠 및 EPFL식 점프기)는 빠른 에너지 방출을 달성하지만 고정된, 미리 정해진 점프 높이를 준다."}, {"type": "bullet", "text": "능동 트리거 래치형 메커니즘은 조절 가능한 점프 높이를 허용하지만, 방출이 착지와 정확히 일치하도록 정밀하게 타이밍되어야 하므로 엄격한 협조 요구를 부과하여 지속적 호핑을 어렵게 만든다."}, {"type": "bullet", "text": "비래치형 직접 구동 점프기는 점프 높이를 변화시킬 수 있지만 높은 순간 출력을 위한 에너지 저장이 없다; 병렬 및 직렬 탄성 메커니즘(예: Salto/Salto-1P)은 출력을 증폭하기 위해 스프링을 추가하여 높은 수직 점프 민첩성을 시연하지만 복잡한 링키지와 무시할 수 없는 지지 시간을 동반한다."}, {"type": "bullet", "text": "Raibert의 호핑 머신과 후속 스프링-질량 단족 제어기는 Hopcopter의 3차원 자세 조절 제어기가 의도적으로 벗어나는 지배적 제어 계보로 인용된다."}, {"type": "bullet", "text": "점프 메커니즘을 공중 플랫폼에 결합한 기존 점프+비행 로봇(PogoDrone 포함)이 검토된다; 탄성 다리를 가진 밀접하게 관련된 이전 쿼드로터는 비행 사이의 고립된 간헐 점프에 한정되었고 지속적 호핑을 보이지 못했다."}, {"type": "bullet", "text": "다른 비행 가능 다리 및 이족 로봇(특히 LEO)이 다중 모드 비교 대상으로 인용되며, Hopcopter는 이들 대비 이동당 현저히 높은 출력 효율과 지구력을 주장한다."}, {"type": "bullet", "text": "로봇의 기존 공력 표면은 강체 고정형 또는 능동 조향형으로 분류된다; Hopcopter의 케이블 작동 분리 가능 안정기는 상승 중에는 사실상 해제되어 동력 상승을 교란하지 않는다는 점에서 구별된다."}, {"type": "bullet", "text": "바퀴형 공중 비행체는 거친 지형 통과에 어려움을 겪는 지상 기동성 경쟁자로 인용되어, 장애물과 울퉁불퉁한 표면을 자연스럽게 극복하는 방법으로서 호핑의 동기가 된다."}]}, "method": {"content": [{"type": "bullet", "text": "Hopcopter는 27 g 마이크로 쿼드콥터(Crazyflie 2.1)와 강체 상부 탄소섬유 구간, 미끄러지는 하부 막대, 탄성 요소로서의 사전인장 고무 밴드로 이루어진 22 cm 수동 신축식 다리로 구성되며, 질량중심을 통과하는 수직 병진으로 제한된다; 총 질량은 34.8 g으로 최대 이륙 중량 42 g 미만이다."}, {"type": "bullet", "text": "두 가지 설계 선택이 지지 동역학을 단순화한다: (기체 폭의 두 배가 넘는) 긴 다리와, 예하중이 로봇 무게를 한 자릿수 초과하는 사전인장 고무 밴드(예하중 kl_p = 3.35 N 대 mg = 0.34 N)로, 로봇을 중력 방향으로부터 분리된 점질량으로 취급할 수 있게 한다."}, {"type": "bullet", "text": "공중 단계에서 로봇은 표준 멀티로터 강체 동역학을 따르며, 집합 추력과 추진 토크가 네 로터에 분배되는 제어 입력이 된다."}, {"type": "formula", "label": "식 4", "latex": "m\\ddot{p} = z_b \\sum f_i - e_3\\, m g", "description": "공중 단계 병진 운동 방정식: 질량중심 가속도는 기체 z축 z_b를 따르는 전체 프로펠러 추력에서 관성 수직 방향 e_3를 따르는 중력을 뺀 것으로 구동되며, 일반 쿼드콥터와 동일하다."}, {"type": "bullet", "text": "착지 시 발 충돌이 지지 단계로의 전환을 표시한다; 미끄러짐이 없으면 자세와 위치가 물리적으로 결합되어 시스템은 지면 접촉점을 중심으로 회전하는 스프링 부하 도립진자(SLIP)처럼 거동한다."}, {"type": "formula", "label": "식 7", "latex": "f_e = -k\\,(l - l_0 - l_p) - \\operatorname{sgn}(\\dot{l})\\, f_c \\quad \\text{for } l < l_0", "description": "사전인장 다리의 탄성 복원력: 강성 k로 변형 (l - l_0 - l_p)에 선형이며, 더하기로 하중(하강 행정)과 제하(상승 행정) 사이의 베어링/엘라스토머 이력을 포착하는 부호 의존 상수 감쇠 f_c가 있다."}, {"type": "bullet", "text": "탄성력이 질량중심을 통과하는 다리 축을 따라 작용하므로, 지지 중 지면 접촉점 둘레의 각운동량이 보존되어, 질량중심 궤적은 고유 주파수 Ω = sqrt(k/m)를 갖는 두 반결합 미분방정식으로 지배되는 독립적 축 방향 운동과 각 운동으로 분리된다."}, {"type": "bullet", "text": "이륙 상태(각변위 Δψ, 이륙각 θ_TO, 이륙 속도)는 착지 상태(착지 속도와 착지 속도-다리 축 사이의 각 θ_LD)로부터 해석적으로 예측되어 제어의 토대가 되는 상태 천이 사상을 제공한다; 예측은 단지 1.0°(Δψ)와 1.6°(θ_TO)의 RMSE로 측정값과 일치했다."}, {"type": "bullet", "text": "모델 기반 호핑 제어기는 현재 주기의 착지 자세 z_b(t_LD)를 조절하여 다음 주기의 착지 위치를 설정함으로써 고도를 측면 제어에서 분리한다; 공중 단계는 대체로 탄도적으로 남겨져 호핑이 지속 비행보다 에너지 효율적이게 된다."}, {"type": "bullet", "text": "세 개의 케이블 작동 힌지 표면(각 39 cm²)으로 이루어진 분리 가능한 4.9 g 공력 안정기는 하강 중에만 작동하여 몸체를 음의 속도 벡터 방향으로 회전시키고, 자세 제어기와 균형을 이루어 어떤 속도 측정도 없이 온보드 IMU만으로 호핑을 안정화한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "130회 연속 점프에 걸친 제어된 호핑 실험이 동역학 모델을 검증했다: 측정된 이륙 상태가 1.0°(Δψ)와 1.6°(θ_TO)의 RMSE로 예측과 일치하여 지지 동역학 가정을 확인했다."}, {"type": "bullet", "text": "궤적 추종 시험에서 로봇은 반지름 1.20 m 원형 경로(고도 0.60 m, 0.2 m/s)와 계단 궤적을 따랐다: 착지 위치 RMSE는 16 cm(원형)와 40 cm(계단), 점프 높이 RMSE는 각각 4.1과 4.8 cm로, 공중 단계에 완전한 비행 제어가 없어도 이를 달성했다."}, {"type": "bullet", "text": "주기 평균 수직 속도 ν = 2hf로 정의되는 호핑 민첩성은 45 ms 미만 지지 시간 덕분에 1.63 m 점프 높이에서 2.38 m/s에 도달했다 — 더 긴 57 ms 지지를 가졌던 Salto-1P의 1.83 m/s보다 30% 높다."}, {"type": "formula", "label": "호핑 민첩성 / 탄도 한계", "latex": "\\nu = 2 h f, \\qquad (f^{*})^{-1} = \\sqrt{8h/g}", "description": "호핑 민첩성 ν는 점프 높이 h와 호핑 주파수 f의 곱이다; 탄도 한계 f*는 지지 시간이 무시 가능하고 비행이 순수 탄도적일 때 도달 가능한 최대 주파수이다. Hopcopter의 측정 주기는 이 한계보다 약 40 ms(지지 시간)만큼만 위에 있다."}, {"type": "bullet", "text": "비행 중 단일 점프는 큰 가속도 폭발을 만들었다: 측면 지지 단계 가속도가 기동에 걸쳐 26.0, 44.4, 72.3, 최대 139.8 m/s²에 도달하여, 추력 대 중량비가 단지 1.2임에도 90° 선회, 급격한 직각 궤적, 완전한 비행 방향 반전을 가능하게 했다."}, {"type": "bullet", "text": "종합 민첩성 지표: 로봇은 지면 반력과 탄성 다리를 활용하여 14g를 초과하는 순간 측면 가속도와 1.2g를 초과하는 평균 가속도를 달성했으며, 이는 비슷하거나 더 큰 추력 대 중량비를 가진 다른 마이크로 공중 로봇보다 상당히 높다."}, {"type": "bullet", "text": "Poincaré 사상 안정성 시험은 자세 제어기 단독으로는 로봇을 직립 유지하지만 3~5주기 후 수평 속도가 발산하고, 안정기 단독으로는 6~10주기 후 추락하나, 둘을 결합하면 강건한 호핑을 줌을 보였다 — 위치나 속도 피드백 없이 3 m × 3 m 경기장 내에서 45초간 56회 이상의 연속 호핑."}, {"type": "bullet", "text": "능동 안정기를 사용한 현장 시연에서 로봇은 온보드 센싱만으로 계단을 오르내리고, 좁은 복도를 통과하며, 거친 야외 지형을 횡단했으며, 공력 표면이 하중 하에서 가시적으로 휘었다."}, {"type": "bullet", "text": "지구력 시험은 하이브리드 호핑이 호버링보다 훨씬 효율적임을 보였다: 250 mAh 셀이 1246초(20.8분)의 호핑을 지속한 반면 기준 쿼드콥터 호버링은 379초였다(4~8배 증가), 비행의 듀티비 1 대비 단지 0.28로, PogoDrone(20% 출력 절감)과 LEO(44%)를 능가했다."}]}, "discussion": {"content": [{"type": "bullet", "text": "저자들은 Hopcopter의 수동 신축식 다리가 트리거, 지지 단계 구동, 가변 기계적 이점을 없앰으로써 기존 래치형 및 비래치형 점프기와 구별되어, 기계적으로 더 단순하고 신뢰성이 높다고 결론짓는다."}, {"type": "bullet", "text": "수동 다리의 추력 기반 구동은 짧은 지지 단계와 높은 호핑 주파수를 낳아, Salto-1P를 포함한 최고 보고 점프 로봇을 능가하는 높은 민첩성(1.63 m에서 2.38 m/s)을 만든다."}, {"type": "bullet", "text": "추력으로 점프 높이를 설정하는 것은 넓은 조절 범위(0.6~1.6 m 시연)를 주며, 이는 래치형 메커니즘에 없는 능력이다."}, {"type": "bullet", "text": "비행과 호핑의 결합은 비행 속도와 방향의 빠른 변화를 가능하게 하며, 점프 능력은 벽이나 지면과의 충돌 손상을 완화하는 데 사용될 수 있다."}, {"type": "bullet", "text": "자세 제어기를 공력 안정기와 통합하면 호핑 제어 자율성이 확립된다: Poincaré 분석과 실험은 두 메커니즘이 함께 호핑 동역학을 안정화하여 로봇이 위치 피드백 없이 56회 이상 연속 점프함을 보인다."}, {"type": "bullet", "text": "회전익기 및 비행 가능 이족/다리 로봇(예: LEO)과 비교하면, 호핑 메커니즘은 이동에 더 적은 에너지를 요구하여, 감시·점검·탐사에 가치 있는 더 긴 임무 시간과 항속거리로 이어진다."}, {"type": "bullet", "text": "저자들은 수동 다리 설계가 단순한 탄성 다리 추가와 제어 변경만으로 기존 회전익기에 쉽게 개조될 수 있음을 강조한다, 예컨대 일련의 호핑을 통해 지속 비행에는 너무 무거운 적재물을 운반하는 것이다."}, {"type": "bullet", "text": "전체적으로 본 논문은 Hopcopter를 비행과 호핑 통합의 시너지 이점을 시연하는 플랫폼으로 위치시키며, 추력 제한적인 소형 경량 공중 플랫폼에 특히 유리하다고 본다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "Hopcopter는 마이크로 쿼드콥터에 수동 사전인장 신축식 다리를 보강하고 구동을 공중 단계로 옮기는 것이 지속적이고 높이 조절 가능하며 높은 민첩성을 갖는 호핑을 지속 비행과 융합함을 시연한다."}, {"type": "bullet", "text": "이 플랫폼의 기록적 호핑 민첩성(1.63 m에서 2.38 m/s, Salto-1P보다 30% 높음)은 지지에 머무르기보다 공중 단계에서 에너지를 주입함으로써 가능해진 45 ms 미만의 지지 시간에 기인하며, 짧은 지지를 호핑 민첩성의 핵심 지렛대로 식별한다."}, {"type": "bullet", "text": "지지 각운동량이 보존되는 SLIP 점질량 모델은 정확한 착지-이륙 상태 사상(RMSE ~1°)을 제공하여, 고도를 측면 운동에서 분리하는 모델 기반 제어기를 가능하게 한다."}, {"type": "bullet", "text": "하강 시에만 작동하는 분리 가능 공력 안정기는 센서 경량의 안정적 호핑(위치/속도 피드백 없이 56회 초과 점프)과 계단·복도·거친 지형 위의 강인한 현장 기동성을 달성한다."}, {"type": "bullet", "text": "하이브리드 이동은 4~8배 지구력 향상과 0.28 듀티비를 제공하여, 비교 가능한 하이브리드 로봇(PogoDrone, LEO)의 출력 절감을 크게 능가한다."}, {"type": "bullet", "text": "프로젝트의 플래핑윙 + 이족 보행 + 강화학습 목표에 대해, Hopcopter는 지상 모드의 에너지 이점을 보이는 설득력 있는 공중-지상 통합 사례이지만, 단일 수동 탄성 다리와 고전적 모델 기반/Poincaré 제어는 프로젝트가 겨냥하는 구동식 다관절 다리 보행 및 학습된 보법과 대조된다."}]}};
+        const INSIGHTS_DATA = {"limitations": [], "future_works": [], "motivation_resolution": {"motivating_problems": ["래치형 점프 메커니즘은 걸쇠를 통해 저장된 엘라스토머 에너지를 방출하는데, 이는 점프 높이를 미리 정해진 장력에 고정하여 조절 가능한 높이와 지속적 호핑을 어렵게 만든다.", "비래치형 및 직렬 탄성 점프기는 가변 점프 높이를 허용하지만 복잡한 기계 구조, 더 높은 구동기 출력, 무시할 수 없는 지지 시간(보통 57 ms 초과)을 요구하며, 로봇이 에너지를 주입하기 위해 지지에 머물러야 하므로 호핑 민첩성이 제한된다.", "점프 메커니즘을 공중 플랫폼과 결합한 기존 로봇들은 점프 보조 이륙을 얻었으나 대부분 지속적 호핑, 점프 높이 미세 조정, 또는 지속 비행을 달성하지 못했다."], "addressed_by_this_work": ["공중 단계(지지 단계가 아님)에서 구동되는 수동 사전인장 신축식 다리는 0.6에서 1.63 m로 시연된 조절 가능한 점프 높이와 45 ms 미만의 지지 시간으로 지속적 호핑을 가능하게 한다.", "기계적으로 단순한 수동 다리는 트리거, 지지 단계 구동, 가변 기계적 이점의 필요성을 없애, 더 짧은 지지, 더 높은 호핑 주파수, 그리고 Salto-1P 및 다른 점프 로봇을 능가하는 측정 호핑 민첩성 2.38 m/s를 낸다.", "Hopcopter는 호핑과 지속 비행을 모두 수행하고, 민첩한 선회/감속을 위한 간헐적 비행 중 점프를 수행하며, 기준 쿼드콥터 대비 지구력을 4~8배 증가시켜 진정으로 시너지적인 하이브리드 이동을 시연한다."], "remaining_unresolved": []}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

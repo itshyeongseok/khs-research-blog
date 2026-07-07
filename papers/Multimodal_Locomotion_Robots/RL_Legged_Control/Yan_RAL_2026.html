@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Efficiently Learning Robust Torque-based Locomotion Through Reinforcement with Model-Based Supervision</title>
+    <meta name="keywords" content="bipedal locomotion, sim-to-real transfer, residual reinforcement learning, model-based control, Divergent Component of Motion, whole-body control, domain randomization, oracle supervision, torque control, humanoid robot">
+    <meta name="paper-authors" content="Yashuai Yan, Tobias Egle, Christian Ott, Dongheui Lee">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters (RAL), 2026 (arXiv:2510.16190v1, 22 Jan 2026). Tier 1 (RAL, JCR Q1). Evaluation is simulation-only (MuJoCo); no physical-robot experiments reported in this version.">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Efficiently Learning Robust Torque-based Locomotion Through Reinforcement with Model-Based Supervision</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Yashuai Yan, Tobias Egle, Christian Ott, Dongheui Lee</div>
+            <div class="journal">IEEE Robotics and Automation Letters (RAL), 2026 (arXiv:2510.16190v1, 22 Jan 2026). Tier 1 (RAL, JCR Q1). Evaluation is simulation-only (MuJoCo); no physical-robot experiments reported in this version.</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 모델 기반 이족 이동과 <span class="term">잔차 강화학습(residual reinforcement learning)</span>을 융합하여 실세계 불확실성 하에서 견고하고 적응적인 토크 수준 보행을 달성하는 제어 프레임워크를 제안한다. 모델 기반 제어기 — <span class="term">운동 발산 성분(Divergent Component of Motion)</span>(DCM) 궤적 계획기와 역동역학 전신 제어기(WBC) — 가 신뢰성 있는 Base 정책 역할을 하고, 그 위에서 학습 가능한 잔차 정책이 모델링되지 않은 효과(관절 마찰, 구동기 비선형성, 백래시, 센서 잡음)를 보상한다. 핵심 아이디어는 학습 중에만 실제 동역학과 무작위화 파라미터에 특권적 접근을 갖고 이상적 보정 토크를 생성하는 모델 기반 <span class="term">Oracle 정책</span>이다. 이 Oracle은 표준 PPO 목적과 결합된 새로운 지도 손실(weights omega_rl=1, omega_sup=10)을 통해 잔차 정책을 감독한다. 센서·로봇 동역학·지형에 대한 도메인 무작위화가 정책을 실세계 가변성에 노출한다. MuJoCo에서 세 이족 로봇 — Kangaroo(47 kg), Unitree H1-2(67 kg), Bruce(4.8 kg) — 으로 평가한 결과, 본 방법(BOR)은 로봇별 튜닝 없이 동일한 학습 설정으로 세 로봇 모두에서 Oracle에 근접한 DCM/발 추종과 함께 100% 성공을 달성하고, 비지도 잔차 RL보다 훨씬 빠르게 학습하며(단일 환경에서 약 1,500 에피소드 / 4.16시간 후 80% 초과 성공), 모델 기반 제어기가 10%로 떨어지는 최고 무작위화 수준까지 100% 성공을 유지한다.</div>
+            <div class="keywords"><span class="keyword-chip">bipedal locomotion</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">residual reinforcement learning</span><span class="keyword-chip">model-based control</span><span class="keyword-chip">Divergent Component of Motion</span><span class="keyword-chip">whole-body control</span><span class="keyword-chip">domain randomization</span><span class="keyword-chip">oracle supervision</span><span class="keyword-chip">torque control</span><span class="keyword-chip">humanoid robot</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이족 로봇의 토크 기반 이동 학습은 핵심 과제이다: 토크 제어는 반응성 있고 에너지 효율적이며 순응적인 거동을 가능하게 하지만 잘못 조절되면 불안정하며, 특히 접촉 불확실성, 센서 잡음, 구동 지연 하의 고자유도 부유 기저 시스템에서 그러하다. 전통적 모델 기반 제어는 이동을 상위 궤적 계획과 하위 전신 제어로 분해하지만 모델-플랜트 불일치와 잡음 섞인 추정 하에서 성능이 저하된다. 저자들은 학습 목적에 명시적 지도 손실을 추가하는 지도 강화학습 프레임워크의 동기를 제시하며, 모델 부정확성을 보상하는 잔차 RL 정책으로 모델 기반 제어기를 증강하고, 도메인 무작위화로 실세계 불확실성에 노출하며 특권 Oracle로 안내한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 이족 이동에서 실세계 불확실성을 다루는 선행 전략을 검토하고 자신의 지도 잔차 RL을 이에 대비하여 위치시킨다. 반복 학습 제어(예: 보상적 ZMP 궤적 학습)는 반복 실행을 통해 참조를 정련하지만 일관되고 반복적인 동작 패턴을 필요로 한다. 도메인 무작위화를 동반한 심층 RL은 견고성을 주지만 데이터를 많이 요구하고 보상에 민감하다. 최근 하이브리드 방법은 로봇 모델 지식을 DRL에 통합하여(저수준 역동역학을 갖춘 작업 공간 정책, 각운동량 LIPM 영감 계층, 디딤 위치/타이밍 적응을 위한 RL) 보상 공학을 줄이고 샘플 효율을 개선하지만, 여전히 보상 신호에서만 학습하고 학습 시 제한적 안내만 제공한다 — 본 연구가 명시적 Oracle 감독으로 메우는 간극이다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 방법은 모델 기반 베이스 제어기와 지도 잔차 RL 정책을 통합한다. 모델 기반 제어기는 DCM/가상 반발점(Virtual Repellent Point) 궤적 생성기와, 불안정한 1차 DCM 동역학을 안정화하고 원하는 질량중심 힘을 명령하는 역동역학 전신 제어기로 구성된다. 도메인 무작위화는 센서 잡음, 동역학(질량, 관성, 모터 강도, 구동 지연), 환경(바닥 마찰, 불균일)에 걸친다. 세 정책이 정의된다: 부정확한 모델과 잡음 섞인 관측 하의 Base 정책, 학습 중에만 이상적 보정 토크를 생성하는 실제 동역학을 갖춘 특권 Oracle 정책, 그리고 학습 가능한 잔차 정책이다. 잔차 정책은 PPO와, Oracle의 보정 토크를 모방하도록 장려하는 지도 손실로 학습되며, 총 손실은 모방 대 탐색을 가중한다(omega_rl=1, omega_sup=10).</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">프레임워크는 MuJoCo에서 세 이족 로봇 — Kangaroo(47 kg, 145 cm, 다리당 6 DoF, 평발), Unitree H1-2(67 kg, 178 cm, 다리당 6 DoF, 평발), Bruce(4.8 kg, 70 cm, 다리당 5 DoF, 선형 발) — 으로 평가되며, PIQP 전신 QP를 약 1 ms에 풀고 시뮬레이션 1000 Hz, 제어 200 Hz, RL은 10k 에피소드(각 10초)에 걸쳐 학습한다. 기준선은 모델 기반 제어기(MBC), 비지도 잔차 RL(omega_sup=0), 모방 학습(omega_rl=0)을 포함한다. 전체 방법(BOR)은 Oracle에 근접한 추종과 함께 세 로봇 모두에서 100% 성공을 달성하고, 비지도 잔차 RL보다 훨씬 빠르게 학습하며, MBC가 무너지는 모든 무작위화 수준에서 100% 성공을 유지한다. 절제 실험은 잔차 학습이 직접 토크 학습보다 빠르게 수렴함을 보이나, Base와 Oracle이 크게 갈릴 때는 직접 학습 대비 이득이 제한적이다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 본 접근법을 두 패러다임을 잇는 것으로 규정한다: 데이터 비효율적인 토크 수준 RL과, 거의 정확하지 않은 시스템 모델에 의존하는 모델 기반 최적화이다. 시뮬레이션에서 실세계 불확실성을 명시적으로 모델링하며 Oracle이 안내하는 잔차 토크 정책을 학습하고, 강화와 감독 목적을 공동 최적화함으로써, 본 방법은 모방과 탐색을 균형 짓는다. Oracle 안내는 학습 효율을 크게 개선하지만, 저자들은 실제 정보를 아는 Oracle조차 모든 불리한 조건을 예측할 수 없으며 — 급격한 명령 변화나 불안정한 지면 접촉이 실패를 유발함 — Oracle에 대한 과의존이 Bruce와 H1에서 보이듯 매우 확률적인 조건에서 성능을 제한할 수 있음을 강조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 모델 기반 제어 고유의 sim-to-real 간극과 모델 프리 RL의 데이터 비효율을 모두 다루는 토크 기반 휴머노이드 이동을 위한 지도 강화학습 프레임워크로 결론짓는다. 학습 중 도메인 무작위화는 일반화를 넓히고, 모델 기반 Oracle 정책은 무작위화 동역학 하에서 차선이지만 유익한 감독을 제공하며, 이는 경사 갱신 중 정책을 Oracle과 명시적으로 정렬하는 추가 손실 항을 통해 통합된다. Kangaroo, Unitree H1-2, Bruce에 동일 프레임워크와 로봇별 수정 없이 평가했을 때 학습된 정책은 각자의 Oracle에 필적하는 성능을 달성하며, 절제 실험은 프레임워크가 베이스 위 잔차 학습과 직접 토크 명령 학습을 모두 지원하여 효율적이고 견고하며 전이 가능한 해를 제공함을 확인한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "이족 로봇을 위한 효과적인 토크 기반 이동 정책 학습은 여전히 핵심 과제이다: 토크 제어는 하위 수준의 반응성 있고 에너지 효율적이며 순응적인 거동을 주지만 복잡한 비선형 동역학의 정밀한 처리를 요하고 신중히 조절하지 않으면 불안정할 수 있다."}, {"type": "bullet", "text": "토크 수준의 직접 정책 학습은 고차원 부유 기저 시스템에서, 그리고 접촉 불확실성, 센서 잡음, 구동 지연이 있을 때 특히 어렵다."}, {"type": "bullet", "text": "전통적 모델 기반 제어는 이동을 상위 궤적 계획과 하위 전신 제어로 분해하며, 안정적 보행을 위해 정확한 동역학 모델과 신뢰성 있는 상태 추정에 의존한다."}, {"type": "bullet", "text": "모델-플랜트 불일치가 커지거나 센서 잡음이 상태 추정을 오염시키면 모델 기반 성능이 저하된다. 실제로 모델링되지 않은 동역학(관절 마찰, 구동기 비선형성, 백래시, 구조적 유연성)이 잡음 섞인 데이터와 결합하여 실제 로봇에서의 정확성과 일관성을 위협한다."}, {"type": "bullet", "text": "도메인 무작위화를 동반한 심층 강화학습은 모델링 오차와 환경 변동에 견고한 제어기를 만들 수 있으나, 순수 학습 기반 접근법은 방대한 데이터를 필요로 하고 보상 설계에 민감하며 모델 기반 방법의 해석 가능성과 안전 보장이 없다."}, {"type": "bullet", "text": "제안하는 지도 RL 프레임워크는 추가 지도 손실을 학습 목적에 직접 통합하여, 모델 기반 제어기의 구조적 신뢰성과 RL의 적응성을, 제어기를 잔차 RL 정책으로 증강함으로써 결합한다.", "figure_refs": [1]}, {"type": "bullet", "text": "실제 파라미터에 완전한 접근을 갖는 특권 Oracle 정책이 무작위화 조건 하에서 이상적 보정 행동을 생성한다. 희소/형성된 보상에서만 학습하는 대신, RL 정책은 지도 손실을 통해 Oracle에 의해 명시적으로 안내되어 효율성과 수렴을 개선한다.", "figure_refs": [1]}, {"type": "bullet", "text": "명시된 기여: (i) 잔차 보정 행동을 학습하는 모델 기반 + 데이터 기반 프레임워크, (ii) 감독을 위한 특권 모델 기반 Oracle, (iii) Oracle 행동을 지도 손실에 더하는 지도 RL 정식화, (iv) 세 이족 로봇 — Kangaroo, Unitree H1-2, Bruce — 에 대한 포괄적 평가."}]}, "related_works": {"content": [{"type": "bullet", "text": "반복 학습 제어(Hu 등)는 반복 실행에 걸쳐 ZMP 오차를 관측·보정하여 보상적 영점 모멘트(ZMP) 궤적을 학습하고, 패턴 생성 중 모델링되지 않은 동역학을 완화하도록 참조를 정련한다."}, {"type": "bullet", "text": "그러나 반복 학습 제어는 보정을 누적하기 위해 반복적이고 일관된 동작 패턴에 의존하여, 동적이거나 매우 가변적인 작업에서 적용성이 제한된다."}, {"type": "bullet", "text": "시뮬레이션에서 도메인 무작위화로 학습한 심층 RL 방법은 모델링 오차와 환경 변동에 견고한 제어기를 만들 수 있다."}, {"type": "bullet", "text": "Duan 등은 로봇 시스템 지식을 DRL에 통합하여 (관절 수준 제어가 아닌) 작업 공간 정책을 학습하고, 이를 관절 토크를 명령하는 저수준 역동역학 제어기에 연결한다."}, {"type": "bullet", "text": "Castillo 등은 RL이 상위 궤적을 생성하고 이어서 저수준 작업 공간 추종 제어기가 따르는 계층 프레임워크에 각운동량 기반 선형 역진자 모델의 통찰을 통합한다."}, {"type": "bullet", "text": "Egle 등은 강한 외부 외란에 대한 모델 기반 제어기의 견고성을 높이기 위해 디딤 위치와 타이밍 적응을 학습하는 데 RL을 적용한다."}, {"type": "bullet", "text": "이러한 하이브리드 접근법은 보상 공학을 줄이고 샘플 효율을 개선하지만 여전히 정책 학습에 보상 신호에만 의존하여, 많은 시행착오 반복을 요하고 학습 중 제한적 안내만 제공한다."}, {"type": "bullet", "text": "표준 보상 전용 접근법과 대조적으로, 본 연구는 추가 지도 손실 항을 학습 목적에 직접 통합하여 모델 기반 방법과 데이터 기반 방법을 잇는 지도 RL 프레임워크를 제안한다.", "figure_refs": [1]}]}, "method": {"content": [{"type": "bullet", "text": "모델 기반 Base 정책은 두 부분으로 구성된다: 3차원 운동 발산 성분(DCM)과 가상 반발점(VRP)에 기반한 궤적 생성기, 그리고 역동역학 전신 제어기(WBC)이다.", "figure_refs": [1]}, {"type": "formula", "label": "식 (1) — 운동 발산 성분 (3D 캡처 포인트 확장)", "latex": "\\xi = x + b\\,\\dot{x}, \\qquad b = \\sqrt{\\Delta z / g}", "description": "DCM xi는 캡처 포인트를 3차원으로 확장하며, x와 x-dot은 질량중심 위치와 속도, b는 평균 질량중심 높이 Delta z와 중력 g로부터 유도된다."}, {"type": "formula", "label": "식 (2) — DCM 동역학", "latex": "\\dot{\\xi} = \\tfrac{1}{b}(\\xi - v), \\qquad v = x - \\tfrac{b^2}{m}F", "description": "1차(본질적으로 불안정한) DCM 동역학으로, VRP v는 질량중심에 작용하는 총 힘 F = mg + F_ext를 인코딩한다. 보행 궤적은 단일/이중 지지 단계를 번갈아 갖는 미리보기 VRP 경유점 시퀀스에 걸쳐 계획된다."}, {"type": "bullet", "text": "각 단계 내에서 DCM 궤적은 종단 제약과 함께 풀려 시작/끝 VRP와 종단 DCM의 가중 결합으로 표현되며, 연속성은 인접 전환 단계 간 등식 제약으로 강제되어 DCM 끝점에서 시간을 거슬러 계산된다."}, {"type": "formula", "label": "식 (5) — WBC에 명령되는 원하는 질량중심 힘", "latex": "F = \\tfrac{m}{b^2}(x - v), \\qquad v = v_{ref} + (I + bK_\\xi)(\\xi - \\xi_{ref})", "description": "WBC는 양의 정부호 대각 이득 K_xi와 DCM 추종 오차 e_xi = xi - xi_ref를 갖는 제어 법칙(식 4)으로 불안정한 DCM 동역학을 안정화하며, 결과로 나온 원하는 질량중심 힘 F는 발 추종·팔·몸체 자세 작업과 함께 질량중심 작업에서 참조로 명령된다."}, {"type": "bullet", "text": "도메인 무작위화는 세 불확실성 원천 — 센서(상태 입력 교란), 로봇 동역학(관절 수준에 적용되는 질량, 관성, 모터 강도, 구동 지연), 환경(지면 마찰과 불균일) — 을 대상으로 하며, 스케일링 인자 beta로 제어된다(학습 시 beta=1)."}, {"type": "bullet", "text": "세 정책이 정의된다: Base 정책 pi_b는 부정확한 모델과 무작위화 파라미터 접근 없이 잡음 섞인 관측으로 동작하고, Oracle 정책 pi_*는 완전한 실제 정보(잡음 없는 참 신호, 정확한 동역학, 모터 지연 Delta_t_delay와 효율 alpha_decay)를 가지며 학습 중에만 사용되고, 잔차 정책은 학습 가능한 RL 제어기이다.", "figure_refs": [1]}, {"type": "bullet", "text": "잔차 정책은 관측 이력(무작위화 후 관절 위치/속도, 베이스 정책 토크, 직전 행동, DCM 및 발 추종 오차)에 대해 RNN을 사용하며, 부유 기저 속도·참 관절 상태·Oracle 토크를 포함하는 별도의 특권 관측은 정확한 가치 추정을 위해 크리틱(critic)에만 사용된다."}, {"type": "formula", "label": "식 (8)-(9) — 지도 손실과 총 학습 목적", "latex": "L_{sup} = -\\log\\big(\\pi_r(\\tau^*_t - \\tau^b_t \\mid s_t)\\big), \\qquad L_{total} = \\omega_{rl} L_{rl} + \\omega_{sup} L_{sup}", "description": "지도 손실은 잔차 정책이 Oracle 보정 잔차 행동(Oracle 토크 tau*에서 베이스 토크 tau^b를 뺀 값)에 더 높은 가능도를 부여하도록 장려하며, PPO 목적 L_rl과 결합되어 총 손실은 가중치 omega_rl=1, omega_sup=10으로 Oracle 모방과 자율 탐색을 균형 짓는다."}]}, "experiment": {"content": [{"type": "bullet", "text": "액터는 2계층 LSTM(각 256 은닉 유닛)에 512-뉴런 선형 출력을 갖고, 크리틱은 512-뉴런 입력층과 두 개의 256-뉴런 은닉층을 갖는 MLP로 ELU 활성화를 사용한다.", "figure_refs": [1]}, {"type": "bullet", "text": "세 이족 로봇이 사용된다 — Kangaroo(47 kg, 145 cm, 다리당 6 DoF, 평발), Unitree H1-2(67 kg, 178 cm, 다리당 6 DoF, 평발), Bruce(4.8 kg, 70 cm, 다리당 5 DoF, 선형 발) — MuJoCo에서, 전신 QP는 PIQP로 약 1 ms에 풀린다."}, {"type": "bullet", "text": "시뮬레이션은 1000 Hz로 실행되고 제어 명령은 200 Hz로 적용되며, RL 정책은 각각 10초 시뮬레이션에 해당하는 10k 에피소드에 걸쳐 학습된다. 성공은 (2초마다 변하는) 무작위 속도 명령을 따라 넘어지지 않고 5초간 걷는 것을 의미한다."}, {"type": "bullet", "text": "기준선은 모델 기반 제어기(MBC, 1000 Hz 저역통과 필터링 관측), 비지도 잔차 RL(ResRL, omega_sup=0이나 토크 추종 보상은 유지), 모방 학습(IL, omega_rl=0, 감독만)을 포함한다."}, {"type": "bullet", "text": "성공 지표에서 전체 방법(BOR)은 세 로봇 모두(Kangaroo/Bruce/H1-2)에서 100%를 달성하며, Base 정책 0%, 비지도 ResRL 10%/0%/0%, IL 100%/70%/80%, MBC 0%와 대비되어 Oracle의 100%와 일치한다.", "figure_refs": [2]}, {"type": "bullet", "text": "BOR은 Oracle에 근접한 DCM 및 발 추종을 달성하며(예: Kangaroo DCM 2.61 cm 대 Oracle 3.05 cm), Kangaroo의 DCM 추종과 Bruce의 Return에서는 Oracle을 약간 능가하기도 한다.", "figure_refs": [4]}, {"type": "bullet", "text": "무작위화 증가 하에서(표 IV, Kangaroo) MBC는 100%(beta=0.1)에서 50%(beta=0.5), 10%(beta=0.7)로 저하되는 반면, 최고 수준 beta=1에서 학습된 BOR은 beta가 [0,1] 전반에서 최소 추종 오차로 100% 성공을 유지한다.", "figure_refs": [5]}, {"type": "bullet", "text": "학습은 효율적이다: BOR은 의도적으로 단순한 보상 구조로 단 약 1,500 에피소드(단일 환경 시뮬레이션 4.16시간) 후 80% 성공을 넘는 반면, 비지도 잔차 RL은 거의 진전을 보이지 않는다. 이는 수천 개의 병렬 환경을 사용한 선행 연구와 대조된다.", "figure_refs": [2]}, {"type": "bullet", "text": "불균일 지형에서 (평평한 바닥을 가정하는) Oracle은 IL이 물려받는 불안정한 제어를 낳지만, BOR은 RL을 통해 보정 행동을 탐색하여 단순히 Oracle을 모방하는 것을 넘어 최적화한다. 한 절제 실험은 잔차 학습이 직접 토크 학습보다 빠르게 수렴함을 보이나, Base와 Oracle 간 불일치가 잔차의 이득을 제한한다.", "figure_refs": [3]}]}, "discussion": {"content": [{"type": "bullet", "text": "RL로 토크 수준 이동을 학습하는 것은 일반적으로 데이터 비효율적인 반면, 모델 기반 최적화는 실세계에서 거의 성립하지 않는 정확한 시스템 모델에 의존한다."}, {"type": "bullet", "text": "본 접근법은 시뮬레이션에서 실세계 불확실성을 명시적으로 모델링하며 Oracle이 안내하는 잔차 토크 정책을 학습함으로써 이 패러다임들을 잇는다."}, {"type": "bullet", "text": "모방과 탐색을 균형 짓기 위해 강화와 감독 목적을 공동 최적화하며, Oracle 안내가 학습 효율을 크게 개선한다."}, {"type": "bullet", "text": "그러나 실제 상태에 접근하는 Oracle조차 모든 불리한 조건을 예측할 수 없으며, 급격한 사용자 명령 변화나 불안정한 지면 접촉은 Oracle이 막을 수 없는 실패를 유발할 수 있다."}, {"type": "bullet", "text": "Oracle에 대한 과의존은 매우 확률적인 조건에서 성능을 제한할 수 있는데, Bruce와 H1 로봇에서 보이듯 Oracle에서 벗어나는 RL 탐색이 안정성을 개선한다.", "figure_refs": [3]}, {"type": "bullet", "text": "RL은 안정성과 전반적 성능을 개선하기 위해 Oracle에서 벗어나는 보정 행동을 탐색하도록 돕고, BOR에서 순수 모방 학습 대비 DCM과 발 추종을 모두 향상시킨다."}, {"type": "bullet", "text": "모방 학습 성능은 플랫폼에 따라 다르며 — Kangaroo에서는 BOR과 비슷하나 Bruce에서는 현저히 나쁨 — IL이 특히 선형 발 로봇의 급속 속도 전환 중 Oracle의 신뢰성에 더 민감함을 나타낸다."}, {"type": "bullet", "text": "광범위한 무작위화 하에서 Base 정책이 목표에서 크게 벗어나는 토크를 낳을 때, Base 위에 잔차를 학습하는 것은 토크 명령을 직접 학습하는 것 대비 제한적 이득만 제공한다.", "figure_refs": [3]}]}, "conclusion": {"content": [{"type": "bullet", "text": "본 연구는 두 근본 과제를 다루는 토크 기반 휴머노이드 이동을 위한 지도 강화학습 프레임워크를 제시한다: 모델 기반 제어 고유의 sim-to-real 간극과 표준 모델 프리 RL의 데이터 비효율이다."}, {"type": "bullet", "text": "학습 중 도메인 무작위화는 학습된 정책이 광범위한 시뮬레이션 조건에 걸쳐 일반화하게 하여 미지의 시스템 불확실성에 대한 견고성을 개선한다."}, {"type": "bullet", "text": "모델 기반 Oracle 정책은 무작위화 동역학 하에서 차선이지만 유익한 감독을 제공하여 학습 효율을 높인다.", "figure_refs": [1]}, {"type": "bullet", "text": "Oracle 감독은 경사 갱신 중 정책이 Oracle과 정렬하도록 명시적으로 장려하는 추가 손실 항을 통해 통합되어, 학습을 크게 가속하고 보상 전용 RL 대비 성능을 개선한다."}, {"type": "bullet", "text": "프레임워크는 세 이족 로봇 — Kangaroo, Unitree H1-2, Bruce — 에 평가되며, 학습된 정책은 모든 플랫폼에서 각자의 Oracle에 필적하는 성능을 달성한다."}, {"type": "bullet", "text": "특히 동일한 학습 프레임워크가 로봇별 수정 없이 적용되어 플랫폼 간 일반화를 입증한다."}, {"type": "bullet", "text": "절제 연구는 본 방법이 베이스 제어기 위 잔차 토크 학습과 직접 토크 명령 학습을 모두 효과적으로 지원함을 보인다."}, {"type": "bullet", "text": "전반적으로 Oracle 안내 지도 강화학습은 휴머노이드 로봇의 토크 기반 이동 제어에 효율적이고 견고하며 전이 가능한 해를 제공한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "실제 상태에 특권적으로 접근하는 Oracle조차 모든 불리한 조건을 예측할 수 없어, 급격한 사용자 명령 변화나 불안정한 지면 접촉은 여전히 Oracle이 막을 수 없는 실패를 유발할 수 있다.", "source_quote": "even an Oracle with access to ground-truth states cannot anticipate all adverse conditions. For instance, abrupt user command changes or unstable ground contacts can cause failures that the Oracle cannot prevent.", "source_section": "discussion"}, {"claim": "Oracle에 대한 과의존은 Bruce와 H1 로봇에서 관찰되듯 매우 확률적인 조건에서 성능을 제한할 수 있다.", "source_quote": "As shown in our results on the Bruce and H1 robots, over-reliance on the Oracle can therefore limit performance under highly stochastic conditions.", "source_section": "discussion"}, {"claim": "Oracle은 평평한 바닥을 가정하고 지면 불규칙성을 명시적으로 인코딩할 수 없어, 불균일 지형은 Oracle이 학습을 안내하기 어려운 주요 불확실성으로 남는다.", "source_quote": "In this work, we always assume a flat floor for the Oracle policy while leveraging the learning paradigm to handle uncertainties.", "source_section": "experiment"}], "future_works": [], "motivation_resolution": {"motivating_problems": ["이족 로봇을 위한 토크 기반 이동 정책 학습은 어렵다: 토크 제어는 순응적이고 에너지 효율적인 거동을 주지만 복잡한 비선형 동역학의 정밀한 처리를 요하고 잘못 조절되면 불안정하며, 특히 접촉 불확실성, 센서 잡음, 구동 지연 하의 고자유도 부유 기저 시스템에서 그러하다.", "모델 기반 제어기는 정확한 동역학 모델과 신뢰성 있는 상태 추정에 의존하며, 모델-플랜트 불일치가 커지거나 센서 잡음이 상태 추정을 오염시킬 때(모델링되지 않은 관절 마찰, 구동기 비선형성, 백래시, 구조적 유연성) 성능이 저하된다.", "순수 학습 기반(DRL) 접근법은 도메인 무작위화를 통해 견고하지만 방대한 데이터를 요하고 보상 설계에 민감하며 모델 기반 방법의 해석 가능성과 안전 보장이 없다.", "선행 하이브리드 방법은 여전히 정책 학습에 보상 신호에만 의존하여, 많은 시행착오 반복을 요하고 학습 중 제한적 안내만 제공한다."], "addressed_by_this_work": ["모델 기반 DCM+WBC Base 정책을 모델 부정확성에 대한 보정 토크를 학습하는 잔차 RL 정책으로 증강하여, 모델 기반 구조/신뢰성과 RL 적응성을 결합한다.", "무작위화 하에서 이상적 보정 행동을 생성하기 위해 실제 동역학에 접근하는 특권 모델 기반 Oracle 정책을 도입하여 모델링/센싱 불확실성을 다룬다.", "PPO 목적과 함께 Oracle 행동을 통합하는 지도 손실 항을 추가하여, 보상 형성에만 의존하지 않고 학습 효율과 수렴을 개선한다.", "동일 프레임워크와 로봇별 튜닝 없이 세 이족 로봇(Kangaroo, Unitree H1-2, Bruce)에 걸쳐 견고성과 플랫폼 일반화를 입증한다."], "remaining_unresolved": ["모든 평가가 시뮬레이션(MuJoCo)에서 이루어졌으며, sim-to-real 규정에도 불구하고 본 버전에서 물리적 로봇 배치가 시연되지 않아 실제 sim-to-real 간극은 미검증으로 남는다.", "Base와 Oracle 정책이 크게 갈릴 때(광범위한 무작위화 하), Base 위에 잔차를 학습하는 것은 토크 명령을 직접 학습하는 것 대비 제한적 이득만 제공한다.", "불균일 지형과 급격한 명령/접촉 전환은 Oracle 감독 프레임워크가 완전히 예측할 수 없는 실패 원천으로 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

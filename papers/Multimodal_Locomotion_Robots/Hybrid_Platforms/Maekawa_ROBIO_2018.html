@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Pseudo-Locomotion Design with a Quadrotor-Assisted Biped Robot</title>
+    <meta name="keywords" content="pseudo-locomotion, quadrotor-assisted biped, deep reinforcement learning, foot trajectory generation, entertainment robot, PPO, overhead tether, walking appearance, sim-to-real">
+    <meta name="paper-authors" content="Azumi Maekawa, Ryuma Niiyama, Shunji Yamanaka">
+    <meta name="paper-journal" content="Proceedings of the 2018 IEEE International Conference on Robotics and Biomimetics (ROBIO), December 12-15, 2018, Kuala Lumpur, Malaysia, pp. 2462-2466">
+    <meta name="paper-tier" content="2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Pseudo-Locomotion Design with a Quadrotor-Assisted Biped Robot</div>
+                <span class="tier-badge tier-2">Tier 2 — 일반</span>
+            </div>
+            <div class="authors">Azumi Maekawa, Ryuma Niiyama, Shunji Yamanaka</div>
+            <div class="journal">Proceedings of the 2018 IEEE International Conference on Robotics and Biomimetics (ROBIO), December 12-15, 2018, Kuala Lumpur, Malaysia, pp. 2462-2466</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 이동성과 안정성을 위한 머리 위 테더로 사용되는 쿼드로터에 다리를 매다는 방식으로, 동적 이동성을 갖춘 설득력 있는 <span class="term">walking appearance</span>을 보여주는 이족 엔터테인먼트 로봇을 개발한다. 저자들은 완전한 이족 균형을 푸는 대신, 이른바 <span class="term">pseudo-locomotion</span>을 목표로 한다: 즉, 지면에 접촉한 발의 속도가 0이라는 핵심 시각적 단서를 활용하여, 쿼드로터가 움직일 때 접지된 발의 속도를 0으로 유도하는 보상을 갖는 발-궤적-생성 정책을 심층 강화학습(MuJoCo 물리 시뮬레이터 내 PPO)으로 학습한다. 학습된 정책은 이론적 최대 리턴의 약 70%에 도달하고, 보폭과 주기가 (생물에서처럼) 몸체 속도에 따라 비례하는 보행을 생성하며, 3D 프린팅된 2자유도 다리를 장착한 실제 DJI Phantom 3 쿼드로터로 전이되는데, 여기서 모션 캡처로 추정된 쿼드로터 속도가 실시간으로 상호작용적으로 안무된 보행을 구동한다.</div>
+            <div class="keywords"><span class="keyword-chip">pseudo-locomotion</span><span class="keyword-chip">quadrotor-assisted biped</span><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">foot trajectory generation</span><span class="keyword-chip">entertainment robot</span><span class="keyword-chip">PPO</span><span class="keyword-chip">overhead tether</span><span class="keyword-chip">walking appearance</span><span class="keyword-chip">sim-to-real</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 엔터테인먼트(애니매트로닉스, 장난감, 로봇 애완동물)를 위한 실세계 기계적 캐릭터에 대한 동기를 부여하고, 고품질 이족 보행 운동을 만드는 것이 시간과 자원이 많이 소요되는 동시에 지속적인 난제임을 지적한다. 완전한 이동(locomotion) 제어보다 외관 특성에 집중함으로써 원하는 시각적 경험을 전달할 수 있다고 주장하며, 동적 이동성과 안정성을 부여하기 위해 쿼드로터를 머리 위 테더로 사용하는 방안을 제안한다 — 저자들은 이 역량을 pseudo-locomotion이라 명명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 서론 내에서 두 가지 주제에 걸쳐 조사된다: 엔터테인먼트 이족 로봇을 안정화하거나 이동시키는 대안적 수단, 그리고 보행 운동을 설계하기 위한 계산적/기계적 방법. 저자들은 부력으로 안정화된 BALLU 로봇 및 전통적인 기어/링크/캠 메커니즘을 상호작용적 계산-설계 시스템과 대비하며, 모든 선행 방법이 느리고 주기적이거나 준정적인 운동만을 산출하며 안정적이고 동적인 이동을 결여한다고 언급한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">이 시스템은 DJI Phantom 3 Advanced 쿼드로터를 경량 2자유도 다리 유닛(3D 프린팅 나일론 링크와 위치 제어 서보)과 결합하며, 무릎은 새의 다리처럼 진행 방향의 반대로 굽는다. 운동 제어는 접지된 발의 속도가 0이라는 외관 단서를 목표로 한다: 발 접촉 및 발 속도 상태를 중심으로 설계된 보상과 강건성을 유도하기 위한 무작위화된 몸체-속도 스케줄을 사용하여, 제어 정책을 MuJoCo에서 심층 강화학습으로 학습한다. 정책은 관측된 몸체 속도와 관절 각도를 20 Hz로 목표 관절 각도에 매핑한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 시뮬레이션에서의 정책 학습과 실세계로의 전이를 다룬다. PPO는 약 백만 샘플에서 정책을 수렴까지 학습시켜 이론적 최대 리턴의 약 70%에 도달하며, 학습된 발 궤적은 보폭과 보행 주기가 몸체 속도에 따라 비례하는 동안 접지된 발을 0에 가까운 속도로 유지한다. 실세계 설정에서는 OptiTrack 모션 캡처가 수동 비행하는 쿼드로터의 속도를 추정하고, 이 속도가 학습된 정책과 시뮬레이션 스텝을 구동하여 실제 서보로 보내질 관절 각도를 계산함으로써, 실시간으로 상호작용적으로 안무된 pseudo-locomotion을 생성한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결과는 단일 외관 단서 — 접지된 발 속도 0 — 를 DRL 보상에 인코딩하는 것만으로 완전한 이족 균형을 풀지 않고도 믿을 만하고 속도에 적응하는 보행을 산출하기에 충분하며, 쿼드로터가 이동성과 안정성을 공급함을 보여준다. 저자들은 또한 서보 거동에서의 sim-to-real 격차와 무작위화된 학습 속도의 강건성 이점을 드러내는 한편, 현재의 기여를 단방향, 시상면, 운동학적으로 제어되는 운동으로 한정한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 쿼드로터로 보조되는 이족 엔터테인먼트 로봇이 쿼드로터의 속도에 따라 접지된 발의 속도를 0으로 유지하는 DRL로 최적화된 제어 정책을 사용하여 민첩하게 움직이고 실시간으로 pseudo-locomotion을 생성할 수 있다고 결론짓는다. 이 접근법은 메커니즘과 실세계 제약 때문에 이전에는 불가능했던 가상현실 같은 물리적 경험을 전달할 수 있으며, 저자들은 자유도 증가, 멀티로터 구동 원하는-궤적 제어, 온보드 전원/컨트롤러, 동역학 인지 제어를 향후 과제로 제시한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "테마파크의 애니매트로닉스, 전기-기계식 장난감, 로봇 애완동물을 위해 생명체 같은 움직임을 가진 기계적 캐릭터를 만들고자 하는 오랜 열망이 존재한다.", "figure_refs": []}, {"type": "bullet", "text": "로보틱스의 괄목할 만한 발전에도 불구하고, 가상 환경에서와 같은 섬세하고 고품질의 캐릭터 움직임을 만드는 것은 실용적으로 여전히 어렵다.", "figure_refs": []}, {"type": "bullet", "text": "이족 보행은 그러한 난제 중 하나로 지목된다; 다리 달린 캐릭터에게 자유로운 이동은 필수적이지만, 이족 이동 문제는 여전히 남아 있다(예: DARPA Robotics Challenge).", "figure_refs": []}, {"type": "bullet", "text": "그러한 로봇을 만드는 것은 시간과 자원이 많이 들지만, 외관 특성에 집중함으로써 이러한 문제들을 피하면서 원하는 시각적 경험을 제공할 수 있다.", "figure_refs": []}, {"type": "bullet", "text": "저자들의 목표는 환경에 관계없이 동적 이동성을 갖춘 보행 외관을 보여주는 로봇이며, 이 거동을 pseudo-locomotion이라 명명한다.", "figure_refs": [1]}, {"type": "bullet", "text": "이들의 접근법은 쿼드로터를 머리 위 테더로 사용하여 이동성과 안정성을 제공하고 기동성을 향상시켜 풍부한 물리적 표현을 가능하게 한다.", "figure_refs": [1]}, {"type": "bullet", "text": "pseudo-locomotion을 달성하기 위해, 이들은 심층 강화학습(DRL)을 이용한 새로운 발-궤적-생성 방법을 개발한다.", "figure_refs": []}]}, "related_works": {"content": [{"type": "bullet", "text": "Ghassemi와 Hong의 BALLU 프로토타입은 헬륨이 채워진 풍선의 부력을 사용하여 걷기, 점프, 춤을 가능하게 했으며 본질적으로 로봇이 넘어지지 않도록 안정화했다.", "figure_refs": []}, {"type": "bullet", "text": "그러나 BALLU는 공기 저항과 바람의 영향을 크게 받았기 때문에 동적 움직임을 부여할 수 없었다.", "figure_refs": []}, {"type": "bullet", "text": "기어, 링크 구조, 캠, 크랭크-슬라이더를 사용하는 기계적 구조는 엔터테인먼트 로봇에서 보행 외관을 구현할 수 있고 사용자가 임의의 말단장치 궤적을 설계할 수 있게 한다.", "figure_refs": []}, {"type": "bullet", "text": "그러한 메커니즘 기반 설계는 주기적이고 정적인 움직임에 국한되며, 대부분의 경우 안정적인 이동 능력이 결여되어 있다.", "figure_refs": []}, {"type": "bullet", "text": "Megaro 등은 사용자가 만든 임의의 형상으로 안정적으로 이동하는 로봇을 생성하는 상호작용적 설계 시스템을 제안했다.", "figure_refs": []}, {"type": "bullet", "text": "Bharaj 등은 일반 사용자가 사전 정의된 템플릿 메커니즘으로부터 개인화된 보행 장난감을 만들 수 있게 하는 계산적 설계 방법을 제안했다.", "figure_refs": []}, {"type": "bullet", "text": "이러한 계산-설계 방법조차도 로봇 운동 — 특히 이족 이동 — 이 상대적으로 느리고 준정적 운동에 국한된다.", "figure_refs": []}]}, "method": {"content": [{"type": "bullet", "text": "로봇은 DJI Phantom 3 Advanced 쿼드로터(~1280 g, 무탑재 시 ~23분 비행, 온보드 IMU 및 고도 센서)와 다리 유닛으로 구성되며; 전체 로봇 무게는 약 1870 g이다.", "figure_refs": []}, {"type": "bullet", "text": "각 다리는 Kondo KRS-2572 HV 위치 제어 서보(범위 -1 ~ 1.5 rad)로 구동되는 2자유도를 가지며, 축이 평행하여 발이 시상면(sagittal plane) 내에서 움직인다; 206 g의 다리 유닛은 강성 정강이와 유연한 발을 갖춘 3D 프린팅 나일론 링크를 사용한다.", "figure_refs": [2]}, {"type": "bullet", "text": "무릎은 새의 다리 외관에서 영감을 받아 진행 방향의 반대로 굽는다.", "figure_refs": [2]}, {"type": "bullet", "text": "운동 제어는 지면에 접촉한 발의 속도에 초점을 맞춘다: 보행 외관의 결정적 특징은 접지된 발의 속도가 0이라는 것이며, 이는 컴퓨터 애니메이션 보행 합성에서 널리 사용되는 제약이다.", "figure_refs": []}, {"type": "bullet", "text": "자유도가 증가함에 따라 제어 복잡도가 감당하기 어려울 정도로 커지므로, 정책은 하드웨어와 일치하는 모델(0.27 m 링크, 반지름 0.75e-3 m의 호 형태 발)에 대해 MuJoCo에서 DRL로 학습된다; 상태는 몸체 속도와 관절 각도이고, 행동은 목표 관절 각도를 설정하며, 20 Hz로 쿼리된다.", "figure_refs": [3]}, {"type": "formula", "label": "보상 함수 (Algorithm 1)", "latex": "r = \\begin{cases} \\alpha - (v_{footL} + v_{footR}) & \\text{body stopped, both feet in contact} \\\\ \\alpha - v_{footL} & \\text{moving, only left foot in contact} \\\\ \\alpha - v_{footR} & \\text{moving, only right foot in contact} \\\\ \\alpha - (v_{footL} + v_{footR}) & \\text{moving, both feet in contact} \\\\ -\\beta & \\text{neither foot in contact} \\end{cases}", "description": "보상은 지면에 접촉한 발이 어느 쪽이든 그 속도를 0에 가깝게 유지하는 것에 보상을 주고, 접촉한 발이 없는 경우에 페널티를 부과하며, $\\alpha = \\beta = 1$이고 정지 임계값 $\\epsilon = 1\\times10^{-3}$이다. 이는 보행-외관 단서(접지된 발 속도 = 0)를 학습 목적함수에 직접 인코딩한다."}, {"type": "formula", "label": "몸체-속도 외란 스케줄 (Algorithm 2)", "latex": "v_{body} \\leftarrow \\operatorname{clip}(v_{body} + X,\\,0,\\,v_{max}) \\;\\text{every } k \\text{ steps}, \\quad v_{body} \\leftarrow v_{body} + c\\,Y \\;\\text{otherwise}", "description": "학습 시 몸체 속도는 일정 간격마다 $X \\sim U(-0.3, 0.3)$로 교란되고, 그 외에는 $c = 0.05$로 스케일된 가우시안 잡음 $Y \\sim N(0,1)$로 교란되며, $[0, v_{max}=1.8]$로 클리핑된다. 무작위화된 속도 프로파일은 나중에 수동 비행하는 쿼드로터로부터 경험하게 될 몸체-속도 범위 전반에 걸쳐 정책이 강건한 보행을 획득하도록 강제한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "Proximal Policy Optimization(PPO)이 정책 네트워크(64 유닛의 완전연결 은닉층 2개, tanh 활성화, Adam 옵티마이저)를 학습시키며, 500-스텝 에피소드와 Table I에 나열된 하이퍼파라미터(학습률 3e-4, 10 에포크, 미니배치 64, 할인율 0.99, 클리핑 0.2)를 사용한다.", "figure_refs": []}, {"type": "bullet", "text": "학습은 약 백만 샘플에서 수렴하여, 이론적 최대 에피소드 리턴 500의 약 70%에 도달했다.", "figure_refs": [4]}, {"type": "bullet", "text": "학습된 정책으로 0.5, 0.75, 1.0 m/s의 일정한 몸체 속도에서 지면에 접촉한 발의 속도가 거의 0 m/s였으며, 이는 pseudo-locomotion이 생성되었음을 확인한다.", "figure_refs": [5]}, {"type": "bullet", "text": "보폭과 보행 주기가 몸체 속도에 따라 변화하여, 생물에서 알려진 이동 속도와 보폭 간의 양의 상관관계를 모방했다.", "figure_refs": [5]}, {"type": "bullet", "text": "실세계에서 OptiTrack Flex 3 카메라가 쿼드로터의 속도를 추정하여 학습된 정책에 입력하고; 그 결과로 나온 행동이 시뮬레이션에서 로봇 모델을 진행시키며, 모델의 관절 각도가 매 스텝마다 실제 서보로 전송된다.", "figure_refs": [6]}, {"type": "bullet", "text": "이족 운동 생성은 외부 CPU에서 실행되고, 데이지 체인으로 연결된 서보는 Arduino MEGA가 시리얼로 구동하며; 쿼드로터는 리모컨으로 수동 제어된다.", "figure_refs": [6]}, {"type": "bullet", "text": "실제 로봇에서 pseudo-locomotion이 성공적으로 생성되었으며, 사용자는 쿼드로터의 움직임을 제어함으로써 실시간으로 로봇의 보행 운동을 상호작용적으로 안무할 수 있었다.", "figure_refs": [7]}]}, "discussion": {"content": [{"type": "bullet", "text": "컴퓨터 애니메이션에서 자연스러운 보행을 위한 제약으로 사용되는 접지된 발의 영속도 특성이 여기서 학습된 정책에 의해 재현되어, 외관 특성 중심 설계를 입증한다.", "figure_refs": [5]}, {"type": "bullet", "text": "보행 생성을 DRL로 정식화하면 자유도와 함께 증가하는 복잡하고 감당하기 어려운 제어 시스템 설계를 피하고, 균형과 이동성을 머리 위 쿼드로터 테더에 위임한다.", "figure_refs": []}, {"type": "bullet", "text": "DRL은 학습에 시간이 많이 걸리므로 학습은 시뮬레이션에서 수행되었으며, 정책이 전이될 수 있도록 MuJoCo 모델을 하드웨어 설계와 일치하도록 구성했다.", "figure_refs": [3]}, {"type": "bullet", "text": "학습 중 몸체 속도에 외란 잡음을 주입한 것(Algorithm 2)은 런타임에 변화하는 수동 명령 쿼드로터 속도로 일반화되는 강건한 정책을 산출하기 위함이었다.", "figure_refs": []}, {"type": "bullet", "text": "실제 서보 특성(응답 속도, 온도, 외란)을 시뮬레이션하기 어렵기 때문에 sim-to-real 격차가 발생하며, 따라서 동일한 입력이라도 MuJoCo와 실제 모터 간에 동일한 결과를 낳지는 않는다.", "figure_refs": [6]}, {"type": "bullet", "text": "정책에서 나타난 보폭-속도 비례 관계는 학습된 거동이 생물의 자연스러운 보행의 한 측면을 포착함을 시사한다.", "figure_refs": [5]}, {"type": "bullet", "text": "현재의 시연은 단방향 속도, 시상면 운동, 운동학 기반 실세계 제어로 한정되어 있어, 기여의 범위를 규정한다.", "figure_refs": []}]}, "conclusion": {"content": [{"type": "bullet", "text": "저자들은 민첩하게 움직이고 실시간으로 pseudo-locomotion을 생성하는, 쿼드로터를 사용한 엔터테인먼트용 이족 로봇을 제안했다.", "figure_refs": []}, {"type": "bullet", "text": "심층 강화학습 기반 방법으로 최적화된 제어 정책은 쿼드로터의 속도에 따라 지면에 접촉한 발의 속도를 0으로 유지한다.", "figure_refs": []}, {"type": "bullet", "text": "이 방법은 이동성과 안정성을 갖춘 이족 보행 외관을 구현하는 발 궤적을 자동으로 생성한다.", "figure_refs": []}, {"type": "bullet", "text": "이 접근법은 메커니즘과 실세계 특성 제약 때문에 이전에는 불가능했던 물리적 움직임을 가능하게 함으로써 실세계에서 가상현실 경험을 구현할 잠재력을 갖는다.", "figure_refs": []}, {"type": "bullet", "text": "현재 운동은 시상면 내 단방향 속도에 국한되므로, 다양한 운동을 가능하게 하기 위해 몸체와 다리의 자유도를 증가시키는 것이 제안된다.", "figure_refs": []}, {"type": "bullet", "text": "향후 과제로는 멀티로터 기반의 원하는 궤적 제어 시스템, 높은 이동성을 위한 온보드 배터리 및 컨트롤러, 그리고 다양한 운동을 획득하기 위한 (운동학 기반이 아닌) 동역학 인지 제어가 포함된다.", "figure_refs": []}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "생성된 운동은 한 방향의 속도로 제한되며, 보행은 시상면에서만 발생한다.", "source_quote": "Presently, the motion is limited to velocity in one direction and the walking motion occurs in the sagittal plane.", "source_section": "conclusion"}, {"claim": "하이퍼파라미터를 조정해도 생성된 궤적이 미미하게만 조절되며, 원하는 운동이 두드러지도록 움직임을 만들기는 어렵다.", "source_quote": "It is possible to adjust the generated trajectories slightly with the current method by tuning the hyperparameters. However, it is difficult to make the movements feature the desired motions.", "source_section": "conclusion"}, {"claim": "다리는 온보드 배터리 및 컨트롤러가 아니라, 전원이 외부에서 전선을 통해 공급되는 오프보드 컨트롤러로 제어되었다.", "source_quote": "the leg was controlled by the off-board controller, and power was supplied externally using wires. In order to obtain high mobility, it is necessary to use a load battery and an onboard controller.", "source_section": "conclusion"}, {"claim": "로봇은 시스템 동역학을 고려하지 않는 운동학 기반 접근법을 사용하여 실세계에서 제어되었다.", "source_quote": "in this study, we controlled the robot in the real world using a kinematics-based approach. In the future, We will consider the dynamics of the system", "source_section": "conclusion"}, {"claim": "실제 서보 모터 특성(응답 속도, 온도 특성, 외란)을 정밀하게 시뮬레이션하기 어렵기 때문에, 동일한 입력이라도 MuJoCo와 실제 모터 간에 동일한 결과를 산출하지 않는다.", "source_quote": "it is difficult to precisely simulate properties of an actual servo motor, such as response speed, temperature characteristics, disturbance, etc. Therefore, even if the same input is given, the identical result is not necessarily returned between the MuJoCo motor and the actual motor.", "source_section": "experiment"}], "future_works": [{"claim": "더 다양한 운동을 가능하게 하기 위해 몸체와 다리의 자유도를 증가시킨다.", "source_quote": "increasing the DOF of the body and legs will enable various motions.", "source_section": "conclusion"}, {"claim": "멀티로터를 사용하여 이족 로봇의 원하는 궤적을 구현하는 제어 시스템을 만든다.", "source_quote": "our future work will attempt to create a control system that realizes the desired trajectories of the biped robot using multirotor.", "source_section": "conclusion"}, {"claim": "높은 이동성을 얻기 위해 온보드 배터리와 온보드 컨트롤러를 사용한다.", "source_quote": "In order to obtain high mobility, it is necessary to use a load battery and an onboard controller.", "source_section": "conclusion"}, {"claim": "로봇이 다양한 운동을 획득할 수 있도록, 현재의 운동학 기반 접근법 대신 시스템의 동역학을 고려한다.", "source_quote": "In the future, We will consider the dynamics of the system and attempt to allow the robot to acquire various motions.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["섬세하고 고품질의 생명체 같은 캐릭터 운동 — 특히 이족 보행 — 을 만드는 것은 현대 로보틱스의 발전에도 불구하고 시간과 자원이 많이 소요되는 실용적 난제로 남아 있다.", "이족 이동은 (DARPA Robotics Challenge에서 보듯) 가장 큰 로보틱스 난제 중 하나이며, 대부분의 엔터테인먼트 로봇 메커니즘에는 안정적인 이동 능력이 결여되어 있다.", "이전의 헬륨-풍선 이족 로봇(BALLU)은 로봇을 본질적으로 안정화하고 넘어짐을 방지했지만, 공기 저항과 바람의 영향을 크게 받았기 때문에 동적 움직임을 부여할 수 없었다.", "기어/링크/캠 메커니즘과 계산-설계 방법은 사용자가 임의의 형상을 설계할 수 있게 하지만, 안정적인 이동이 결여된 주기적이고 느리며 준정적인 운동만을 산출한다."], "addressed_by_this_work": ["쿼드로터를 머리 위 테더로 사용하여 이동성과 안정성을 제공함으로써, 이족 로봇이 환경에 관계없이 동적 이동성을 갖춘 보행 외관을 보여줄 수 있게 한다(pseudo-locomotion이라 명명).", "접지된 발의 속도가 0이라는 외관 특성에 집중함으로써 감당하기 어려운 완전-균형 제어 문제를 우회하여, 설계를 발-궤적 생성으로 축소한다.", "접지된 발을 0 속도로 유도하고 보폭과 주기를 몸체 속도에 적응시키는 보상을 갖는 발-궤적-생성 정책을 심층 강화학습(MuJoCo 내 PPO)으로 학습한다.", "시뮬레이션(이론적 최대 리턴의 ~70%)과 실제 하드웨어 모두에서 민첩한 실시간 pseudo-locomotion을 시연하며, 실제 하드웨어에서는 사용자가 쿼드로터를 제어하여 보행을 상호작용적으로 안무한다."], "remaining_unresolved": ["운동이 시상면 내 한 방향으로 제한되며; 다양한 운동을 위해서는 더 많은 몸체/다리 자유도가 필요하다.", "시스템은 외부 전선으로 전원을 공급받는 오프보드 컨트롤러와 수동 리모컨 제어 쿼드로터에 의존하므로, 진정한 온보드 이동성은 아직 달성되지 않았다.", "제어가 운동학 기반이며 시스템 동역학을 무시하고, sim-to-real 서보 격차가 충실도를 제한하며; 멀티로터를 통한 원하는-궤적 제어는 향후 과제로 남아 있다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>
