@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마르코프 결정 과정과 강화학습의 목적함수 — 벨만 방정식까지 한 줄씩 — KHS Research</title>
+<meta name="description" content="강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼는다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<style>
+  :root{
+    --bg:#f3f5f8; --panel:#ffffff; --ink:#232830; --soft:#565c6b; --mute:#9aa0ad;
+    --line:#e7ebef; --accent:#2f6bd8; --accent2:#5b4be6; --radius:16px; --measure:720px;
+    --disp:'Space Grotesk','Noto Sans KR',sans-serif;
+    --sans:'Noto Sans KR','Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;
+    -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+
+  /* Nav (consistent with hub) */
+  nav{position:sticky;top:0;z-index:100;backdrop-filter:saturate(180%) blur(14px);
+    background:rgba(243,245,248,.78);border-bottom:1px solid var(--line);}
+  .nav-in{max-width:960px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{font-family:var(--disp);font-weight:700;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px;}
+  .brand .mk{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent2),var(--accent));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;}
+  .nav-links{display:flex;align-items:center;gap:4px;font-size:13.5px;}
+  .nav-links a{color:var(--soft);padding:7px 12px;border-radius:9px;transition:background .15s,color .15s;}
+  .nav-links a:hover{background:var(--panel);color:var(--ink);}
+
+  /* Article */
+  .article{max-width:var(--measure);margin:0 auto;padding:46px 24px 20px;}
+  .back{display:inline-flex;gap:6px;font-size:13px;color:var(--accent);margin-bottom:22px;}
+  .back a:hover{text-decoration:underline;}
+  .cat-badge{display:inline-block;font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.02em;
+    color:var(--accent);background:#eaf1fd;border:1px solid #d9e4fb;padding:4px 12px;border-radius:999px;}
+  h1.title{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.02em;line-height:1.25;margin:16px 0 14px;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);padding-bottom:22px;border-bottom:1px solid var(--line);}
+  .summary{font-size:15.5px;color:var(--soft);line-height:1.7;margin:22px 0 0;}
+
+  /* Long-form body */
+  .body{max-width:var(--measure);margin:0 auto;padding:8px 24px 40px;font-size:16.5px;line-height:1.85;}
+  .body h2{font-family:var(--disp);font-size:23px;font-weight:700;letter-spacing:-.01em;margin:46px 0 14px;
+    padding-top:14px;border-top:1px solid var(--line);}
+  .body h2:first-of-type{border-top:none;padding-top:0;margin-top:30px;}
+  .body h3{font-size:18.5px;font-weight:700;margin:32px 0 10px;color:var(--ink);}
+  .body p{margin:15px 0;color:#2b313b;}
+  .body ul,.body ol{margin:15px 0;padding-left:24px;}
+  .body li{margin:9px 0;}
+  .body strong{font-weight:700;color:var(--ink);}
+  .body em{font-style:italic;}
+  .body a{color:var(--accent);text-decoration:none;border-bottom:1px solid #cfe0fb;transition:border-color .15s;}
+  .body a:hover{border-color:var(--accent);}
+  .body blockquote{margin:22px 0;padding:16px 20px;background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:12px;color:var(--soft);font-size:15.5px;}
+  .body blockquote p{margin:8px 0;color:var(--soft);}
+  .body blockquote p:first-child{margin-top:0;}
+  .body blockquote p:last-child{margin-bottom:0;}
+  /* KaTeX display blocks scroll horizontally on small screens instead of overflowing */
+  .body .katex-display{overflow-x:auto;overflow-y:hidden;padding:6px 0;margin:20px 0;}
+  .body p:has(>.katex-display){margin:20px 0;}
+
+  footer{border-top:1px solid var(--line);margin-top:30px;}
+  .foot-in{max-width:var(--measure);margin:0 auto;padding:34px 24px 48px;text-align:center;color:var(--mute);font-size:13px;}
+  .foot-in .fbrand{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--ink);}
+  .foot-in .fl{display:inline-flex;gap:16px;margin-top:12px;}
+  .foot-in .fl a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+<nav><div class="nav-in">
+  <a class="brand" href="../"><span class="mk">K</span>KHS Research</a>
+  <div class="nav-links">
+    <a href="../">← KHS Research</a>
+    <a href="./">← 이론 노트</a>
+    <a href="../papers/">논문 서재</a>
+  </div>
+</div></nav>
+
+<article class="article">
+  <div class="back"><a href="./">← 이론 노트</a></div>
+  <span class="cat-badge">강화학습 기초</span>
+  <h1 class="title">마르코프 결정 과정과 강화학습의 목적함수 — 벨만 방정식까지 한 줄씩</h1>
+  <div class="meta"><span>📖 읽는 시간 약 14분</span><span>강화학습 기초 노트</span></div>
+  <p class="summary">강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼는다.</p>
+</article>
+
+<div class="body">
+<h2>강화학습이 진짜로 푸는 문제</h2>
+
+<p>지도학습(supervised learning)은 입력 \(x\)에 정답 \(y\)가 붙은 데이터로 함수를 맞춘다. 각 예제마다 "정답은 이것"이라는 라벨이 있고, 학습은 예측과 라벨의 차이를 줄이는 일이다. 강화학습(Reinforcement Learning, RL)에는 그 정답표가 아예 없다. 행위자(agent)가 환경(environment) 안에서 행동(action)을 하면, 환경은 "그 행동이 옳았다"라고 말해 주지 않는다. 대신 결과로 스칼라 보상(reward) 하나만 돌려준다. 어떤 행동을 골랐어야 했는지는 끝내 알려 주지 않고, 오직 "지금 상황이 이만큼 좋(나쁘)다"라는 점수만 흘려 준다. 목표는 단 하나 — <em>시간에 걸쳐 받는 보상의 합을 최대로 만드는 행동 규칙</em>을 찾는 것이다. 정답을 베끼는 게 아니라, 성긴 점수 신호만으로 좋은 행동을 <em>스스로</em> 찾아내야 한다는 점이 강화학습을 어렵고 또 흥미롭게 만든다.</p>
+
+<p>말은 간단하지만 어려움은 셋이다.</p>
+
+<ul>
+  <li><strong>순차성(sequential)</strong> — 지금의 행동이 다음 상태를 바꾸고, 그 상태가 미래의 보상을 바꾼다. 한 판(episode) 전체의 연쇄를 최적화해야 한다.</li>
+  <li><strong>지연 보상(delayed reward)</strong> — 좋은 행동의 대가가 한참 뒤에야 온다. 보행 로봇이 지금 무게중심을 살짝 앞으로 옮긴 덕분에 세 걸음 뒤에 넘어지지 않았다면, 그 "안 넘어짐"의 공은 세 걸음 전의 행동에 돌아가야 한다. "늦게 온 보상을 누구의 공으로 돌릴까"라는 공로 배분(credit assignment) 문제이며, 뒤에서 볼 가치함수(value function)가 그 답이다.</li>
+  <li><strong>탐색(exploration)</strong> — 더 나은 행동을 찾으려면 안 해본 것을 시도해야 한다. 그래서 정책(policy)은 확률적(stochastic)이어야 한다.</li>
+</ul>
+
+<p>이 셋을 한 틀에 담은 것이 <strong>마르코프 결정 과정(Markov Decision Process, MDP)</strong>이다. 이 글은 MDP의 정의에서 출발해, 강화학습이 최대화하는 목적함수(objective)와 벨만 방정식(Bellman equation)까지 <em>한 줄도 건너뛰지 않고</em> 끌어낸다.</p>
+
+<blockquote>
+  <p><strong>좌표 하나 찍고 가자.</strong> RL 방법은 보통 세 축으로 나뉜다. (1) 전이(transition)를 배워 쓰는가 — <em>model-free</em> vs model-based. (2) 현재 정책의 데이터로만 학습하는가 — <em>on-policy</em> vs off-policy. (3) 무엇을 학습하는가 — value-based / policy-based / <em>actor-critic</em>. 이 시리즈가 파는 PPO(Proximal Policy Optimization)는 <strong>model-free · on-policy · actor-critic</strong> 경로에 있다. actor는 정책을, critic은 가치를 학습한다.</p>
+</blockquote>
+
+<h2>마르코프 결정 과정 (MDP)</h2>
+
+<p>MDP는 6개 원소로 된 튜플이다.</p>
+
+<p>$$\mathcal{M}=(\mathcal{S},\ \mathcal{A},\ P,\ r,\ \gamma,\ \rho_0)$$</p>
+
+<p>각각 상태공간(state space) \(\mathcal{S}\subseteq\mathbb{R}^n\), 행동공간(action space) \(\mathcal{A}\subseteq\mathbb{R}^m\), 전이 커널(transition kernel) \(P(s'\mid s,a)\), 보상함수(reward function) \(r(s,a)\), 할인율(discount factor) \(\gamma\in[0,1)\), 그리고 초기 상태 분포(initial state distribution) \(\rho_0(s)\)다.</p>
+
+<h3>마르코프 성질 — 이 글 전체를 떠받치는 가정</h3>
+
+<p>이름값을 하는 핵심 가정이 마르코프 성질(Markov property)이다. 다음 상태는 과거 전체가 아니라 <em>지금의 상태와 행동에만</em> 의존한다.</p>
+
+<p>$$P(s_{t+1}\mid s_t,a_t,\ s_{t-1},a_{t-1},\dots,s_0,a_0)=P(s_{t+1}\mid s_t,a_t)$$</p>
+
+<p>이 한 줄이 왜 결정적이냐면, 뒤에 나올 궤적 확률의 인수분해도, 벨만 방정식의 재귀도 <strong>오직 이 성질 때문에</strong> 성립하기 때문이다. 하지만 공짜가 아니다. 상태가 충분한 정보를 담고 있어야 이 식이 참이 된다.</p>
+
+<blockquote>
+  <p><strong>내 상태는 정말 마르코프한가?</strong> 예를 들어 보행 로봇의 보상이 걸음 위상(gait phase) \(\phi\)에 따라 "지금은 왼발이 떠 있어야 한다"를 담는다면, 관측에 \(\phi\)가 없을 때 똑같은 자세 \(s\)라도 바람직한 행동이 갈려 위 식이 깨진다. 처방은 관측을 보강하는 상태 보강(state augmentation)이다: \(s\leftarrow(s,\ \sin 2\pi\phi,\ \cos 2\pi\phi)\). 일반화하면, 센서가 상태 전부를 못 보면 엄밀히는 부분 관측 MDP(Partially Observable MDP, POMDP)이고, 대응책은 관측 보강 · 프레임 스태킹(frame stacking) · 순환신경망(RNN)이다. "내 상태가 마르코프한가?"는 로봇 RL 설계의 첫 질문이다.</p>
+</blockquote>
+
+<h2>정책과 그 로그 확률</h2>
+
+<p>정책은 상태를 행동으로 매핑하는 규칙이다. 탐색 요구 때문에 RL은 확률적 정책 \(\pi_\theta(a\mid s)\)를 쓴다. 연속 제어(continuous control)에서 표준은 대각 가우시안 정책(diagonal Gaussian policy)이다.</p>
+
+<p>$$\pi_\theta(a\mid s)=\prod_{i=1}^{m}\frac{1}{\sqrt{2\pi}\,\sigma_i}\exp\!\left(-\frac{\big(a_i-\mu_{\theta,i}(s)\big)^2}{2\sigma_i^2}\right)$$</p>
+
+<p>평균 \(\mu_\theta(s)\)는 행위자 신경망(actor network)의 출력이고, 표준편차 \(\sigma\)는 상태와 무관한 학습 가능한 파라미터다. 성분마다 독립이라 곱으로 쓰며, 공분산이 대각이라 "diagonal"이다.</p>
+
+<p>정작 학습이 미분하는 대상은 정책이 아니라 그 로그 확률(log-probability) \(\log\pi_\theta(a\mid s)\)다. 곱의 로그는 로그의 합이라는 성질을 쓰고, 계수와 지수를 분리해 전개하면 미분 가능한 닫힌 형태(closed form)가 나온다.</p>
+
+<p>$$\log\pi_\theta(a\mid s)=-\sum_{i=1}^{m}\left[\frac{\big(a_i-\mu_{\theta,i}(s)\big)^2}{2\sigma_i^2}+\log\sigma_i+\tfrac12\log 2\pi\right]$$</p>
+
+<p>여기서 두 가지가 보인다. (1) 평균에 대한 기울기는 \(\frac{a_i-\mu_{\theta,i}}{\sigma_i^2}\nabla_\theta\mu_{\theta,i}\) 꼴로, "뽑힌 행동 쪽으로 평균을 당긴다". 다음 편의 정책 기울기(policy gradient)가 여기에 어드밴티지(advantage) 가중을 붙인다. (2) \(\sigma\)는 탐색량의 손잡이이자, 배포된 로봇의 떨림(tremor)의 근원이다.</p>
+
+<blockquote>
+  <p><strong>학습용 정책 vs 배포용 정책.</strong> 학습 중에는 탐색을 위해 \(\sigma>0\)인 확률적 정책으로 행동을 샘플링한다. 그러나 실제 로봇에 배포할 때는 보통 평균 \(\mu_\theta(s)\)만 쓰는 결정적 정책(deterministic policy)으로 돌린다 — 일관된 동작을 원하기 때문이다. 엔트로피(entropy)\(\approx\sigma\)는 "탐색 손잡이"인 동시에 "배포 떨림 손잡이"다.</p>
+</blockquote>
+
+<h2>궤적 · 리턴 · 목적함수</h2>
+
+<p>정책 \(\pi_\theta\)가 환경과 상호작용하면 궤적(trajectory) \(\tau=(s_0,a_0,s_1,a_1,\dots)\)이 생긴다. 이 궤적의 확률을 정확히 적는 것이 출발점이다. 결합 확률을 시간 순서대로 연쇄 법칙(chain rule)으로 펼친 뒤, 초기 분포 · 정책 · 전이의 정의로 각 인자를 치환하면 깔끔한 곱으로 인수분해된다.</p>
+
+<p>$$p_\theta(\tau)=\rho_0(s_0)\prod_{t=0}^{\infty}\pi_\theta(a_t\mid s_t)\,P(s_{t+1}\mid s_t,a_t)$$</p>
+
+<p>이 인수분해에서 <em>딱 한 곳</em> — 마지막 전이 인자 \(P(s_{t+1}\mid s_t,a_t)\) — 만이 마르코프 성질을 쓴 지점이다. 나머지는 항상 참인 연쇄 법칙일 뿐이다.</p>
+
+<p>이제 보상을 시간에 걸쳐 모은다. 시점 \(t\) 이후의 할인 리턴(discounted return)은</p>
+
+<p>$$G_t=\sum_{k=0}^{\infty}\gamma^k r_{t+k},\qquad r_t:=r(s_t,a_t)$$</p>
+
+<p>로 정의한다. \(k=0\) 항을 떼어내고 나머지에서 \(\gamma\)를 밖으로 빼면, 리턴은 자기 자신을 다음 시점으로 밀어낸 재귀식이 된다. 이 <strong>한 줄이 벨만 방정식의 씨앗</strong>이다.</p>
+
+<p>$$G_t=r_t+\gamma\,G_{t+1}$$</p>
+
+<p>할인율은 "얼마나 먼 미래까지 내다보는가"를 정한다. 보상이 상수 1이면 리턴은 기하급수(geometric series)라 \(\sum_{k=0}^{\infty}\gamma^k=\tfrac{1}{1-\gamma}\)로 수렴하고, \(\gamma^k\approx e^{-k(1-\gamma)}\)이므로 유효 지평(effective horizon)은</p>
+
+<p>$$\tau_{\text{eff}}=\frac{1}{1-\gamma}\ \text{steps}$$</p>
+
+<p>이다. \(\gamma=0.99\)면 약 100 스텝 앞까지 실질적으로 본다는 뜻이다(50 Hz 제어라면 약 2초, 한 보폭이 0.8초라면 약 2.5 걸음 앞). 할인율을 키우면 더 먼 미래를 보지만 학습이 느리고 불안정해지고, 줄이면 근시안적이 된다 — 그래서 \(\gamma\)는 단순한 상수가 아니라 "얼마나 멀리 계획할까"를 정하는 설계 손잡이다. 마지막으로, 강화학습이 최대화하는 단 하나의 양은 기대 리턴, 곧 목적함수다.</p>
+
+<p>$$J(\theta)=\mathbb{E}_{\tau\sim p_\theta}\!\left[\sum_{t=0}^{\infty}\gamma^t r(s_t,a_t)\right]=\mathbb{E}_{\tau\sim p_\theta}\big[G_0\big],\qquad \theta^\star=\arg\max_\theta J(\theta)$$</p>
+
+<p>핵심 난점은 기댓값 안의 분포 \(p_\theta(\tau)\)가 최대화 변수 \(\theta\)에 의존한다는 것이다. 고정된 분포를 미분하는 게 아니라, 분포 자체가 움직인다. 이 의존성을 어떻게 미분하는지가 정확히 <em>다음 편(정책 기울기 정리)</em>의 전부다.</p>
+
+<h2>가치함수와 벨만 방정식</h2>
+
+<p>앞서 미룬 공로 배분 문제로 돌아오자. 지연 보상 아래에서 "지금 이 행동이 좋았나"를 판단하려면, 그 행동이 <em>앞으로 불러올 보상까지</em> 내다본 값이 필요하다. 그 값을 수치로 매긴 것이 가치함수다. 가치함수는 미래를 매번 끝까지 굴려 보지 않고도 "이 상황이 얼마나 유망한가"를 한 숫자로 요약해 준다. 세 가지를 정의한다.</p>
+
+<p>$$\begin{aligned}
+V^{\pi}(s)   &=\mathbb{E}_{\pi}\big[G_t \mid s_t=s\big] && \text{상태가치(state-value)}\\
+Q^{\pi}(s,a) &=\mathbb{E}_{\pi}\big[G_t \mid s_t=s,\,a_t=a\big] && \text{행동가치(action-value)}\\
+A^{\pi}(s,a) &=Q^{\pi}(s,a)-V^{\pi}(s) && \text{어드밴티지(advantage)}
+\end{aligned}$$</p>
+
+<p>여기서 \(\mathbb{E}_\pi\)는 "이후의 행동은 \(\pi\)를 따르고 전이는 \(P\)를 따른다"는 뜻이다. 이제 리턴의 재귀식 \(G_t=r_t+\gamma G_{t+1}\)을 정의에 대입하고, 기댓값의 선형성(linearity of expectation)과 전 기댓값의 법칙(law of total expectation)으로 다음 상태를 조건화하면, 가치함수가 자기 자신을 한 스텝 미래로 참조하는 <strong>벨만 기대 방정식(Bellman expectation equation)</strong>이 나온다.</p>
+
+<p>$$V^{\pi}(s)=\mathbb{E}_{a\sim\pi(\cdot\mid s)}\Big[r(s,a)+\gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\big[V^{\pi}(s')\big]\Big]$$</p>
+
+<p>같은 논리를 \(Q^\pi\)에 적용하면(첫 행동이 고정이라 바깥 \(\mathbb{E}_{a\sim\pi}\)가 빠진다), 세 가치가 서로 어떻게 엮이는지가 한눈에 보인다.</p>
+
+<p>$$\begin{aligned}
+Q^{\pi}(s,a)&=r(s,a)+\gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\big[V^{\pi}(s')\big]\\
+V^{\pi}(s)&=\mathbb{E}_{a\sim\pi(\cdot\mid s)}\big[Q^{\pi}(s,a)\big]\ \Longrightarrow\ A^{\pi}(s,a)=Q^{\pi}(s,a)-V^{\pi}(s)
+\end{aligned}$$</p>
+
+<blockquote>
+  <p><strong>왜 어드밴티지가 학습 신호인가.</strong> \(A^\pi=Q^\pi-V^\pi\)는 "이 상태의 평균(\(V\)) 대비 행동 \(a\)가 얼마나 더 좋은가(\(Q\))"이다. \(A>0\)이면 그 행동의 확률을 올리고, \(A<0\)이면 내린다. 정책 기울기가 \(\nabla_\theta\log\pi_\theta(a\mid s)\cdot A^\pi(s,a)\) 꼴로 움직이는 이유가 바로 이것이다. actor-critic에서 critic이 추정하는 게 \(V^\pi\)이고, 일반화 어드밴티지 추정(Generalized Advantage Estimation, GAE)이 \(A^\pi\)를 추정한다.</p>
+</blockquote>
+
+<h3>벨만 최적 방정식 — 최적 정책의 지문</h3>
+
+<p>지금까지는 <em>고정된</em> 정책 \(\pi\)의 가치를 평가했다. 그런데 "가능한 최선"을 물으면 벨만 기대 방정식의 바깥 기댓값이 최댓값으로 바뀐다. 이것이 벨만 최적 방정식(Bellman optimality equation)이다.</p>
+
+<p>$$V^{\star}(s)=\max_{a}\Big[r(s,a)+\gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\big[V^{\star}(s')\big]\Big]$$</p>
+
+<p>$$Q^{\star}(s,a)=r(s,a)+\gamma\,\mathbb{E}_{s'\sim P(\cdot\mid s,a)}\Big[\max_{a'}Q^{\star}(s',a')\Big]$$</p>
+
+<p>이 \(\max\) 한 글자가 평가(evaluation)와 제어(control)를 가른다. 가치 기반(value-based) 딥 RL — 예컨대 DQN — 은 바로 이 \(Q^\star\) 방정식을 신경망으로 근사해 학습한다. 반면 이 시리즈가 파는 actor-critic·on-policy 경로는 벨만 <em>기대</em> 방정식으로 critic을 학습하고 정책을 직접 개선한다.</p>
+
+<blockquote>
+  <p><strong>Part 3로 가는 다리.</strong> 벨만 기대 방정식의 우변 \(r(s,a)+\gamma V^\pi(s')\)를 시간차 목표(TD target), 좌변을 뺀 \(\delta_t=r_t+\gamma V^\pi(s_{t+1})-V^\pi(s_t)\)를 시간차 오차(TD error)라 한다. 벨만이 정확하면 \(\mathbb{E}[\delta_t]=0\)이므로 \(\delta_t\)로 critic을 학습하고, GAE는 여러 스텝의 \(\delta_t\)를 \(\lambda\)로 가중합해 \(A^\pi\)를 편향-분산 절충으로 추정한다. 전부 위 벨만 방정식들의 직접적 귀결이며, 부트스트래핑(bootstrapping)의 토대다.</p>
+</blockquote>
+
+<h2>추상에서 실제 로봇으로</h2>
+
+<p>이 6-튜플은 종이 위 기호가 아니다. 평지 보행 RL 문제에 그대로 대응한다. 상태 \(\mathcal{S}\)는 정책이 받는 관측 벡터(몸통 속도 · 중력 투영 · 명령 속도 · 걸음 위상 · 관절 상태 · 직전 행동)이고, 행동 \(\mathcal{A}\)는 다리 관절의 목표각이며(하위의 PD 제어기가 추종한다), 전이 \(P\)는 닫힌 형태가 아니라 물리 시뮬레이터 자체다. 보상 \(r\)은 "앞으로 가되, 넘어지지 말고, 매끄럽게"를 여러 항의 가중합으로 인코딩하고, \(\gamma=0.99\)가 앞서 계산한 대로 약 2초의 유효 지평을 준다. 관측에 걸음 위상이 들어간 것 자체가 앞의 상태 보강이 실제로 적용된 사례다 — "내 상태가 마르코프한가?"라는 질문에 설계로 답한 것이다.</p>
+
+<h2>정리, 그리고 다음 편</h2>
+
+<p>강화학습은 <em>기대 리턴 \(J(\theta)\)를 최대화하는 정책을 찾는</em> 문제이고, 그 무대가 MDP다. 마르코프 성질 한 줄이 궤적 확률의 인수분해와 벨만 방정식의 재귀를 동시에 가능하게 했고, 벨만 방정식은 "현재 가치 = 당장 보상 + 할인된 다음 가치"라는 재귀로 거의 모든 가치 학습의 토대가 된다. 어드밴티지는 이 재귀에서 자라난 학습 신호다.</p>
+
+<p>다음 편은 목적함수의 기울기 \(\nabla_\theta J(\theta)\)를 실제로 어떻게 계산하는지를 다룬다. 궤적 인수분해와 로그 확률을 그대로 써서 로그-미분 트릭(log-derivative trick)으로 정책 기울기를 끌어내고, 결과가 왜 \(\nabla_\theta\log\pi_\theta\cdot A^\pi\) 꼴인지, 베이스라인(baseline)이 왜 편향 없이 분산만 줄이는지까지 유도한다.</p>
+
+<h2>더 깊이 — 관련 논문</h2>
+
+<p>이 글의 개념들이 실제 알고리즘으로 어떻게 자라는지 보고 싶다면, 라이브러리의 다음 기초 논문들이 정확한 출발점이다.</p>
+
+<ul>
+  <li><a href="../papers/Basic_Theory/Sutton_NeurIPS_2000.html">Sutton et al., 2000 — Policy Gradient Methods</a>: 목적함수 \(J(\theta)\)와 가치함수를 정식화하고, \(\nabla_\theta\log\pi\cdot Q\) 꼴의 정책 기울기 정리를 증명한 원전. 이 글 §4–§5의 이론적 척추다.</li>
+  <li><a href="../papers/Basic_Theory/Mnih_Nature_2015.html">Mnih et al., 2015 — Deep Q-Network (DQN)</a>: 벨만 <em>최적</em> 방정식 \(Q^\star\)를 신경망으로 근사해 인간 수준 제어를 보인 가치 기반 딥 RL의 이정표. 위 최적 방정식 절의 실물이다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_ICLR_2016.html">Schulman et al., 2016 — Generalized Advantage Estimation (GAE)</a>: TD 오차 \(\delta_t\)를 \(\lambda\)로 가중합해 어드밴티지 \(A^\pi\)를 편향-분산 절충으로 추정. §5의 "Part 3로 가는 다리"가 곧장 이 논문이다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2017.html">Schulman et al., 2017 — Proximal Policy Optimization (PPO)</a>: 이 시리즈가 실제로 쓰는 알고리즘. model-free · on-policy · actor-critic 좌표의 종착점으로, 위 정책 기울기를 안정적으로 갱신하는 방법이다.</li>
+  <li><a href="../papers/Basic_Theory/Lillicrap_ICLR_2016.html">Lillicrap et al., 2016 — DDPG</a>: 연속 행동공간에서 <em>결정적</em> 정책을 학습하는 actor-critic. §3의 "학습용 vs 배포용 정책", 곧 결정적 배포의 이론적 대응물을 보여준다.</li>
+</ul>
+
+</div>
+
+<footer><div class="foot-in">
+  <div class="fbrand">KHS Research</div>
+  <div class="fl"><a href="../">홈</a><a href="./">이론 노트</a><a href="../papers/">논문 서재</a></div>
+</div></footer>
+
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "$$", right: "$$", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이론 노트 — KHS Research</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f3f5f8; --panel:#ffffff; --ink:#232830; --soft:#565c6b; --mute:#9aa0ad;
+    --line:#e7ebef; --accent:#2f6bd8; --accent2:#5b4be6; --radius:16px; --maxw:960px;
+    --disp:'Space Grotesk','Noto Sans KR',sans-serif;
+    --sans:'Noto Sans KR','Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+
+  nav{position:sticky;top:0;z-index:100;backdrop-filter:saturate(180%) blur(14px);
+    background:rgba(243,245,248,.78);border-bottom:1px solid var(--line);}
+  .nav-in{max-width:var(--maxw);margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{font-family:var(--disp);font-weight:700;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px;}
+  .brand .mk{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent2),var(--accent));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;}
+  .nav-links{display:flex;align-items:center;gap:4px;font-size:13.5px;}
+  .nav-links a{color:var(--soft);padding:7px 12px;border-radius:9px;transition:background .15s,color .15s;}
+  .nav-links a:hover{background:var(--panel);color:var(--ink);}
+
+  header.hd{max-width:var(--maxw);margin:0 auto;padding:44px 24px 8px;}
+  .back{display:inline-flex;gap:6px;font-size:13px;color:var(--accent);margin-bottom:16px;}
+  .back a:hover{text-decoration:underline;}
+  .hd .k{font-family:var(--disp);font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);}
+  .hd h1{font-size:clamp(28px,4vw,40px);font-weight:900;letter-spacing:-.02em;margin:8px 0 10px;}
+  .hd p{font-size:15.5px;color:var(--soft);max-width:640px;}
+
+  main{max-width:var(--maxw);margin:0 auto;padding:28px 24px 70px;}
+  .cat{margin-bottom:36px;}
+  .cat-h{display:flex;align-items:baseline;gap:11px;margin-bottom:14px;}
+  .cat-h .num{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--accent);}
+  .cat-h h2{font-size:19px;font-weight:700;letter-spacing:-.01em;}
+  .cat-h .cnt{font-size:12.5px;color:var(--mute);background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:2px 10px;}
+  .notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+  a.note{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 20px 18px;
+    display:flex;flex-direction:column;transition:transform .18s cubic-bezier(.2,.7,.3,1),box-shadow .18s,border-color .18s;}
+  a.note:hover{transform:translateY(-4px);box-shadow:0 18px 36px -18px rgba(20,20,40,.20);border-color:#dfe2ee;}
+  .note h3{font-size:16px;font-weight:700;line-height:1.4;margin-bottom:8px;letter-spacing:-.01em;}
+  .note p{font-size:13px;color:var(--soft);line-height:1.6;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .note .foot{margin-top:14px;display:flex;align-items:center;justify-content:space-between;}
+  .note .rt{font-size:12px;color:var(--mute);}
+  .note .go{font-size:13px;font-weight:600;color:var(--accent);}
+  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);
+    padding:26px 20px;text-align:center;color:var(--mute);font-size:13.5px;}
+  .empty b{display:block;color:var(--soft);font-weight:600;margin-bottom:3px;font-size:14px;}
+
+  footer{border-top:1px solid var(--line);}
+  .foot-in{max-width:var(--maxw);margin:0 auto;padding:34px 24px 48px;text-align:center;color:var(--mute);font-size:13px;}
+  .foot-in .fbrand{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--ink);}
+  .foot-in .fl{display:inline-flex;gap:16px;margin-top:12px;}
+  .foot-in .fl a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+<nav><div class="nav-in">
+  <a class="brand" href="../"><span class="mk">K</span>KHS Research</a>
+  <div class="nav-links">
+    <a href="../">← KHS Research</a>
+    <a href="../papers/">논문 서재</a>
+  </div>
+</div></nav>
+
+<header class="hd">
+  <div class="back"><a href="../">← KHS Research</a></div>
+  <div class="k">Theory Notes</div>
+  <h1>이론 노트</h1>
+  <p>강화학습·최적제어·동역학의 핵심 개념을 정의에서부터 한 줄씩 유도하고, 라이브러리의 관련 논문과 연결해 정리합니다.</p>
+</header>
+
+<main id="main"></main>
+
+<footer><div class="foot-in">
+  <div class="fbrand">KHS Research</div>
+  <div class="fl"><a href="../">홈</a><a href="../papers/">논문 서재</a></div>
+</div></footer>
+
+<script>
+  // Data-driven: notes scanned from staged content; taxonomy = 4 fixed categories.
+  const NOTES = [{"slug": "mdp", "title": "마르코프 결정 과정과 강화학습의 목적함수 — 벨만 방정식까지 한 줄씩", "category_key": "rl_foundations", "summary": "강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼는다.", "reading_min": 14}];
+  const TAXONOMY = [{"key": "rl_foundations", "label": "강화학습 기초"}, {"key": "bioinspired_flight", "label": "생체모방 비행 로보틱스"}, {"key": "learning_control", "label": "학습기반 지능제어"}, {"key": "multimodal_locomotion", "label": "멀티모달 자율 로코모션"}];   // [{key, label}] in display order
+
+  const main = document.getElementById('main');
+  TAXONOMY.forEach((cat, i) => {
+    const notes = NOTES.filter(n => n.category_key === cat.key);
+    const sec = document.createElement('section');
+    sec.className = 'cat';
+    const num = ['①','②','③','④','⑤','⑥','⑦','⑧'][i] || (i+1)+'.';
+    let head = `<div class="cat-h"><span class="num">${num}</span><h2>${cat.label}</h2>` +
+               (notes.length ? `<span class="cnt">${notes.length}편</span>` : '') + `</div>`;
+    let body;
+    if (notes.length) {
+      body = `<div class="notes">` + notes.map(n => `
+        <a class="note" href="${n.slug}.html">
+          <h3>${n.title}</h3>
+          <p>${n.summary}</p>
+          <div class="foot"><span class="rt">📖 약 ${n.reading_min}분</span><span class="go">읽기 →</span></div>
+        </a>`).join('') + `</div>`;
+    } else {
+      body = `<div class="empty"><b>준비 중</b>이 분야의 노트는 곧 공개됩니다.</div>`;
+    }
+    sec.innerHTML = head + body;
+    main.appendChild(sec);
+  });
+</script>
+</body>
+</html>
