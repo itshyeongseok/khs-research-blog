@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>마르코프 결정 과정과 강화학습의 목적함수 — 벨만 방정식까지 한 줄씩 — KHS Research</title>
-<meta name="description" content="강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼는다.">
+<meta name="description" content="강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼고, 벨만 최적 방정식을 가치반복(value iteration)으로 바꿔 4×3 격자 세계에서 직접 돌려보는 인터랙티브 실습으로 이론을 눈으로 확인한다.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -12,7 +12,8 @@
 <style>
   :root{
     --bg:#f3f5f8; --panel:#ffffff; --ink:#232830; --soft:#565c6b; --mute:#9aa0ad;
-    --line:#e7ebef; --accent:#2f6bd8; --accent2:#5b4be6; --radius:16px; --measure:720px;
+    --line:#e7ebef; --accent:#2f6bd8; --accent2:#5b4be6; --good:#1d9e75; --bad:#d64545;
+    --radius:16px; --measure:860px;
     --disp:'Space Grotesk','Noto Sans KR',sans-serif;
     --sans:'Noto Sans KR','Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
   }
@@ -65,6 +66,39 @@
   .body .katex-display{overflow-x:auto;overflow-y:hidden;padding:6px 0;margin:20px 0;}
   .body p:has(>.katex-display){margin:20px 0;}
 
+  /* Interactive demo widgets (theory-publish demos/*.html) — break out wider
+     than the reading column, centered on the viewport, matching the blog light
+     design. Shared by every note; the widget's own JS ships with the demo. */
+  .demo{position:relative;left:50%;transform:translateX(-50%);width:min(96vw,960px);
+    background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:36px 0;
+    box-shadow:0 10px 34px -18px rgba(20,20,40,.16);}
+  .demo-h{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .demo-h .tag{font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent2);
+    background:#eeecfe;padding:3px 8px;border-radius:6px;}
+  .demo-h h3{font-size:17px;font-weight:700;}
+  .demo-sub{font-size:13.5px;color:var(--soft);margin-bottom:20px;}
+  .demo-grid{display:grid;grid-template-columns:1fr 260px;gap:26px;align-items:start;}
+  @media(max-width:680px){.demo-grid{grid-template-columns:1fr;}}
+  .board{display:grid;gap:6px;}
+  .cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:var(--disp);font-weight:500;position:relative;border:1px solid rgba(0,0,0,.04);transition:background .25s;}
+  .cell .v{font-size:15px;}
+  .cell .arw{font-size:19px;line-height:1;margin-top:2px;opacity:.72;}
+  .cell.wall{background:#c9ced8!important;}
+  .cell.term{color:#fff;font-size:19px;font-weight:700;}
+  .cell.goal{background:var(--good)!important;}
+  .cell.pit{background:var(--bad)!important;}
+  .controls{display:flex;flex-direction:column;gap:18px;}
+  .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--soft);margin-bottom:6px;font-weight:500;}
+  .ctl label b{font-family:var(--disp);color:var(--ink);}
+  .ctl input[type=range]{width:100%;accent-color:var(--accent);}
+  .ctl .hint{font-size:11.5px;color:var(--mute);margin-top:5px;line-height:1.5;}
+  .legend{font-size:12px;color:var(--mute);display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  .iter{font-size:12px;color:var(--mute);font-family:var(--disp);}
+  .demo-note{font-size:13.5px;color:var(--soft);margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
+
   footer{border-top:1px solid var(--line);margin-top:30px;}
   .foot-in{max-width:var(--measure);margin:0 auto;padding:34px 24px 48px;text-align:center;color:var(--mute);font-size:13px;}
   .foot-in .fbrand{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--ink);}
@@ -86,8 +120,8 @@
   <div class="back"><a href="./">← 이론 노트</a></div>
   <span class="cat-badge">강화학습 기초</span>
   <h1 class="title">마르코프 결정 과정과 강화학습의 목적함수 — 벨만 방정식까지 한 줄씩</h1>
-  <div class="meta"><span>📖 읽는 시간 약 14분</span><span>강화학습 기초 노트</span></div>
-  <p class="summary">강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼는다.</p>
+  <div class="meta"><span>📖 읽는 시간 약 17분</span><span>강화학습 기초 노트</span></div>
+  <p class="summary">강화학습이 푸는 문제를 마르코프 결정 과정(MDP)으로 정식화하고, 정책·리턴·목적함수를 거쳐 벨만 기대/최적 방정식과 어드밴티지를 정의에서부터 유도한다. 연속 제어 로봇 보행을 구체 예시로 삼고, 벨만 최적 방정식을 가치반복(value iteration)으로 바꿔 4×3 격자 세계에서 직접 돌려보는 인터랙티브 실습으로 이론을 눈으로 확인한다.</p>
 </article>
 
 <div class="body">
@@ -211,6 +245,127 @@ V^{\pi}(s)&=\mathbb{E}_{a\sim\pi(\cdot\mid s)}\big[Q^{\pi}(s,a)\big]\ \Longright
 <blockquote>
   <p><strong>Part 3로 가는 다리.</strong> 벨만 기대 방정식의 우변 \(r(s,a)+\gamma V^\pi(s')\)를 시간차 목표(TD target), 좌변을 뺀 \(\delta_t=r_t+\gamma V^\pi(s_{t+1})-V^\pi(s_t)\)를 시간차 오차(TD error)라 한다. 벨만이 정확하면 \(\mathbb{E}[\delta_t]=0\)이므로 \(\delta_t\)로 critic을 학습하고, GAE는 여러 스텝의 \(\delta_t\)를 \(\lambda\)로 가중합해 \(A^\pi\)를 편향-분산 절충으로 추정한다. 전부 위 벨만 방정식들의 직접적 귀결이며, 부트스트래핑(bootstrapping)의 토대다.</p>
 </blockquote>
+
+<h2>직접 풀어보기 — 가치반복(value iteration)</h2>
+
+<p>벨만 최적 방정식은 \(V^{\star}\)가 <em>만족해야 하는</em> 조건이지, 그것을 <em>구하는 방법</em>은 아니다. 그런데 이 식은 거의 그대로 알고리즘이 된다. 우변을 좌변에 <em>대입</em>하는 갱신(update)을 반복하기만 하면 되는 것이다. 이것이 가치반복(value iteration)이다. 아무 초기값 \(V_0\)에서 출발해, 모든 상태에 대해</p>
+
+<p>$$V_{k+1}(s)\ \leftarrow\ \max_{a}\sum_{s'}P(s'\mid s,a)\big[r(s,a)+\gamma\,V_k(s')\big]$$</p>
+
+<p>를 되풀이하면 \(V_k\)는 \(V^{\star}\)로 수렴한다. 왜 수렴하는지는 직관적으로 이렇다. 위 갱신은 두 가치함수 사이의 최대 거리를 매 회 최소 \(\gamma\)배로 줄이는 축약 사상(contraction mapping)이다. \(\gamma<1\)이므로 거리가 기하급수적으로 0에 수렴하고, 그래서 시작값이 무엇이든 상관없이 <em>유일한</em> 고정점 \(V^{\star}\)로 빨려 들어간다. 할인율 \(\gamma\)가 "미래를 얼마나 멀리 보는가"의 손잡이인 동시에 "얼마나 빨리 수렴하는가"의 손잡이이기도 한 이유가 여기 있다.</p>
+
+<p>추상적인 식을 손에 잡히게 만들려고, 아래 위젯은 교과서적인 <strong>격자 세계(gridworld)</strong>에서 이 반복을 실제로 돌린다. 앞에서 정의한 6-튜플 MDP가 여기 그대로 대응한다.</p>
+
+<ul>
+  <li><strong>상태 \(\mathcal{S}\)</strong> — 4×3 격자의 각 칸. 단, 한 칸은 벽(wall)이라 지나갈 수 없고, 두 칸은 종단 상태(terminal state)다: 하나는 \(+1\)(목표), 하나는 \(-1\)(함정). 종단에 닿으면 에피소드가 끝나므로 이 둘은 흡수 상태(absorbing state)다.</li>
+  <li><strong>행동 \(\mathcal{A}\)</strong> — 상·하·좌·우 네 가지.</li>
+  <li><strong>전이 \(P(s'\mid s,a)\)</strong> — 바닥이 미끄러워 확률적(stochastic)이다. 의도한 방향으로 갈 확률은 \(1-\text{noise}\)이고, 좌우로 직각으로 미끄러질 확률이 각각 \(\text{noise}/2\)다. 벽이나 격자 밖을 향하면 제자리에 머문다. 이 작은 표가 곧 앞 절의 전이 커널을 4×3 크기로 구체화한 것이다.</li>
+  <li><strong>보상 \(r\)</strong> — 종단의 \(\pm1\) 외에, 한 걸음마다 작은 생활 보상(living reward), 곧 걸음 비용(step cost)이 붙는다. 보통 음수라 오래 걸을수록 손해다.</li>
+  <li><strong>할인율 \(\gamma\)</strong> — 앞서 본 바로 그 손잡이. 여기서 정책의 성격을 가장 극적으로 바꾼다.</li>
+</ul>
+
+<div class="demo">
+  <div class="demo-h"><span class="tag">실습</span><h3>그리드월드에서 벨만 최적 정책 찾기</h3></div>
+  <div class="demo-sub">슬라이더를 움직여 보세요 — 값이 목표에서 어떻게 번져 나가고, 정책이 언제 함정을 피해 돌아가는지 관찰해 보세요.</div>
+  <div class="demo-grid">
+    <div>
+      <div class="board" id="board"></div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--good)"></i>목표 +1</span>
+        <span><i class="sw" style="background:var(--bad)"></i>함정 −1</span>
+        <span><i class="sw" style="background:#c9ced8"></i>벽</span>
+        <span class="iter" id="iter"></span>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="ctl">
+        <label>할인율 γ <b id="g-v">0.90</b></label>
+        <input type="range" id="g" min="0.10" max="0.99" step="0.01" value="0.90">
+        <div class="hint">1에 가까울수록 먼 미래를 중시 → 멀리 돌아가도 목표를 노림.</div>
+      </div>
+      <div class="ctl">
+        <label>미끄러짐(노이즈) <b id="n-v">0.20</b></label>
+        <input type="range" id="n" min="0" max="0.6" step="0.02" value="0.20">
+        <div class="hint">클수록 의도대로 안 감 → 함정 옆을 더 조심스럽게 피함.</div>
+      </div>
+      <div class="ctl">
+        <label>스텝 비용 <b id="r-v">−0.04</b></label>
+        <input type="range" id="r" min="-1.0" max="0" step="0.02" value="-0.04">
+        <div class="hint">한 걸음의 대가. 크(음수)면 서둘러 끝내려 함(위험 감수).</div>
+      </div>
+    </div>
+  </div>
+  <div class="demo-note">💡 <b>해보기:</b> 스텝 비용을 −0.8까지 내려 보세요 — 로봇이 함정 위험을 감수하고 지름길을 택합니다. 반대로 γ를 0.3으로 낮추면 근시안이 되어 먼 목표를 포기하죠.</div>
+</div>
+
+<script>
+// gridworld-vi — value iteration on a 4x3 gridworld. IIFE-scoped so multiple
+// demos / future notes never collide on globals.
+(function(){
+  const W=4,H=3, walls=new Set(['1,1']), term={'3,2':1,'3,1':-1};
+  const k=(x,y)=>x+','+y;
+  const inGrid=(x,y)=>x>=0&&x<W&&y>=0&&y<H&&!walls.has(k(x,y));
+  const ACT=[[0,1,'↑'],[0,-1,'↓'],[-1,0,'←'],[1,0,'→']];
+  const nxt=(x,y,dx,dy)=>{const a=x+dx,b=y+dy;return inGrid(a,b)?[a,b]:[x,y];};
+  const outcomes=(dx,dy,noise)=>{const perp=(dx===0)?[[-1,0],[1,0]]:[[0,-1],[0,1]];
+    return [[dx,dy,1-noise],[perp[0][0],perp[0][1],noise/2],[perp[1][0],perp[1][1],noise/2]];};
+
+  function solve(g,noise,living){
+    const V={}; for(let x=0;x<W;x++)for(let y=0;y<H;y++){const c=k(x,y);if(walls.has(c))continue;V[c]=term[c]??0;}
+    let iters=0;
+    for(let it=0;it<300;it++){iters++;let d=0;const nV=Object.assign({},V);
+      for(let x=0;x<W;x++)for(let y=0;y<H;y++){const c=k(x,y);if(walls.has(c)||term[c]!==undefined)continue;
+        let best=-1e9;
+        for(const[dx,dy]of ACT){let q=0;for(const[ax,ay,p]of outcomes(dx,dy,noise)){const[a,b]=nxt(x,y,ax,ay);q+=p*V[k(a,b)];}best=Math.max(best,q);}
+        nV[c]=living+g*best; d=Math.max(d,Math.abs(nV[c]-V[c]));}
+      Object.assign(V,nV); if(d<1e-6)break;}
+    return {V,iters};
+  }
+  function bestArrow(x,y,V,noise){let best=-1e9,arw='';
+    for(const[dx,dy,s]of ACT){let q=0;for(const[ax,ay,p]of outcomes(dx,dy,noise)){const[a,b]=nxt(x,y,ax,ay);q+=p*V[k(a,b)];}if(q>best){best=q;arw=s;}}
+    return arw;}
+  function heat(v){ // -1..1 -> red..white..green
+    const t=Math.max(-1,Math.min(1,v));
+    if(t>=0){const m=t;return `rgb(${Math.round(255-115*m)},${Math.round(255-20*m)},${Math.round(255-140*m)})`;}
+    const m=-t;return `rgb(${Math.round(255-10*m)},${Math.round(255-150*m)},${Math.round(255-150*m)})`;}
+
+  const board=document.getElementById('board');
+  function render(){
+    const g=+g_.value,noise=+n_.value,living=+r_.value;
+    gv.textContent=g.toFixed(2); nv.textContent=noise.toFixed(2); rv.textContent=(living<0?'−':'')+Math.abs(living).toFixed(2);
+    const {V,iters}=solve(g,noise,living);
+    board.style.gridTemplateColumns=`repeat(${W},1fr)`;
+    board.innerHTML='';
+    for(let y=H-1;y>=0;y--)for(let x=0;x<W;x++){const c=k(x,y);const d=document.createElement('div');
+      if(walls.has(c)){d.className='cell wall';}
+      else if(term[c]!==undefined){d.className='cell term '+(term[c]>0?'goal':'pit');d.textContent=(term[c]>0?'+1':'−1');}
+      else{d.className='cell';d.style.background=heat(V[c]);d.innerHTML=`<span class="v">${V[c].toFixed(2)}</span><span class="arw">${bestArrow(x,y,V,noise)}</span>`;}
+      board.appendChild(d);}
+    document.getElementById('iter').textContent=`수렴 ${iters}회 반복`;
+  }
+  const g_=document.getElementById('g'),n_=document.getElementById('n'),r_=document.getElementById('r');
+  const gv=document.getElementById('g-v'),nv=document.getElementById('n-v'),rv=document.getElementById('r-v');
+  [g_,n_,r_].forEach(el=>el.addEventListener('input',render));
+  render();
+})();
+</script>
+
+<p>위젯을 읽는 법. 각 칸의 <strong>색</strong>은 수렴한 값 \(V^{\star}(s)\)를 나타내는 열지도(heatmap)다 — 밝을(초록일)수록 그 칸에 서 있는 것이 유망하다. 칸 안의 <strong>화살표</strong>는 그 값으로부터 읽어낸 탐욕적(greedy) 최적 행동, 곧</p>
+
+<p>$$\pi^{\star}(s)=\arg\max_{a}\sum_{s'}P(s'\mid s,a)\big[r(s,a)+\gamma\,V^{\star}(s')\big]$$</p>
+
+<p>이다. 값과 화살표를 나란히 보면 "이 칸이 왜 이만큼 좋고, 그래서 어디로 가야 하는가"가 한눈에 들어온다.</p>
+
+<p>이제 손잡이를 직접 돌리며 이론을 눈으로 확인해 보자.</p>
+
+<ul>
+  <li><strong>\(\gamma\)를 1에 가깝게</strong> → 값이 목표에서 먼 칸까지 번져 나가고, 정책은 함정을 피해 <em>돌아서라도</em> 목표로 향한다. 먼 미래의 \(+1\)이 지금의 결정을 지배하는 원시안(farsighted) 상태다.</li>
+  <li><strong>\(\gamma\)를 낮게</strong> → 값이 목표 근처에만 고이고, 먼 칸의 화살표는 방향을 잃는다. 근시안(myopic)이 된 것이다.</li>
+  <li><strong>noise를 키우면</strong> → 정책이 함정 옆을 <em>넓게 우회</em>한다. 미끄러질 위험이 커지니 \(-1\) 칸에 바짝 붙는 경로의 기대값이 나빠져, 위험을 아는(risk-aware) 선택이 나오는 것이다.</li>
+  <li><strong>걸음 비용을 크게 음수로</strong> → 오래 끄는 것 자체가 큰 손해라, 정책은 함정 옆이라도 질러가는 지름길을 택해 에피소드를 서둘러 끝내려 한다.</li>
+</ul>
+
+<p>손잡이 셋이 각각 앞 이론의 어느 항을 건드리는지 보이는가. \(\gamma\)는 유효 지평을, noise는 전이 \(P\)를, 걸음 비용은 보상 \(r\)을 만진다. 종이 위의 6-튜플이 화면 위의 화살표로 바뀌는 순간이다.</p>
 
 <h2>추상에서 실제 로봇으로</h2>
 
