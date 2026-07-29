@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>액터-크리틱과 GAE — KHS Research</title>
+<meta name="description" content="정책경사가 남긴 '참 어드밴티지를 모른다'는 숙제에서 출발해, 몬테카를로와 한 스텝 TD의 두 극단을 n-스텝 사다리로 잇고, 모든 사다리를 λ로 지수가중 평균한 GAE의 닫힌형 A^GAE=Σ(γλ)^l δ를 유도한다. δ가 왜 어드밴티지 추정인지, γ가 지평을 λ가 편향-분산 저울을 어떻게 쥐는지를 다루고, 크리틱의 가치 회귀와 액터-크리틱 루프까지 이어 PPO의 골격을 세운다. λ와 γ를 밀며 편향-분산 절충을 눈으로 보는 인터랙티브 위젯을 포함한다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css" integrity="sha384-fdYESlG2/q3gb3tpQoY8G4IPLxYyZUdjYNYyO6NYmsYuvh21TTLnsLPvNBE5mMva" crossorigin="anonymous">
+<style>
+  :root{
+    --bg:#f3f5f8; --panel:#ffffff; --ink:#232830; --soft:#565c6b; --mute:#9aa0ad;
+    --line:#e7ebef; --accent:#2f6bd8; --accent2:#5b4be6; --good:#1d9e75; --bad:#d64545;
+    --radius:16px; --measure:860px;
+    --disp:'Space Grotesk','Noto Sans KR',sans-serif;
+    --sans:'Noto Sans KR','Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;
+    -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+
+  /* Nav (consistent with hub) */
+  nav{position:sticky;top:0;z-index:100;backdrop-filter:saturate(180%) blur(14px);
+    background:rgba(243,245,248,.78);border-bottom:1px solid var(--line);}
+  .nav-in{max-width:960px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{font-family:var(--disp);font-weight:700;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px;}
+  .brand .mk{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent2),var(--accent));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;}
+  .nav-links{display:flex;align-items:center;gap:4px;font-size:13.5px;}
+  .nav-links a{color:var(--soft);padding:7px 12px;border-radius:9px;transition:background .15s,color .15s;}
+  .nav-links a:hover{background:var(--panel);color:var(--ink);}
+
+  /* Article */
+  .article{max-width:var(--measure);margin:0 auto;padding:46px 24px 20px;}
+  .back{display:inline-flex;gap:6px;font-size:13px;color:var(--accent);margin-bottom:22px;}
+  .back a:hover{text-decoration:underline;}
+  .cat-badge{display:inline-block;font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.02em;
+    color:var(--accent);background:#eaf1fd;border:1px solid #d9e4fb;padding:4px 12px;border-radius:999px;}
+  h1.title{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.02em;line-height:1.25;margin:16px 0 14px;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);padding-bottom:22px;border-bottom:1px solid var(--line);}
+  .summary{font-size:15.5px;color:var(--soft);line-height:1.7;margin:22px 0 0;}
+
+  /* Long-form body */
+  .body{max-width:var(--measure);margin:0 auto;padding:8px 24px 40px;font-size:16.5px;line-height:1.85;}
+  .body h2{font-family:var(--disp);font-size:23px;font-weight:700;letter-spacing:-.01em;margin:46px 0 14px;
+    padding-top:14px;border-top:1px solid var(--line);}
+  .body h2:first-of-type{border-top:none;padding-top:0;margin-top:30px;}
+  .body h3{font-size:18.5px;font-weight:700;margin:32px 0 10px;color:var(--ink);}
+  .body p{margin:15px 0;color:#2b313b;}
+  .body ul,.body ol{margin:15px 0;padding-left:24px;}
+  .body li{margin:9px 0;}
+  .body strong{font-weight:700;color:var(--ink);}
+  .body em{font-style:italic;}
+  .body a{color:var(--accent);text-decoration:none;border-bottom:1px solid #cfe0fb;transition:border-color .15s;}
+  .body a:hover{border-color:var(--accent);}
+  .body blockquote{margin:22px 0;padding:16px 20px;background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:12px;color:var(--soft);font-size:15.5px;}
+  .body blockquote p{margin:8px 0;color:var(--soft);}
+  .body blockquote p:first-child{margin-top:0;}
+  .body blockquote p:last-child{margin-bottom:0;}
+  /* KaTeX display blocks scroll horizontally on small screens instead of overflowing */
+  .body .katex-display{overflow-x:auto;overflow-y:hidden;padding:6px 0;margin:20px 0;}
+  .body p:has(>.katex-display){margin:20px 0;}
+
+  /* Interactive demo widgets (theory-publish demos/*.html) — break out wider
+     than the reading column, centered on the viewport, matching the blog light
+     design. Shared by every note; the widget's own JS ships with the demo. */
+  .demo{position:relative;left:50%;transform:translateX(-50%);width:min(96vw,960px);
+    background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:36px 0;
+    box-shadow:0 10px 34px -18px rgba(20,20,40,.16);}
+  .demo-h{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .demo-h .tag{font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent2);
+    background:#eeecfe;padding:3px 8px;border-radius:6px;}
+  .demo-h h3{font-size:17px;font-weight:700;}
+  .demo-sub{font-size:13.5px;color:var(--soft);margin-bottom:20px;}
+  .demo-grid{display:grid;grid-template-columns:1fr 260px;gap:26px;align-items:start;}
+  @media(max-width:680px){.demo-grid{grid-template-columns:1fr;}}
+  .board{display:grid;gap:6px;}
+  .cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:var(--disp);font-weight:500;position:relative;border:1px solid rgba(0,0,0,.04);transition:background .25s;}
+  .cell .v{font-size:15px;}
+  .cell .arw{font-size:19px;line-height:1;margin-top:2px;opacity:.72;}
+  .cell.wall{background:#c9ced8!important;}
+  .cell.term{color:#fff;font-size:19px;font-weight:700;}
+  .cell.goal{background:var(--good)!important;}
+  .cell.pit{background:var(--bad)!important;}
+  .controls{display:flex;flex-direction:column;gap:18px;}
+  .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--soft);margin-bottom:6px;font-weight:500;}
+  .ctl label b{font-family:var(--disp);color:var(--ink);}
+  .ctl input[type=range]{width:100%;accent-color:var(--accent);}
+  .ctl .hint{font-size:11.5px;color:var(--mute);margin-top:5px;line-height:1.5;}
+  .legend{font-size:12px;color:var(--mute);display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  .iter{font-size:12px;color:var(--mute);font-family:var(--disp);}
+  .demo-note{font-size:13.5px;color:var(--soft);margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
+
+  footer{border-top:1px solid var(--line);margin-top:30px;}
+  .foot-in{max-width:var(--measure);margin:0 auto;padding:34px 24px 48px;text-align:center;color:var(--mute);font-size:13px;}
+  .foot-in .fbrand{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--ink);}
+  .foot-in .fl{display:inline-flex;gap:16px;margin-top:12px;}
+  .foot-in .fl a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+<nav><div class="nav-in">
+  <a class="brand" href="../"><span class="mk">K</span>KHS Research</a>
+  <div class="nav-links">
+    <a href="../">← KHS Research</a>
+    <a href="./">← 이론 노트</a>
+    <a href="../papers/">논문 서재</a>
+  </div>
+</div></nav>
+
+<article class="article">
+  <div class="back"><a href="./">← 이론 노트</a></div>
+  <span class="cat-badge">강화학습 기초</span>
+  <h1 class="title">액터-크리틱과 GAE</h1>
+  <div class="meta"><span>📖 읽는 시간 약 11분</span><span>강화학습 기초 노트</span></div>
+  <p class="summary">정책경사가 남긴 '참 어드밴티지를 모른다'는 숙제에서 출발해, 몬테카를로와 한 스텝 TD의 두 극단을 n-스텝 사다리로 잇고, 모든 사다리를 λ로 지수가중 평균한 GAE의 닫힌형 A^GAE=Σ(γλ)^l δ를 유도한다. δ가 왜 어드밴티지 추정인지, γ가 지평을 λ가 편향-분산 저울을 어떻게 쥐는지를 다루고, 크리틱의 가치 회귀와 액터-크리틱 루프까지 이어 PPO의 골격을 세운다. λ와 γ를 밀며 편향-분산 절충을 눈으로 보는 인터랙티브 위젯을 포함한다.</p>
+</article>
+
+<div class="body">
+<h2>정책경사가 남긴 숙제</h2>
+
+<p>지난 편의 정책 기울기(policy gradient)는 한 줄로 요약된다 — \(\nabla_\theta J(\theta)=\mathbb{E}\big[\sum_t\nabla_\theta\log\pi_\theta(a_t\mid s_t)\,A^\pi(s_t,a_t)\big]\). "뽑힌 행동의 로그 확률을 어드밴티지(advantage)만큼 밀어라"는 이 식은 아름답지만, 정작 실전에서 우리는 참 어드밴티지 \(A^\pi\)를 <em>모른다</em>. 그것을 표본 보상과 학습된 가치 \(V\)로 <em>추정</em>해야 하고, 바로 그 추정의 흔들림이 지난 편에서 예고한 <strong>정책경사의 분산 문제(variance problem)</strong>의 정체다. 이번 편은 그 추정을 정면으로 다룬다: 어드밴티지를 어떻게 편향(bias) 없이, 그러나 분산(variance)도 감당할 만하게 추정할 것인가. 답은 두 개의 손잡이 \(\gamma\)와 \(\lambda\)로 조율되는 <strong>일반화 어드밴티지 추정(Generalized Advantage Estimation, GAE)</strong>이다.</p>
+
+<blockquote>
+  <p><strong>좌표 다시 찍기.</strong> 1편에서 이 시리즈가 파는 PPO(Proximal Policy Optimization)를 <em>model-free · on-policy · actor-critic</em> 경로에 놓았다. <strong>액터(actor)</strong>는 정책 \(\pi_\theta\)를, <strong>크리틱(critic)</strong>은 가치 \(V_\phi\)를 학습한다. 지난 편이 액터의 갱신 방향(정책 기울기)을 세웠다면, 이번 편은 그 갱신에 <em>얼마</em>를 곱할지 — 즉 어드밴티지 신호 — 를 크리틱의 도움으로 만든다. 두 신경망이 서로를 떠받치는 이 구조가 액터-크리틱이다.</p>
+</blockquote>
+
+<h2>두 극단 — 몬테카를로와 한 스텝 TD</h2>
+
+<p>어드밴티지 추정의 두 극단부터 보자. 크리틱이 내놓는 가치 추정 \(V(s)\)가 손에 있다고 하자. 한쪽 끝은 <strong>몬테카를로(Monte Carlo, MC)</strong>다. 한 판(episode)을 끝까지 굴려 실제로 받은 리턴 \(G_t\)를 그대로 써서 추정한다.</p>
+
+<p>$$\hat A_t^{\text{MC}}=G_t-V(s_t)$$</p>
+
+<p>\(G_t\)는 진짜로 일어난 보상의 합이라 <strong>편향이 없다(unbiased)</strong>. 그러나 한 에피소드에 담긴 모든 무작위 — 정책의 확률적 선택, 미끄러운 전이, 노이즈 — 가 고스란히 누적되어 <strong>분산이 크다</strong>. 반대쪽 끝은 <strong>한 스텝 시간차(one-step temporal difference, TD)</strong>다. 딱 한 스텝만 실제 보상으로 보고 나머지 미래는 크리틱의 \(V\)로 대체한다. 1편에서 벨만 방정식으로부터 끌어낸 <strong>시간차 오차(TD error)</strong>가 그대로 한 스텝짜리 어드밴티지 추정이 된다.</p>
+
+<p>$$\delta_t=r_t+\gamma V(s_{t+1})-V(s_t)$$</p>
+
+<p>항이 셋뿐이라 <strong>분산이 작다</strong>. 하지만 부정확한 \(V\)에 기대므로 그 부정확함이 그대로 <strong>편향으로</strong> 새어 든다. 정리하면 이것이 <strong>편향-분산 절충(bias-variance tradeoff)</strong>이다: MC는 무편향·고분산, 한 스텝 TD는 저분산·유편향. 우리가 원하는 것은 그 사이 어딘가다.</p>
+
+<blockquote>
+  <p><strong>왜 \(\delta_t\)가 어드밴티지인가.</strong> 벨만 기대 방정식이 정확하다면 \(\mathbb{E}[r_t+\gamma V(s_{t+1})]=Q^\pi(s_t,a_t)\)이고 \(V(s_t)=V^\pi(s_t)\)이므로, \(\mathbb{E}[\delta_t]=Q^\pi-V^\pi=A^\pi\)이다. 즉 \(\delta_t\)는 어드밴티지의 <em>한 스텝짜리 무편향(가치가 정확하다면) 표본</em>이다. 문제는 \(V\)가 학습 중이라 정확하지 않다는 것 — 여기서 편향이 들어온다.</p>
+</blockquote>
+
+<h2>n-스텝 어드밴티지 — 두 극단을 잇는 사다리</h2>
+
+<p>두 극단 사이를 잇는 자연스러운 사다리는 "\(n\) 스텝만 실제 보상으로 세고, 그 뒤는 \(V\)로 이어 받는다(bootstrap)"이다. TD 오차를 \(n\)개 할인해 더한 것으로 정의한다.</p>
+
+<p>$$\hat A_t^{(n)}=\sum_{l=0}^{n-1}\gamma^{\,l}\,\delta_{t+l}$$</p>
+
+<p>이 합은 망원경식 소거(telescoping)로 깔끔하게 접힌다. \(\delta\)의 정의를 펴 넣으면 가운데 \(V\) 항들이 이웃끼리 상쇄되고 양 끝만 남아, 결국 "\(n\)-스텝 리턴에서 기준선을 뺀 것"이 된다.</p>
+
+<p>$$\hat A_t^{(n)}=\Big(\underbrace{\textstyle\sum_{l=0}^{n-1}\gamma^{\,l} r_{t+l}+\gamma^{\,n}V(s_{t+n})}_{n\text{-스텝 리턴}}\Big)-V(s_t)$$</p>
+
+<p>양 끝을 확인하면 앞 절과 정확히 맞물린다. \(n=1\)이면 \(\hat A_t^{(1)}=\delta_t\)로 한 스텝 TD(저분산·유편향)이고, \(n\to\infty\)이면 부트스트랩 항 \(\gamma^{\,n}V(s_{t+n})\to0\)이 사라지고 실제 보상 합이 \(G_t\)가 되어 \(\hat A_t^{(\infty)}=G_t-V(s_t)\), 곧 MC(무편향·고분산)다. 즉 <strong>\(n\)이 바로 편향-분산 손잡이</strong>다. \(n\)을 키울수록 실제 보상을 더 많이 믿어 편향이 줄지만 무작위가 쌓여 분산이 커진다.</p>
+
+<h2>GAE(λ) — 모든 n을 지수가중 평균</h2>
+
+<p>여기서 GAE의 아이디어가 나온다. 하나의 \(n\)을 <em>고르는</em> 대신, 모든 \(n\)-스텝 추정을 <strong>지수가중 평균(exponentially-weighted average)</strong>해서 매끄럽게 절충하자는 것이다. 가중치를 \((1-\lambda)\lambda^{\,n-1}\)로 두면(\(\lambda\in[0,1]\), 합이 1인 정규화된 기하 가중), 짧은 \(n\)에 큰 무게, 긴 \(n\)에 지수적으로 줄어드는 무게가 실린다. 이 무한 가중합이 놀랍도록 간단한 <strong>닫힌 형태(closed form)</strong>로 접힌다.</p>
+
+<p>$$\hat A_t^{\text{GAE}(\gamma,\lambda)}=(1-\lambda)\sum_{n=1}^{\infty}\lambda^{\,n-1}\,\hat A_t^{(n)}=\sum_{l=0}^{\infty}(\gamma\lambda)^{\,l}\,\delta_{t+l}$$</p>
+
+<p>오른쪽 형태가 실전의 얼굴이다 — "TD 오차 \(\delta_t\)를 \(\gamma\lambda\)로 할인해 미래로 쭉 더한다". 구현은 궤적 끝에서 앞으로 한 줄로 누적하면 끝이고, 여기서 \(\gamma\)와 \(\lambda\)가 각각 다른 일을 한다. \(\gamma\)는 1편에서 본 그대로 <strong>유효 지평(effective horizon)</strong> — 얼마나 먼 미래까지 보상을 셈에 넣을지 — 을 정하고, \(\lambda\)는 <strong>그 지평 안에서 실제 보상을 얼마나 믿고 크리틱을 얼마나 믿을지</strong>의 저울이다. 두 극단을 다시 이 식으로 확인해 보자.</p>
+
+<ul>
+  <li><strong>\(\lambda=0\)</strong> → \(\hat A_t=\delta_t\). 한 스텝 TD, 곧 TD(0). 크리틱을 최대한 믿는다 — <em>저분산이지만 크리틱의 오차만큼 편향</em>.</li>
+  <li><strong>\(\lambda=1\)</strong> → \(\hat A_t=\sum_{l\ge0}\gamma^{\,l}\delta_{t+l}\), 이 합은 telescope되어 \(G_t-V(s_t)\). 몬테카를로다. 실제 보상만 믿는다 — <em>무편향이지만 고분산</em>.</li>
+  <li><strong>그 사이 (예: \(\lambda=0.95\))</strong> → 1에 가까워 거의 무편향이되, \(\gamma\lambda\) 감쇠가 먼 미래의 분산을 적당히 깎아낸다. 보행처럼 지평이 긴 과제의 표준 선택.</li>
+</ul>
+
+<p>손잡이의 정체를 조금 더 구체적으로 짚자. 가중치 \((1-\lambda)\lambda^{\,n-1}\)은 \(n=1\)에서 가장 크고 \(n\)이 커질수록 \(\lambda\)배씩 줄어드는 기하수열이다. \(\lambda\)가 작으면 이 분포가 \(n=1\)에 뾰족하게 몰려 사실상 \(\delta_t\) 하나만 본다(TD(0)). \(\lambda\)가 1에 다가가면 분포가 긴 \(n\)까지 완만하게 퍼져, 실제 보상을 점점 더 멀리까지 세는 몬테카를로로 미끄러진다. 즉 <strong>\(\lambda\)를 미는 것은 이 가중치 막대의 무게중심을 짧은 지평에서 긴 지평으로 옮기는 일</strong>이다. 그 이동이 곧 편향-분산의 이동이다: 무게가 짧은 쪽에 있으면 크리틱 \(V\)의 오차를 많이 물려받아 편향이 커지는 대신 무작위 누적이 적어 분산이 작고, 긴 쪽으로 옮기면 실제 보상을 믿어 편향은 사라지되 그 보상에 실린 모든 무작위가 쌓여 분산이 커진다. 두 비용은 동시에 못 줄인다 — 저울의 한쪽을 누르면 반드시 다른 쪽이 올라간다.</p>
+
+<p>아래 위젯은 이 저울을 눈에 보이게 만든다. \(\lambda\)를 0에서 1까지, 그리고 \(\gamma\)를 함께 밀어 보며, 어드밴티지 추정의 <strong>편향-분산 저울</strong>이 어떻게 기우는지, 그리고 \(n\)-스텝 리턴에 실리는 <strong>지수 \(\lambda\)-가중치</strong>가 어떻게 이동하는지를 실시간으로 확인할 수 있다.</p>
+
+<div class="demo">
+  <div class="demo-h"><span class="tag">실습</span><h3>λ가 옮기는 편향-분산 저울</h3></div>
+  <div class="demo-sub">λ와 γ를 밀어 보세요 — n-스텝 리턴에 실리는 지수가중치 (1−λ)λ^(n−1)의 무게중심이 어디로 옮겨가고, 그에 따라 어드밴티지 추정의 편향과 분산이 어떻게 시소를 타는지 실시간으로 보입니다.</div>
+  <div class="demo-grid">
+    <div>
+      <svg id="gae-bars" viewBox="0 0 380 210" style="width:100%;height:auto;display:block"></svg>
+      <div style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:4px">
+          <span>편향 (bias) — 크리틱 V의 오차를 물려받은 정도</span><span id="gae-bv" style="font-family:var(--disp);color:var(--bad)">–</span></div>
+        <div style="height:12px;border-radius:6px;background:#f0e3e3;overflow:hidden">
+          <div id="gae-bfill" style="height:100%;width:0;background:var(--bad);transition:width .18s"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin:10px 0 4px">
+          <span>분산 (variance) — 실제 보상 누적의 흔들림</span><span id="gae-vv" style="font-family:var(--disp);color:var(--accent)">–</span></div>
+        <div style="height:12px;border-radius:6px;background:#e2e8f5;overflow:hidden">
+          <div id="gae-vfill" style="height:100%;width:0;background:var(--accent);transition:width .18s"></div></div>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--accent2)"></i>n-스텝 가중치 (1−λ)λ^(n−1)</span>
+        <span class="iter" id="gae-mass"></span>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="ctl">
+        <label>λ (GAE 손잡이) <b id="gae-l-v">0.95</b></label>
+        <input type="range" id="gae-l" min="0" max="1" step="0.01" value="0.95">
+        <div class="hint">0이면 δ_t 하나만(TD(0), 저분산·유편향), 1이면 몬테카를로(무편향·고분산). 무게중심을 짧은↔긴 지평으로 옮깁니다.</div>
+      </div>
+      <div class="ctl">
+        <label>γ (할인율·지평) <b id="gae-g-v">0.95</b></label>
+        <input type="range" id="gae-g" min="0.80" max="0.99" step="0.01" value="0.95">
+        <div class="hint">γλ 감쇠가 유효 지평을 정합니다. 낮추면 먼 항이 빨리 사라져 분산이 눌리지만 근시안이 됩니다.</div>
+      </div>
+    </div>
+  </div>
+  <div class="demo-note">💡 <b>해보기:</b> λ를 0으로 밀면 막대가 n=1에 몰리며 분산이 뚝 떨어지고 편향이 치솟습니다. 1로 밀면 막대가 길게 퍼지며 편향은 0으로, 분산은 최고로. 두 막대가 동시에 낮아지지 않는다는 것 — 그게 절충의 정의입니다. γ를 0.99로 올린 뒤 다시 λ를 흔들어 지평이 길 때 분산이 더 크게 요동치는 것도 확인해 보세요.</div>
+</div>
+
+<script>
+// gae-bias-variance — visualizes GAE(gamma,lambda) as an exponentially-weighted
+// average of n-step advantage estimators. Bars = weights (1-l)l^(n-1); the two
+// meters are the closed-form bias/variance of the resulting estimate under the
+// standard model bias_n=g^n (bootstrap on imperfect V) and
+// var_n=(1-g^2n)/(1-g^2) (accumulated reward noise). IIFE-scoped.
+(function(){
+  const N=14, svg=document.getElementById('gae-bars');
+  const L=document.getElementById('gae-l'), G=document.getElementById('gae-g');
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function draw(){
+    const l=+L.value, g=+G.value;
+    document.getElementById('gae-l-v').textContent=l.toFixed(2);
+    document.getElementById('gae-g-v').textContent=g.toFixed(2);
+    // weights (1-l) l^(n-1), n=1..N
+    const w=[]; for(let n=1;n<=N;n++) w.push((1-l)*Math.pow(l,n-1));
+    const wmax=Math.max(...w,1e-6);
+    // effective center of mass of the weight distribution (in n)
+    let num=0,den=0; for(let n=1;n<=N;n++){num+=n*w[n-1];den+=w[n-1];}
+    const com=(l>=0.999)? N : (den>0?num/den:1);
+    // closed-form bias / variance (normalized 0..1)
+    const g2=g*g;
+    const biasN=(1-l)/(1-l*g);                      // =1 at l=0, ->0 at l=1
+    const varN =1-(1-l)*g2/(1-l*g2);                // =(1-g^2) at l=0, ->1 at l=1
+    // render bars
+    svg.innerHTML='';
+    const W=380,H=210, padL=30,padB=26,padT=10, gw=(W-padL-6)/N, bw=gw*0.66;
+    const y0=H-padB, plotH=y0-padT;
+    svg.appendChild(el('line',{x1:padL,y1:y0,x2:W-4,y2:y0,stroke:'var(--line)','stroke-width':1}));
+    svg.appendChild(el('line',{x1:padL,y1:padT,x2:padL,y2:y0,stroke:'var(--line)','stroke-width':1}));
+    for(let n=1;n<=N;n++){
+      const h=plotH*(w[n-1]/wmax), x=padL+ (n-1)*gw + (gw-bw)/2, y=y0-h;
+      svg.appendChild(el('rect',{x:x,y:y,width:bw,height:Math.max(h,0.5),rx:2,fill:'var(--accent2)',opacity:0.88}));
+      if(n===1||n===N||n%3===0){const tx=el('text',{x:x+bw/2,y:y0+13,'text-anchor':'middle','font-size':9,fill:'var(--mute)','font-family':'var(--disp)'});tx.textContent=(n===N?'∞':n);svg.appendChild(tx);}
+    }
+    // center-of-mass marker
+    const cx=padL+(com-0.5)*gw;
+    svg.appendChild(el('line',{x1:cx,y1:padT,x2:cx,y2:y0,stroke:'var(--ink)','stroke-width':1.3,'stroke-dasharray':'3 3',opacity:0.6}));
+    const yl=el('text',{x:padL-6,y:padT+8,'text-anchor':'end','font-size':9,fill:'var(--mute)'});yl.textContent='가중치';svg.appendChild(yl);
+    const xl=el('text',{x:W-4,y:y0+13,'text-anchor':'end','font-size':9,fill:'var(--mute)'});xl.textContent='n (스텝 수)';svg.appendChild(xl);
+    // meters
+    document.getElementById('gae-bfill').style.width=(biasN*100).toFixed(1)+'%';
+    document.getElementById('gae-vfill').style.width=(varN*100).toFixed(1)+'%';
+    document.getElementById('gae-bv').textContent=(biasN*100).toFixed(0)+'%';
+    document.getElementById('gae-vv').textContent=(varN*100).toFixed(0)+'%';
+    document.getElementById('gae-mass').textContent='무게중심 ≈ n '+(l>=0.999?'→ ∞':com.toFixed(1));
+  }
+  [L,G].forEach(e=>e.addEventListener('input',draw));
+  draw();
+})();
+</script>
+
+<p>위젯을 읽는 법. 화면에는 두 가지가 함께 뜬다. 하나는 각 \(n\)-스텝 리턴에 실리는 <strong>가중치 막대 \((1-\lambda)\lambda^{\,n-1}\)</strong>이고, 다른 하나는 그 가중합으로 만들어진 어드밴티지 추정의 <strong>편향과 분산</strong>을 나타내는 두 지표다. 손잡이를 돌리며 다음을 확인해 보자.</p>
+
+<ul>
+  <li><strong>\(\lambda\)를 0 쪽으로</strong> → 가중치 막대가 \(n=1\) 하나에 거의 몰린다. 추정이 오직 \(\delta_t\) 하나로 결정되니 <em>분산 지표가 뚝 떨어지고</em>, 대신 크리틱 \(V\)의 오차가 그대로 새어 들어 <em>편향 지표가 올라간다</em>. 학습은 안정적이지만 크리틱이 틀린 만큼 방향이 치우친다.</li>
+  <li><strong>\(\lambda\)를 1 쪽으로</strong> → 가중치가 긴 \(n\)까지 완만하게 퍼지고, 추정이 실제 보상 합 \(G_t\)에 수렴한다. <em>편향 지표가 0으로 내려가지만</em>, 에피소드의 모든 무작위가 쌓여 <em>분산 지표가 치솟는다</em>. 방향은 옳되 매 갱신이 요동친다.</li>
+  <li><strong>\(\gamma\)를 낮추면</strong> → \(\gamma\lambda\) 감쇠가 빨라져 유효 지평이 짧아진다. 먼 미래 항의 기여가 급히 사라지므로, 같은 \(\lambda\)라도 분산이 눌리는 대신 먼 보상을 놓치는 근시안이 된다. \(\gamma\)를 1에 가깝게 올리면 지평이 길어져 먼 보상까지 셈에 들지만 분산이 함께 커진다.</li>
+  <li><strong>둘을 같이 보면</strong> → \(\lambda\)는 "실제 보상 대 크리틱"의 저울, \(\gamma\)는 "얼마나 먼 미래까지"의 저울임이 분리되어 보인다. 두 손잡이가 곱으로 엮인 \(\gamma\lambda\) 하나가 감쇠율을 정하지만, 편향에 미치는 영향은 서로 다르다는 점이 핵심이다.</li>
+</ul>
+
+<p>여기서 얻어갈 직관은 하나다 — <strong>\(\lambda\)는 공짜로 분산을 줄이지 않는다</strong>. 0에 가까우면 크리틱을 믿는 대가로 편향을, 1에 가까우면 무편향의 대가로 분산을 문다. 실전에서 \(\lambda\approx0.95\)가 사랑받는 이유는, 크리틱이 어느 정도 학습된 뒤에는 그 근처가 두 비용의 합을 가장 낮게 누르는 지점이기 때문이다. 손잡이를 양 끝까지 밀어 두 극단의 고통을 직접 느껴 보고, 다시 0.9~0.97 사이로 돌려 놓으며 "왜 여기가 스위트 스폿인가"를 눈으로 납득하는 것 — 그것이 이 위젯의 목적이다.</p>
+
+<h2>크리틱 — 가치함수를 어떻게 학습하나</h2>
+
+<p>GAE는 \(V(s)\)를 입력으로 쓴다. 그 \(V\)를 내놓는 것이 크리틱 신경망 \(V_\phi\)이며(액터와는 별개 파라미터 \(\phi\)), <strong>회귀(regression)</strong>로 학습한다. 목표값은 보통 GAE로 만든 리턴 추정 \(\hat V_t^{\text{targ}}=\hat A_t^{\text{GAE}}+V_\phi(s_t)\)이고, 손실은 제곱오차다.</p>
+
+<p>$$L^{V}(\phi)=\mathbb{E}_t\Big[\big(V_\phi(s_t)-\hat V_t^{\text{targ}}\big)^2\Big]$$</p>
+
+<blockquote>
+  <p><strong>움직이는 과녁을 자기가 쏜다.</strong> 위 목표값은 \(V_\phi\) 자신으로 만든다(\(\hat A\) 안에 \(\delta=r+\gamma V-V\)가 있다). 이것이 <strong>부트스트래핑(bootstrapping)</strong> — 자기 추정으로 자기 목표를 세우는 자기참조다. 저분산이라는 이점의 반대편에는 위험이 있다: 관측 스케일이 제멋대로 크거나 가치가 양의 되먹임으로 부풀면 목표값도 함께 부풀어 \(V_\phi\)가 <em>발산</em>할 수 있다. 이를 막는 표준 처방이 관측·가치 정규화(observation/value normalization)이며, 뒤 편에서 정밀히 다룬다.</p>
+</blockquote>
+
+<h2>액터-크리틱 학습 루프</h2>
+
+<p>이제 조각이 다 모였다. 액터(\(\pi_\theta\))와 크리틱(\(V_\phi\))을 번갈아 갱신하는 것이 액터-크리틱이고, 한 번의 반복(iteration)은 이렇게 돈다.</p>
+
+<ul>
+  <li><strong>굴림(rollout) 수집</strong> — 현재 정책 \(\pi_\theta\)로 환경을 굴려 전이(transition)를 모은다.</li>
+  <li><strong>가치·어드밴티지 계산</strong> — 모든 \(s_t\)에 \(V_\phi\)를 구해 \(\delta_t\)를, 이어 \(\hat A_t^{\text{GAE}}\)를 뒤에서 앞으로 누적해 계산한다.</li>
+  <li><strong>액터 갱신</strong> — 대리 목적함수 \(L^{\text{PG}}=\mathbb{E}[\log\pi_\theta(a_t\mid s_t)\,\hat A_t]\)를 상승(ascent)시킨다.</li>
+  <li><strong>크리틱 갱신</strong> — \(L^{V}\)를 하강(descent)시킨다.</li>
+  <li><strong>반복</strong> — 같은 굴림으로 몇 에폭(epoch) 돌린 뒤 다시 처음으로.</li>
+</ul>
+
+<p>이 루프가 곧 <strong>PPO의 골격</strong>이다. 다만 마지막 단계에서 "같은 데이터를 여러 에폭 재사용"하면 on-policy 가정이 흔들린다 — \(\theta\)가 움직이면 모아둔 데이터는 더 이상 현재 정책의 것이 아니기 때문이다. 다음 편의 PPO는 액터 갱신의 대리 목적함수를 <strong>클리핑(clipping)</strong>으로 바꿔, 데이터를 재사용하되 정책이 한 번에 너무 멀리 가지 못하게 묶는다.</p>
+
+<h2>정리, 그리고 다음 편</h2>
+
+<p>정책경사가 남긴 숙제는 "참 어드밴티지를 모른다"였고, 그 답이 GAE다. 두 극단 — 무편향·고분산의 MC와 저분산·유편향의 한 스텝 TD — 사이를 \(n\)-스텝 사다리가 잇고, 그 모든 사다리를 \(\lambda\)로 지수가중 평균하면 \(\hat A_t^{\text{GAE}}=\sum_l(\gamma\lambda)^l\delta_{t+l}\)이라는 한 줄이 남는다. \(\gamma\)는 지평을, \(\lambda\)는 편향-분산 저울을 쥔다. 크리틱은 이 어드밴티지가 필요로 하는 \(V\)를 회귀로 학습하고, 액터와 번갈아 갱신되며 서로를 끌어올린다.</p>
+
+<p>다음 편은 이 루프의 액터 갱신을 <em>안전하게</em> 만드는 문제를 다룬다. 같은 데이터를 여러 에폭 재사용할 때 정책이 무너지지 않도록, 신뢰 영역(trust region, TRPO)의 동기에서 출발해 그 비싼 제약을 값싸게 흉내 내는 클리핑 대리 목적함수를 유도하고, 실제 하이퍼파라미터에 한 줄씩 매핑한다 — 그것이 이 시리즈가 파는 PPO다.</p>
+
+<h2>더 깊이 — 관련 논문</h2>
+
+<p>이 글의 개념들이 실제 알고리즘으로 어떻게 자라는지 보고 싶다면, 라이브러리의 다음 논문들이 정확한 출발점이다.</p>
+
+<ul>
+  <li><a href="../papers/Basic_Theory/Schulman_ICLR_2016.html">Schulman et al., 2016 — Generalized Advantage Estimation (GAE)</a>: 이 글의 심장. TD 오차 \(\delta_t\)를 \(\gamma\lambda\)로 지수가중 합해 어드밴티지를 편향-분산 절충으로 추정하는 닫힌형을 제시한 원전이다.</li>
+  <li><a href="../papers/Basic_Theory/Sutton_NeurIPS_2000.html">Sutton et al., 2000 — Policy Gradient Methods</a>: 어드밴티지 가중 정책 기울기 \(\nabla_\theta\log\pi\cdot A\)를 증명하고, 액터-크리틱에서 크리틱이 근사하는 대상을 정식화한 이론적 척추.</li>
+  <li><a href="../papers/Basic_Theory/Mnih_Nature_2015.html">Mnih et al., 2015 — Deep Q-Network (DQN)</a>: TD·부트스트래핑으로 가치를 신경망 회귀로 학습한 딥 RL의 이정표. §"크리틱" 절의 발산 위험과 정규화 처방이 왜 필요한지를 실물로 보여준다.</li>
+  <li><a href="../papers/Basic_Theory/Lillicrap_ICLR_2016.html">Lillicrap et al., 2016 — DDPG</a>: 연속 행동공간에서 <em>결정적</em> 정책을 학습하는 또 다른 액터-크리틱. 액터-크리틱이 on-policy 밖에서도 성립함을 보여주는 대조군이다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2015.html">Schulman et al., 2015 — TRPO</a>: GAE와 같은 저자군이 짝으로 내놓은 신뢰 영역 방법. 이 글 말미의 "액터 갱신을 안전하게"가 곧장 이 논문의 동기이며, 다음 편 PPO로 가는 다리다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2017.html">Schulman et al., 2017 — Proximal Policy Optimization (PPO)</a>: 이 시리즈가 실제로 쓰는 알고리즘. 위 액터-크리틱 루프의 액터 갱신을 클리핑으로 안정화한 종착점이다.</li>
+</ul>
+
+</div>
+
+<footer><div class="foot-in">
+  <div class="fbrand">KHS Research</div>
+  <div class="fl"><a href="../">홈</a><a href="./">이론 노트</a><a href="../papers/">논문 서재</a></div>
+</div></footer>
+
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js" integrity="sha384-jMb/B4EcJScIJrPg0UpLMKBwRX11GLqvdHwGR/GE/PrfiHHCkF7J2IpN96rEw5H6" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js" integrity="sha384-pz29R3Cx7I2DrXfvIP4Cu6cpRY1SDtgrT1Sxm9AlIIMhb2cxFvzyg4iDQBT0PFwt" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "$$", right: "$$", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>정책경사법(Policy Gradient) — 목적함수를 직접 경사상승으로 올리기 — KHS Research</title>
+<meta name="description" content="기대 리턴 J(θ)를 직접 경사상승으로 최대화한다. 움직이는 분포를 미분하는 문제를 로그-미분 트릭과 점수 함수로 풀어 정책 경사 정리를 유도하고(동역학이 사라지는 model-free의 근거), REINFORCE에서 출발해 인과성(reward-to-go)과 베이스라인으로 분산을 줄여 어드밴티지 표준형에 도달한다. 다음 편 actor-critic·GAE 예고.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css" integrity="sha384-fdYESlG2/q3gb3tpQoY8G4IPLxYyZUdjYNYyO6NYmsYuvh21TTLnsLPvNBE5mMva" crossorigin="anonymous">
+<style>
+  :root{
+    --bg:#f3f5f8; --panel:#ffffff; --ink:#232830; --soft:#565c6b; --mute:#9aa0ad;
+    --line:#e7ebef; --accent:#2f6bd8; --accent2:#5b4be6; --good:#1d9e75; --bad:#d64545;
+    --radius:16px; --measure:860px;
+    --disp:'Space Grotesk','Noto Sans KR',sans-serif;
+    --sans:'Noto Sans KR','Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;
+    -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+
+  /* Nav (consistent with hub) */
+  nav{position:sticky;top:0;z-index:100;backdrop-filter:saturate(180%) blur(14px);
+    background:rgba(243,245,248,.78);border-bottom:1px solid var(--line);}
+  .nav-in{max-width:960px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{font-family:var(--disp);font-weight:700;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px;}
+  .brand .mk{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent2),var(--accent));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;}
+  .nav-links{display:flex;align-items:center;gap:4px;font-size:13.5px;}
+  .nav-links a{color:var(--soft);padding:7px 12px;border-radius:9px;transition:background .15s,color .15s;}
+  .nav-links a:hover{background:var(--panel);color:var(--ink);}
+
+  /* Article */
+  .article{max-width:var(--measure);margin:0 auto;padding:46px 24px 20px;}
+  .back{display:inline-flex;gap:6px;font-size:13px;color:var(--accent);margin-bottom:22px;}
+  .back a:hover{text-decoration:underline;}
+  .cat-badge{display:inline-block;font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.02em;
+    color:var(--accent);background:#eaf1fd;border:1px solid #d9e4fb;padding:4px 12px;border-radius:999px;}
+  h1.title{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.02em;line-height:1.25;margin:16px 0 14px;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);padding-bottom:22px;border-bottom:1px solid var(--line);}
+  .summary{font-size:15.5px;color:var(--soft);line-height:1.7;margin:22px 0 0;}
+
+  /* Long-form body */
+  .body{max-width:var(--measure);margin:0 auto;padding:8px 24px 40px;font-size:16.5px;line-height:1.85;}
+  .body h2{font-family:var(--disp);font-size:23px;font-weight:700;letter-spacing:-.01em;margin:46px 0 14px;
+    padding-top:14px;border-top:1px solid var(--line);}
+  .body h2:first-of-type{border-top:none;padding-top:0;margin-top:30px;}
+  .body h3{font-size:18.5px;font-weight:700;margin:32px 0 10px;color:var(--ink);}
+  .body p{margin:15px 0;color:#2b313b;}
+  .body ul,.body ol{margin:15px 0;padding-left:24px;}
+  .body li{margin:9px 0;}
+  .body strong{font-weight:700;color:var(--ink);}
+  .body em{font-style:italic;}
+  .body a{color:var(--accent);text-decoration:none;border-bottom:1px solid #cfe0fb;transition:border-color .15s;}
+  .body a:hover{border-color:var(--accent);}
+  .body blockquote{margin:22px 0;padding:16px 20px;background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:12px;color:var(--soft);font-size:15.5px;}
+  .body blockquote p{margin:8px 0;color:var(--soft);}
+  .body blockquote p:first-child{margin-top:0;}
+  .body blockquote p:last-child{margin-bottom:0;}
+  /* KaTeX display blocks scroll horizontally on small screens instead of overflowing */
+  .body .katex-display{overflow-x:auto;overflow-y:hidden;padding:6px 0;margin:20px 0;}
+  .body p:has(>.katex-display){margin:20px 0;}
+
+  /* Interactive demo widgets (theory-publish demos/*.html) — break out wider
+     than the reading column, centered on the viewport, matching the blog light
+     design. Shared by every note; the widget's own JS ships with the demo. */
+  .demo{position:relative;left:50%;transform:translateX(-50%);width:min(96vw,960px);
+    background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:36px 0;
+    box-shadow:0 10px 34px -18px rgba(20,20,40,.16);}
+  .demo-h{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .demo-h .tag{font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent2);
+    background:#eeecfe;padding:3px 8px;border-radius:6px;}
+  .demo-h h3{font-size:17px;font-weight:700;}
+  .demo-sub{font-size:13.5px;color:var(--soft);margin-bottom:20px;}
+  .demo-grid{display:grid;grid-template-columns:1fr 260px;gap:26px;align-items:start;}
+  @media(max-width:680px){.demo-grid{grid-template-columns:1fr;}}
+  .board{display:grid;gap:6px;}
+  .cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:var(--disp);font-weight:500;position:relative;border:1px solid rgba(0,0,0,.04);transition:background .25s;}
+  .cell .v{font-size:15px;}
+  .cell .arw{font-size:19px;line-height:1;margin-top:2px;opacity:.72;}
+  .cell.wall{background:#c9ced8!important;}
+  .cell.term{color:#fff;font-size:19px;font-weight:700;}
+  .cell.goal{background:var(--good)!important;}
+  .cell.pit{background:var(--bad)!important;}
+  .controls{display:flex;flex-direction:column;gap:18px;}
+  .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--soft);margin-bottom:6px;font-weight:500;}
+  .ctl label b{font-family:var(--disp);color:var(--ink);}
+  .ctl input[type=range]{width:100%;accent-color:var(--accent);}
+  .ctl .hint{font-size:11.5px;color:var(--mute);margin-top:5px;line-height:1.5;}
+  .legend{font-size:12px;color:var(--mute);display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  .iter{font-size:12px;color:var(--mute);font-family:var(--disp);}
+  .demo-note{font-size:13.5px;color:var(--soft);margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
+
+  footer{border-top:1px solid var(--line);margin-top:30px;}
+  .foot-in{max-width:var(--measure);margin:0 auto;padding:34px 24px 48px;text-align:center;color:var(--mute);font-size:13px;}
+  .foot-in .fbrand{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--ink);}
+  .foot-in .fl{display:inline-flex;gap:16px;margin-top:12px;}
+  .foot-in .fl a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+<nav><div class="nav-in">
+  <a class="brand" href="../"><span class="mk">K</span>KHS Research</a>
+  <div class="nav-links">
+    <a href="../">← KHS Research</a>
+    <a href="./">← 이론 노트</a>
+    <a href="../papers/">논문 서재</a>
+  </div>
+</div></nav>
+
+<article class="article">
+  <div class="back"><a href="./">← 이론 노트</a></div>
+  <span class="cat-badge">강화학습 기초</span>
+  <h1 class="title">정책경사법(Policy Gradient) — 목적함수를 직접 경사상승으로 올리기</h1>
+  <div class="meta"><span>📖 읽는 시간 약 14분</span><span>강화학습 기초 노트</span></div>
+  <p class="summary">기대 리턴 J(θ)를 직접 경사상승으로 최대화한다. 움직이는 분포를 미분하는 문제를 로그-미분 트릭과 점수 함수로 풀어 정책 경사 정리를 유도하고(동역학이 사라지는 model-free의 근거), REINFORCE에서 출발해 인과성(reward-to-go)과 베이스라인으로 분산을 줄여 어드밴티지 표준형에 도달한다. 다음 편 actor-critic·GAE 예고.</p>
+</article>
+
+<div class="body">
+<h2>목적함수를 '어떻게' 올릴까</h2>
+
+<p>지난 편에서 강화학습(Reinforcement Learning, RL)이 최대화하는 단 하나의 양 — 기대 리턴, 곧 목적함수(objective) \(J(\theta)=\mathbb{E}_{\tau\sim p_\theta}[G_0]\) — 를 세웠다. 무대는 마르코프 결정 과정(MDP)이었고, 정책 \(\pi_\theta\)를 얼마나 잘 짰는지가 이 한 숫자로 요약됐다. 그런데 목적함수를 정의한 것과, 그것을 실제로 <em>키우는 것</em>은 다른 일이다. 이 편은 바로 그 간극을 메운다: \(J(\theta)\)의 기울기 \(\nabla_\theta J(\theta)\), 곧 <strong>정책 경사(policy gradient)</strong>를 손으로 유도해, 정책의 파라미터를 어느 방향으로 밀어야 목적함수가 오르는지를 정확히 알아낸다.</p>
+
+<p>발상 자체는 미분학의 기본이다. 어떤 함수를 최대화하고 싶으면 기울기 방향으로 조금씩 올라가면 된다 — 경사상승(gradient ascent)이다.</p>
+
+<p>$$\theta\ \leftarrow\ \theta+\alpha\,\nabla_\theta J(\theta)$$</p>
+
+<p>여기서 \(\alpha\)는 학습률(learning rate)이다. 그러니 남은 일은 \(\nabla_\theta J(\theta)\)를 계산하는 것뿐인데, 바로 여기서 강화학습 특유의 난관이 하나 튀어나온다.</p>
+
+<h2>움직이는 분포를 미분하는 문제</h2>
+
+<p>지난 편의 목적함수를, 궤적(trajectory) 전체의 할인 리턴 \(R(\tau):=\sum_{t=0}^{\infty}\gamma^t r(s_t,a_t)\)로 다시 적으면 적분 형태가 된다.</p>
+
+<p>$$J(\theta)=\mathbb{E}_{\tau\sim p_\theta}\big[R(\tau)\big]=\int p_\theta(\tau)\,R(\tau)\,\mathrm{d}\tau$$</p>
+
+<p>보통의 기대값이라면 곤란할 게 없다. 고정된 분포에서 샘플을 뽑아 평균 내고, 필요하면 그 평균을 미분하면 그만이다. 그런데 이 적분은 <strong>가중치 \(p_\theta(\tau)\) 자체가 미분 변수 \(\theta\)에 의존</strong>한다. 우리가 정책을 바꾸면 어떤 궤적이 자주 나오는지 그 확률 분포가 통째로 움직인다. 샘플은 \(p_\theta\)에서 나오는데 그 \(p_\theta\)를 미분해야 하니, \(\nabla_\theta\,\mathbb{E}_{\tau\sim p_\theta}[\cdot]\)를 곧장 "샘플의 평균"으로 바꿔 쓸 수가 없다. 이 매듭을 푸는 항등식이 다음 절의 로그-미분 트릭이다.</p>
+
+<h2>로그-미분 트릭과 점수 함수</h2>
+
+<p>정책 경사 유도 전체가 다음 한 줄의 항등식 위에 선다. 이름은 <strong>로그-미분 트릭(log-derivative trick)</strong>이다.</p>
+
+<p>$$\nabla_\theta p_\theta(x)=p_\theta(x)\,\nabla_\theta\log p_\theta(x)$$</p>
+
+<p>유도는 두 줄이면 끝난다. 로그의 연쇄 법칙(chain rule)으로 \(\nabla_\theta\log p_\theta(x)=\dfrac{\nabla_\theta p_\theta(x)}{p_\theta(x)}\)이고, 양변에 \(p_\theta(x)\)를 곱하면 위 식이 그대로 나온다. 사소해 보이지만 결정적이다. 좌변 \(\nabla_\theta p_\theta\)는 "확률 자체의 변화"라 기대값으로 쓸 수 없지만, 우변은 \(p_\theta(x)\times(\text{어떤 양})\) 꼴이라 <strong>\(p_\theta\)에 대한 기대값으로 환산</strong>된다. 즉 미분이 다시 "샘플로 추정 가능한 기대값"이 되는 것이다.</p>
+
+<p>여기 등장한 \(\nabla_\theta\log p_\theta(x)\)를 <strong>점수 함수(score function)</strong>라 부른다. 점수 함수는 한 가지 결정적 성질을 가지는데, 이 성질이 뒤에서 두 번(인과성·베이스라인) 쓰인다: <em>그 자신의 기대값이 0이다.</em></p>
+
+<p>$$\mathbb{E}_{x\sim p_\theta}\big[\nabla_\theta\log p_\theta(x)\big]=\int p_\theta(x)\,\nabla_\theta\log p_\theta(x)\,\mathrm{d}x=\int\nabla_\theta p_\theta(x)\,\mathrm{d}x=\nabla_\theta\!\int p_\theta(x)\,\mathrm{d}x=\nabla_\theta 1=0$$</p>
+
+<p>로그-미분 트릭을 거꾸로 써서 적분 안을 \(\nabla_\theta p_\theta\)로 되돌리고, 미분과 적분의 순서를 바꾼 뒤, 확률의 총합이 1이라는 사실을 쓴 것이다. "점수의 평균은 0"이라는 이 한 줄을 잘 기억해 두자.</p>
+
+<h2>정책 경사 정리</h2>
+
+<p>이제 본 정리를 유도한다. 환경의 동역학(dynamics)이 <strong>스스로 떨어져 나가는</strong> 장면이 핵심이다. 목적함수의 기울기에 위 도구들을 차례로 얹는다.</p>
+
+<p>$$\nabla_\theta J(\theta)=\int \nabla_\theta p_\theta(\tau)\,R(\tau)\,\mathrm{d}\tau=\int p_\theta(\tau)\,\nabla_\theta\log p_\theta(\tau)\,R(\tau)\,\mathrm{d}\tau=\mathbb{E}_{\tau\sim p_\theta}\!\big[\nabla_\theta\log p_\theta(\tau)\,R(\tau)\big]$$</p>
+
+<p>먼저 \(R(\tau)\)는 \(\theta\)와 무관하므로 미분이 \(p_\theta\)에만 걸리고, 로그-미분 트릭으로 \(\nabla_\theta p_\theta=p_\theta\,\nabla_\theta\log p_\theta\)를 치환하니 다시 기대값이 됐다. 남은 것은 궤적의 점수 함수 \(\nabla_\theta\log p_\theta(\tau)\)를 펴는 일이다. 지난 편에서 궤적 확률은</p>
+
+<p>$$\log p_\theta(\tau)=\log\rho_0(s_0)+\sum_{t=0}^{\infty}\big[\log\pi_\theta(a_t\mid s_t)+\log P(s_{t+1}\mid s_t,a_t)\big]$$</p>
+
+<p>로 인수분해됐다. 이것을 \(\theta\)로 미분하면 <strong>초기 분포 \(\rho_0\)와 전이 커널 \(P\)는 \(\theta\)와 무관해 통째로 사라진다.</strong> 남는 것은 우리가 통제하는 정책의 로그 확률뿐이다.</p>
+
+<p>$$\nabla_\theta\log p_\theta(\tau)=\sum_{t=0}^{\infty}\nabla_\theta\log\pi_\theta(a_t\mid s_t)$$</p>
+
+<p>이것을 대입하면 <strong>정책 경사 정리(policy gradient theorem)</strong>가 완성된다.</p>
+
+<p>$$\nabla_\theta J(\theta)=\mathbb{E}_{\tau\sim p_\theta}\!\left[\Big(\sum_{t=0}^{\infty}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\Big)\,R(\tau)\right]$$</p>
+
+<blockquote>
+  <p><strong>왜 이게 결정적인가 — model-free의 근거.</strong> 3번째 단계에서 전이 \(P(s_{t+1}\mid s_t,a_t)\)가 미분으로 사라졌다. 즉 <strong>환경의 동역학을 몰라도</strong> \(\nabla_\theta J\)를 추정할 수 있다. 필요한 건 우리가 손에 쥔 \(\nabla_\theta\log\pi_\theta\)(지난 편에서 대각 가우시안 정책의 닫힌 형태로 구했다)와, 환경이 그냥 굴려서 주는 \(R(\tau)\)뿐이다. 이것이 지난 편 개념 지도의 <em>model-free</em>가 작동하는 수학적 이유다. 이 식을 궤적 샘플의 평균으로 그대로 추정하는 가장 단순한 알고리즘을 <strong>REINFORCE</strong>라 한다.</p>
+</blockquote>
+
+<h2>직접 올라가 보기 — 목적 지형 위의 확률적 경사상승</h2>
+
+<p>정책 경사 정리는 "어느 방향으로 파라미터를 밀어야 \(J(\theta)\)가 오르는가"에 대한 답이다. 그러나 그 답에는 별표가 하나 붙는다. 실제로 우리가 쓰는 것은 참 기울기 \(\nabla_\theta J\)가 아니라, 유한한 궤적 몇 개를 굴려서 만든 <strong>표본 추정(sample estimate)</strong>이다.</p>
+
+<p>$$\widehat{\nabla_\theta J}=\frac{1}{N}\sum_{n=1}^{N}\Big(\sum_{t}\nabla_\theta\log\pi_\theta(a_t^{(n)}\mid s_t^{(n)})\Big)R(\tau^{(n)})$$</p>
+
+<p>기대값을 유한 샘플 평균으로 바꾼 순간, 추정된 기울기는 매번 조금씩 다른 방향을 가리킨다. 정책이 확률적(stochastic)이라 어떤 행동이 뽑히느냐에 따라, 또 환경의 전이가 확률적이라 어떤 다음 상태로 굴러가느냐에 따라 \(R(\tau)\)가 판마다 출렁이기 때문이다. 그래서 정책 경사는 방향은 맞되(불편, unbiased) <strong>흔들리는(고분산, high-variance) 기울기</strong>다. 학습은 이 <em>노이즈 낀 기울기</em>를 따라, 목적함수라는 언덕을 비틀거리며 올라가는 과정이 된다.</p>
+
+<p>이 노이즈가 어디서 오는지 한 번 더 짚자. 추정식의 각 항은 점수 함수 \(\nabla_\theta\log\pi_\theta(a_t\mid s_t)\)에 그 궤적의 성적표 \(R(\tau)\)를 곱한 것이다. 앞서 봤듯 점수 함수의 평균은 0이므로, 평균적으로는 좋은 궤적(큰 \(R\))에서 뽑힌 행동 쪽으로 파라미터를 당기고 나쁜 궤적에서 뽑힌 행동은 밀어낸다. 문제는 <em>한 판의 성적표</em> \(R(\tau)\)가 운에 크게 좌우된다는 점이다. 같은 정책, 같은 상태에서도 어쩌다 좋은 낙(落)을 만나면 \(R\)이 커지고 그 방향이 과대평가된다. 유한한 표본으로는 이 운의 출렁임이 평균으로 다 씻겨 나가지 못해, 추정 기울기가 참 방향 주위로 튄다. 표본 수 \(N\)을 늘리면 잦아들지만(그래서 로봇 학습은 수천 개 환경을 병렬로 굴린다), 근본적으로 정책 경사는 분산과의 싸움이다.</p>
+
+<p>이 그림을 손에 잡히게 만들려고, 아래 위젯은 파라미터를 딱 두 개로 줄인 장난감을 돌린다. 2차원 정책 파라미터 공간 \(\theta=(\theta_1,\theta_2)\) 위에 목적함수 \(J(\theta)\)의 지형을 등고선(contour)으로 그리고, 그 위에서 확률적 경사상승 스텝이 최적점(optimum)을 향해 한 걸음씩 기어오른다. 각 스텝의 방향은 참 기울기가 아니라 위 식처럼 <em>샘플로 추정한</em> 기울기라, 등고선의 오르막을 정확히 가리키지 않고 매번 조금씩 빗나간다. 손잡이는 둘이다. 학습률 \(\alpha\)는 한 걸음의 보폭을, 기울기 노이즈(gradient noise)는 표본 추정이 참 기울기에서 벗어나는 정도를 정한다.</p>
+
+<div class="demo">
+  <div class="demo-h"><span class="tag">실습</span><h3>노이즈 낀 기울기로 목적 지형 오르기</h3></div>
+  <div class="demo-sub">2차원 정책 파라미터 θ=(θ₁,θ₂) 위에 목적함수 J(θ)의 등고선을 그리고, 확률적 경사상승 θ←θ+α·∇̂J를 한 걸음씩 애니메이션합니다. 각 스텝의 방향은 참 기울기가 아니라 표본으로 추정한 기울기라, 봉우리를 향해 비틀거리며 오릅니다.</div>
+  <div class="demo-grid">
+    <div>
+      <svg id="pg-plot" viewBox="0 0 300 250" style="width:100%;max-width:340px;height:auto;display:block;margin:0 auto"></svg>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--good)"></i>최적점(봉우리)</span>
+        <span><i class="sw" style="background:var(--accent)"></i>파라미터 경로</span>
+        <span class="iter" id="pg-step"></span>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="ctl">
+        <label>학습률 α (보폭) <b id="pg-a-v">0.15</b></label>
+        <input type="range" id="pg-a" min="0.02" max="0.55" step="0.01" value="0.15">
+        <div class="hint">작으면 느리지만 얌전히 수렴, 크면 봉우리를 지나쳐(overshoot) 널뛰거나 발산.</div>
+      </div>
+      <div class="ctl">
+        <label>기울기 노이즈 <b id="pg-n-v">0.60</b></label>
+        <input type="range" id="pg-n" min="0" max="2.2" step="0.05" value="0.60">
+        <div class="hint">표본 추정이 참 기울기에서 벗어나는 정도. 키우면 경로가 험해지고 최적점 근처에서 서성입니다.</div>
+      </div>
+    </div>
+  </div>
+  <div class="demo-note">💡 <b>해보기:</b> 노이즈를 0으로 두면 경로가 등고선에 수직으로 곧게 올라갑니다(참 기울기). 노이즈를 2.2로 올리면 지그재그가 심해지고 봉우리에서 멈추지 못하죠 — 그때 α를 키우면 발산 직전까지 위태로워집니다. 다음 편 GAE가 하려는 일이 바로 이 노이즈(분산)를 줄이는 것입니다.</div>
+</div>
+
+<script>
+// policy-gradient-ascent — SGD ascent on a 2D anisotropic Gaussian objective
+// bowl J(t)= -[(x-px)^2/2sx^2 + (y-py)^2/2sy^2]. Each step uses the true
+// gradient plus uniform noise, so the trajectory wobbles instead of tracing the
+// contour normal. Two knobs: step size alpha, gradient noise. IIFE-scoped.
+(function(){
+  const svg=document.getElementById('pg-plot'), NS='http://www.w3.org/2000/svg';
+  const A=document.getElementById('pg-a'), Nz=document.getElementById('pg-n');
+  const px=6.9,py=6.4, sx=2.7,sy=2.2, x0=1.3,y0=1.7;   // param-space geometry
+  const VW=300,VH=250, m=18;
+  const SX=v=>m+(v/10)*(VW-2*m), SY=v=>VH-m-(v/10)*(VH-2*m);
+  function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+  let x,y,step,path,timer;
+  function reset(){x=x0;y=y0;step=0;path=[[x,y]];}
+  function grad(){return [-(x-px)/(sx*sx), -(y-py)/(sy*sy)];}
+  function tick(){
+    const al=+A.value, nz=+Nz.value, [gx,gy]=grad();
+    x+=al*(gx+(Math.random()*2-1)*nz);
+    y+=al*(gy+(Math.random()*2-1)*nz);
+    x=Math.max(0.2,Math.min(9.8,x)); y=Math.max(0.2,Math.min(9.8,y));
+    path.push([x,y]); step++;
+    if(step>=70||path.length>75) reset();
+    render();
+  }
+  function render(){
+    document.getElementById('pg-a-v').textContent=(+A.value).toFixed(2);
+    document.getElementById('pg-n-v').textContent=(+Nz.value).toFixed(2);
+    svg.innerHTML='';
+    // contour ellipses (level sets of the bowl), centered on the peak
+    for(let i=5;i>=1;i--){
+      svg.appendChild(el('ellipse',{cx:SX(px),cy:SY(py),
+        rx:(i*1.15/10)*(VW-2*m)*(sx/2.45), ry:(i*1.15/10)*(VH-2*m)*(sy/2.45),
+        fill:'none',stroke:'var(--line)','stroke-width':1}));
+    }
+    // trajectory
+    let d=''; path.forEach((p,i)=>{d+=(i?'L':'M')+SX(p[0]).toFixed(1)+' '+SY(p[1]).toFixed(1)+' ';});
+    svg.appendChild(el('path',{d:d,fill:'none',stroke:'var(--accent)','stroke-width':1.6,opacity:0.85,'stroke-linejoin':'round'}));
+    // peak + current point
+    svg.appendChild(el('circle',{cx:SX(px),cy:SY(py),r:5,fill:'var(--good)'}));
+    svg.appendChild(el('circle',{cx:SX(px),cy:SY(py),r:9,fill:'none',stroke:'var(--good)','stroke-width':1,opacity:0.5}));
+    const cur=path[path.length-1];
+    svg.appendChild(el('circle',{cx:SX(cur[0]),cy:SY(cur[1]),r:4,fill:'var(--accent2)',stroke:'#fff','stroke-width':1.5}));
+    document.getElementById('pg-step').textContent='스텝 '+step;
+  }
+  [A,Nz].forEach(e=>e.addEventListener('input',()=>{reset();render();}));
+  reset(); render();
+  timer=setInterval(tick,80);
+})();
+</script>
+
+<p>위젯을 읽는 법. <strong>등고선</strong>은 목적함수 \(J(\theta)\)를 나타낸다 — 안쪽으로 갈수록, 곧 봉우리에 가까울수록 기대 리턴이 크다. <strong>점과 그 궤적</strong>은 경사상승 갱신 \(\theta\leftarrow\theta+\alpha\,\widehat{\nabla_\theta J}\)를 매 스텝 적용하며 이동하는 파라미터다. 화살표가 봉우리를 똑바로 겨누지 못하고 지그재그로 흔들리는 것이 바로 <em>표본으로 추정한 기울기</em>의 노이즈다 — 참 기울기라면 등고선에 수직으로 곧게 올라가야 하지만, 우리는 그것을 몇 개의 궤적으로만 어림잡기 때문이다.</p>
+
+<p>이제 손잡이를 직접 돌리며 이론을 눈으로 확인해 보자.</p>
+
+<ul>
+  <li><strong>학습률 \(\alpha\)를 작게</strong> → 보폭이 짧아 한 걸음의 전진은 더디지만, 노이즈에 휘둘려도 크게 벗어나지 않고 봉우리로 <em>안정적으로</em> 수렴한다. 느리지만 얌전하다.</li>
+  <li><strong>학습률 \(\alpha\)를 크게</strong> → 성큼성큼 올라가다가 봉우리를 <em>지나쳐(overshoot)</em> 반대편으로 튕기고, 심하면 능선 주위를 널뛰며 발산한다. 빠르지만 위태롭다. 언덕 오르기에서 보폭이 너무 크면 정상을 밟지 못하고 건너뛰는 것과 같다.</li>
+  <li><strong>기울기 노이즈를 키우면</strong> → 표본 추정이 참 기울기에서 크게 벗어나, 궤적이 더 심하게 <em>비틀거린다(wobbly)</em>. 같은 학습률이라도 봉우리에 다다르기까지 더 많은 스텝이 걸리고, 최적점 근처에서도 얌전히 멈추지 못하고 주변을 서성인다.</li>
+</ul>
+
+<p>여기서 정책 경사의 실전 과제가 한눈에 드러난다. 노이즈가 크면 경로가 험해지니, 큰 보폭으로 빨리 가고 싶어도 학습률을 마음껏 키울 수 없다. 그러니 학습을 빠르고 안정적으로 만드는 지름길은 애초에 <strong>기울기 추정의 노이즈(분산)를 줄이는 것</strong>이다. 위젯의 노이즈 손잡이를 왼쪽으로 돌렸을 때 경로가 곧게 펴지는 것 — 그것이 다음 절 전체의 목표다.</p>
+
+<h2>분산을 줄이는 두 손잡이</h2>
+
+<p>정책 경사 정리는 맞지만 위 위젯이 보여주듯 흔들림이 크다. 이 분산을 두 단계로 깎는다.</p>
+
+<p><strong>첫째, 인과성(causality) — reward-to-go.</strong> 정리의 식은 시점 \(t\)의 \(\nabla_\theta\log\pi_\theta(a_t\mid s_t)\)에 <em>궤적 전체</em>의 리턴 \(R(\tau)\)를 곱한다. 여기엔 \(t\) <em>이전</em>의 보상까지 들어 있다. 그런데 지금의 행동이 과거의 보상을 바꿀 수는 없다. 실제로 \(t'<t\)이면</p>
+
+<p>$$\mathbb{E}_\tau\big[\nabla_\theta\log\pi_\theta(a_t\mid s_t)\,r_{t'}\big]=\mathbb{E}\Big[r_{t'}\,\underbrace{\mathbb{E}_{a_t\sim\pi(\cdot\mid s_t)}\big[\nabla_\theta\log\pi_\theta(a_t\mid s_t)\big]}_{=\,0\ (\text{점수의 평균})}\Big]=0$$</p>
+
+<p>이다 — 과거 보상은 아까 증명한 "점수의 평균은 0"에 걸려 기대값에 <em>기여하지 않으면서</em> 분산만 키운다. 그러니 잘라내도 무방하다. 각 항에 곱하는 무게추를 미래 보상만 남긴 리턴, 곧 지난 편의 \(G_t=\sum_{k\ge0}\gamma^k r_{t+k}\)로 바꿔도 기대값이 같다.</p>
+
+<p>$$\nabla_\theta J(\theta)=\mathbb{E}_{\tau\sim p_\theta}\!\left[\sum_{t=0}^{\infty}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\;G_t\right]$$</p>
+
+<p><strong>둘째, 베이스라인(baseline) → 어드밴티지.</strong> \(G_t\)는 여전히 한 판의 운에 통째로 휘둘린다. 두 번째 분산 감소는 각 항에서 상태만의 함수 \(b(s_t)\)를 빼는 것이다. 핵심은 <em>빼도 기대값(=기울기)이 변하지 않는다</em>는 점 — \(b(s_t)\)는 \(a_t\)와 무관해 행동에 대한 기대값 안에서 상수로 빠지고, 남은 점수의 평균이 또 0이 되기 때문이다.</p>
+
+<p>$$\mathbb{E}_\tau\big[\nabla_\theta\log\pi_\theta(a_t\mid s_t)\,b(s_t)\big]=\mathbb{E}_{s_t}\Big[b(s_t)\,\mathbb{E}_{a_t\sim\pi}\big[\nabla_\theta\log\pi_\theta(a_t\mid s_t)\big]\Big]=0$$</p>
+
+<p>빼도 편향(bias)이 안 생기니, 분산을 가장 잘 줄이는 \(b\)를 고른다. 표준적 선택은 그 상태의 평균 가치 \(b(s_t)=V^\pi(s_t)\)다. 그러면 무게추가 \(G_t-V^\pi(s_t)\)가 되는데, \(G_t\)는 \(Q^\pi(s_t,a_t)\)의 불편 추정이므로 이는 곧 지난 편의 <strong>어드밴티지(advantage)</strong> \(A^\pi\)다. 이로써 정책 경사의 <strong>표준형</strong>에 도달한다.</p>
+
+<p>$$\nabla_\theta J(\theta)=\mathbb{E}_{\tau\sim p_\theta}\!\left[\sum_{t=0}^{\infty}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\;A^\pi(s_t,a_t)\right]$$</p>
+
+<p>읽는 법은 명료하다. "어드밴티지가 양수인 행동의 로그 확률은 올리고, 음수인 행동은 내린다." 지난 편에서 본 \(\nabla_\theta\log\pi_\theta\)의 "뽑힌 행동 쪽으로 평균을 당김"이, 여기서 \(A^\pi\)의 부호와 크기로 가중되는 것이다. 위젯의 노이즈 손잡이를 왼쪽으로 돌린 효과 — 곧 곧게 펴진 경로 — 를 이 두 손잡이가 수학적으로 만들어 낸다.</p>
+
+<h2>정리, 그리고 다음 편</h2>
+
+<p>실제 학습에서는 기울기를 직접 코딩하지 않는다. 미분하면 위 표준형이 되도록 만든 <strong>대리 목적함수(surrogate objective)</strong>를 자동미분(autodiff)에 맡긴다.</p>
+
+<p>$$L^{\text{PG}}(\theta)=\frac{1}{N}\sum_{n}\sum_{t}\log\pi_\theta(a_t^{(n)}\mid s_t^{(n)})\,\hat A_t^{(n)},\qquad \nabla_\theta L^{\text{PG}}=\widehat{\nabla_\theta J}$$</p>
+
+<p>(추정 어드밴티지 \(\hat A_t\)는 상수로 취급해 기울기를 흘리지 않는다.) 이 편의 결론은 하나로 압축된다 — <em>기대 리턴의 기울기는 "점수 함수 × 어드밴티지"의 기대값</em>이며, 동역학을 몰라도 샘플만으로 추정할 수 있다(model-free). 다만 그 추정은 본질적으로 흔들리고, 그래서 인과성과 베이스라인으로 분산을 거듭 깎는 것이 정책 경사 실전의 절반이다.</p>
+
+<p>표준형에는 아직 빈칸이 하나 있다. 참 어드밴티지 \(A^\pi\)를 우리는 모른다 — 추정해야 한다. 다음 편은 이 \(\hat A_t\)를 어떻게 잘 추정하는지를 다룬다. 한쪽 끝은 몬테카를로(Monte Carlo, \(G_t-V\): 불편·고분산), 다른 끝은 한 스텝 시간차(one-step TD, \(\delta_t\): 저분산·편향)이고, 그 사이를 \(\lambda\)로 잇는 것이 일반화 어드밴티지 추정(Generalized Advantage Estimation, GAE)이다. 여기에 \(V^\pi\)를 배우는 크리틱(critic)과 행위자-비평자(actor-critic) 루프를 붙이면, 이 시리즈가 실제로 쓰는 PPO의 골격이 완성된다.</p>
+
+</div>
+
+<footer><div class="foot-in">
+  <div class="fbrand">KHS Research</div>
+  <div class="fl"><a href="../">홈</a><a href="./">이론 노트</a><a href="../papers/">논문 서재</a></div>
+</div></footer>
+
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js" integrity="sha384-jMb/B4EcJScIJrPg0UpLMKBwRX11GLqvdHwGR/GE/PrfiHHCkF7J2IpN96rEw5H6" crossorigin="anonymous"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js" integrity="sha384-pz29R3Cx7I2DrXfvIP4Cu6cpRY1SDtgrT1Sxm9AlIIMhb2cxFvzyg4iDQBT0PFwt" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "$$", right: "$$", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+</body>
+</html>
