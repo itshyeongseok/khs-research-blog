@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Deep Reinforcement Learning that Matters</title>
+    <meta name="keywords" content="reproducibility, deep reinforcement learning, policy gradient methods, continuous control, hyperparameter sensitivity, random seeds, significance testing, experimental methodology, variance, benchmarking">
+    <meta name="paper-authors" content="Peter Henderson, Riashat Islam, Philip Bachman, Joelle Pineau, Doina Precup, David Meger">
+    <meta name="paper-journal" content="Proceedings of the AAAI Conference on Artificial Intelligence (AAAI-18), 2018 · arXiv:1709.06560">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Deep Reinforcement Learning that Matters</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Peter Henderson, Riashat Islam, Philip Bachman, Joelle Pineau, Doina Precup, David Meger</div>
+            <div class="journal">Proceedings of the AAAI Conference on Artificial Intelligence (AAAI-18), 2018 · arXiv:1709.06560</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 <span class="term">deep reinforcement learning</span>(RL)의 state-of-the-art 결과를 재현하기가 왜 그토록 어려운지를, 연속 제어에서의 model-free policy-gradient 방법(TRPO, PPO, DDPG, ACKTR)에 초점을 맞추어 규명한다. MuJoCo/OpenAI Gym 과제에 대한 대표적인 실험을 통해, 외재적 요인(hyperparameter, 네트워크 구조, reward scale, 코드베이스)과 내재적 요인(random seed, 환경의 확률성)이 보고된 성능을 극적으로 바꿀 수 있음을 보인다. 저자들은 서로 다른 random seed를 평균하는 것만으로도 동일한 알고리즘·설정에 대해 통계적으로 구분되는 분포가 나올 수 있음을 입증한다. 이들은 유의성 지표(bootstrap 신뢰구간, 검정력 분석, t-test)와 실험 보고의 더 엄격한 표준화를 주장한다. 이 연구는 향후 deep-RL 결과가 더 재현 가능해지고 이 분야가 의미 있는 진보를 이어가도록 구체적 권고를 제시한다.</div>
+            <div class="keywords"><span class="keyword-chip">reproducibility</span><span class="keyword-chip">deep reinforcement learning</span><span class="keyword-chip">policy gradient methods</span><span class="keyword-chip">continuous control</span><span class="keyword-chip">hyperparameter sensitivity</span><span class="keyword-chip">random seeds</span><span class="keyword-chip">significance testing</span><span class="keyword-chip">experimental methodology</span><span class="keyword-chip">variance</span><span class="keyword-chip">benchmarking</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 재현성을 deep RL의 진보를 지속하는 데 필수적인 것으로 동기화하며, 이 분야의 급속한 성장과 동일 baseline에 대한 보고 결과의 넓은 편차를 지적한다. 연구를 연속 제어의 policy-gradient 방법으로 한정하고, 외재적 대 내재적 분산 원천을 핵심 관심사로 설정하며, 이를 deep RL에 특화하여 재현성을 다룬 최초의 연구로 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">기술적 배경은 연구 대상인 model-free policy-gradient 알고리즘을 개괄하고, 이를 관련 평가·재현성 문헌과 대비하여 위치시킨다. policy-gradient 목적함수를 정의하고 TRPO, PPO, DDPG, ACKTR이 갱신을 수행하는 방식을 비교한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험 분석은 재현성에 영향을 주는 요인들 — hyperparameter, 네트워크 구조, reward scale, random seed/시행 수, 환경, 코드베이스 — 에 관한 질문을 중심으로 구성된다. 방법론은 기본값을 고정하고 한 번에 한 요인만 변화시키며, 미리 정한 공통 random seed로 다섯 번의 시행을 사용하고, 각 요인의 효과를 분리하기 위해 평균과 표준오차를 보고한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">실험은 연구된 모든 요인이 측정 성능을 상당히 바꿀 수 있음을 입증한다. 네트워크 구조와 활성화 효과는 알고리즘에 따라 일관되지 않고, reward scaling은 학습을 실패시킬 수 있으며, 가장 두드러지게는 단지 random seed를 바꾸는 것만으로 통계적으로 다른 분포가 만들어져 순진한 비교를 무너뜨린다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 실험 결과를 실용적 권고와 미해결 질문으로 종합한다. 모든 실험 세부의 보고, baseline 코드베이스와의 일치, 다수 seed 실행, 적절한 유의성 검정 적용을 강조하는 한편, hyperparameter-agnostic 알고리즘과 실제 세계 적용 가능성 입증에 관한 더 넓은 질문을 제기한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 내재적·외재적 비결정성 원천 모두가 baseline 알고리즘 재현을 방해하며, 높은 내재적 분산이 유의성 분석의 필요성을 강화한다는 점을 재차 강조한다. 공정한 비교로 재현 가능한 결과를 보장하고, deep RL이 계속 중요함을 어떻게 가장 잘 입증할지 고민하기를 커뮤니티에 촉구한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "reinforcement learning은 에이전트가 환경과 상호작용하여 기대 누적 보상을 최대화하는 정책을 학습하는 과정을 연구하며, 로봇 제어·바둑·Atari·경쟁 비디오 게임에서의 성과로 급격히 성장해 왔다.", "figure_refs": [1]}, {"type": "bullet", "text": "빠른 진보를 유지하려면 기존 연구가 쉽게 재현·비교될 수 있어야 새로운 방법이 제공하는 개선을 정확히 판단할 수 있다."}, {"type": "bullet", "text": "deep-RL 결과 재현은 좀처럼 간단하지 않으며, 문헌은 동일한 baseline 알고리즘에 대해 넓은 범위의 결과를 보고한다."}, {"type": "bullet", "text": "재현성은 외재적 요인(예: hyperparameter나 코드베이스)과 내재적 요인(예: random seed의 효과나 환경 특성)에 의해 영향받을 수 있다."}, {"type": "bullet", "text": "이 조사는 연속 제어의 policy-gradient(PG) 방법에 초점을 두는데, 이들은 신경망 함수 근사기와 특히 잘 맞았고 이산 설정에서 value-based 방법과 경쟁력이 있다."}, {"type": "bullet", "text": "RL 문헌의 지표 다양성과 유의성 검정 부재는 결과를 오도하여 보고할 소지를 만든다."}, {"type": "bullet", "text": "선행 연구(Duan et al. 2016; Whiteson et al. 2011; Machado et al. 2017)가 RL 알고리즘 평가를 일부 다루었으나, 저자들이 아는 한 이것이 deep RL 맥락에서 재현성을 특화하여 다룬 최초의 연구이다."}, {"type": "bullet", "text": "각 실험 절은 재현성에 영향을 주는 핵심 요인에 관한 질문을 던지고, 권고·조사 방향·향후 연구를 위한 논의점으로 마무리한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "이 연구는 공개 구현이 있어 baseline으로 자주 쓰이는 model-free policy-gradient 알고리즘 TRPO, DDPG, PPO, ACKTR을 OpenAI Gym의 MuJoCo 연속 제어 과제에서 다룬다."}, {"type": "bullet", "text": "policy-gradient 방법은 policy-gradient 정리를 이용해 기대 수익 목적함수를 최적화한다.", "figure_refs": []}, {"type": "formula", "label": "Eq. (1) — policy-gradient 목적함수와 경사", "latex": "\\rho(\\theta, s_0) = \\mathbb{E}_{\\pi_\\theta}\\!\\left[\\sum_{t=0}^{\\infty} \\gamma^{t} r(s_t)\\,\\middle|\\, s_0\\right], \\qquad \\frac{\\partial \\rho(\\theta, s_0)}{\\partial \\theta} = \\sum_{s} \\mu_{\\pi_\\theta}(s\\mid s_0) \\sum_{a} \\frac{\\partial \\pi_\\theta(a\\mid s)}{\\partial \\theta} Q_{\\pi_\\theta}(s,a)", "description": "정책 매개변수 $\\theta$에 대한 기대 할인 수익 목적함수 $\\rho$와 그 경사이며, 여기서 $\\mu_{\\pi_\\theta}$는 할인 상태 분포, $Q_{\\pi_\\theta}$는 행동가치 함수이다."}, {"type": "bullet", "text": "TRPO와 PPO는 제약과 advantage 추정을 사용해 갱신을 수행한다. TRPO는 conjugate gradient descent로 푸는 KL 제약을 강제하고, PPO는 그 제약을 penalty 또는 clipping 목적함수로 재정식화한다."}, {"type": "formula", "label": "Eq. (2) — TRPO의 KL 제약 갱신", "latex": "\\max_{\\theta}\\ \\mathbb{E}_t\\!\\left[\\frac{\\pi_\\theta(a_t\\mid s_t)}{\\pi_{\\theta_{old}}(a_t\\mid s_t)} A_t(s_t,a_t)\\right] \\quad \\text{s.t.}\\quad \\mathbb{E}_t\\big[\\mathrm{KL}[\\pi_{\\theta_{old}}(\\cdot\\mid s_t), \\pi_\\theta(\\cdot\\mid s_t)]\\big] \\le \\delta", "description": "TRPO는 이전 정책과 새 정책 사이의 trust-region KL 발산 한계 $\\delta$를 지키는 제약 아래에서 importance-weighted advantage 목적함수를 최대화한다."}, {"type": "bullet", "text": "DDPG와 ACKTR은 $Q(s,a)$를 추정하고 Monte-Carlo rollout에 기반해 Q-함수를 최대화하는 정책을 최적화하는 actor-critic 방법이다. DDPG는 결정론적 정책을, ACKTR은 확률적 정책의 안정화를 위해 Kronecker-factored trust region을 사용한다."}, {"type": "bullet", "text": "실험은 (코드베이스 비교 시를 제외하면) 주로 OpenAI Baselines 구현을 사용하며, 대비되는 동역학의 시험대로 Hopper-v1(더 불안정)과 HalfCheetah-v1을 쓴다."}, {"type": "bullet", "text": "인접 ML 분야에 재현성 관련 연구가 존재하며, 일반화 가능한 RL 평가 지표와 재검토된 벤치마크(예: Arcade Learning Environment)가 선행 저자들에 의해 제안되었다."}]}, "method": {"content": [{"type": "bullet", "text": "저자들은 재현성에 영향을 주는 요인들 — hyperparameter 튜닝, random seed와 평균 시행 수, 환경 특성, 확률적 환경, 코드베이스 차이 — 에 관한 여러 질문을 던지고 각각을 통찰할 실험을 설계한다."}, {"type": "bullet", "text": "공정성을 위해 각 평가마다 서로 다른 미리 정한 random seed로 다섯 번의 실험 시행을 수행하며, 모든 실험은 동일한 random seed 집합을 사용한다."}, {"type": "bullet", "text": "가능한 한 기본 설정을 사용하고 관심 hyperparameter만 한 번에 하나씩 수정하며, 모든 결과(그래프 포함)는 random seed 전반의 평균과 표준오차를 보여준다."}, {"type": "bullet", "text": "전 과정에서 multilayer-perceptron 함수 근사기를 사용하며, 은닉층 크기와 활성화는 (N, M, activation)으로 표기한다."}, {"type": "bullet", "text": "네트워크 구조 연구에서는 문헌에서 흔한 세 MLP 구조 — (64,64), (100,50,25), (400,300) — 를 정책·가치 네트워크 모두에 대해 tanh, ReLU, LeakyReLU 활성화로 시험한다.", "figure_refs": [2]}, {"type": "bullet", "text": "최종 평가 성능은 2M 샘플 학습 후, 마지막 100개 궤적의 수익을 5회 시행에 대해 평균하여 보고한다.", "figure_refs": []}, {"type": "bullet", "text": "reward scaling의 경우 학습을 위해 보상에 스칼라를 곱하며, DDPG에서 layer normalization 유무로 평가한다.", "figure_refs": [3]}, {"type": "formula", "label": "Eq. (3) — 보상 재척도(reward rescaling)", "latex": "\\hat{r} = r\\hat{\\sigma}", "description": "보상 재척도는 학습 전에 환경 보상 $r$에 스칼라 인자 $\\hat{\\sigma}$(흔히 0.1)를 곱하며, 논문은 이 인자가 DDPG 학습에 어떻게 영향을 주는지 분석한다."}, {"type": "bullet", "text": "코드베이스의 경우, 구현에서 비롯되는 분산을 분리하기 위해 동일한 hyperparameter로 OpenAI Baselines, 원 TRPO, rllab의 TRPO 구현(및 여러 DDPG 구현)을 비교한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "네트워크 구조와 활성화는 성능에 크게 영향을 줄 수 있으며 대개 ReLU나 LeakyReLU가 가장 좋지만, 그 효과는 알고리즘이나 환경 전반에서 일관되지 않아 구조가 알고리즘 방법론과 얼마나 얽혀 있는지를 보여준다.", "figure_refs": [2]}, {"type": "bullet", "text": "PPO에서 큰 (400,300) 네트워크는 다른 hyperparameter(trust-region clipping, learning rate) 조정이 필요할 수 있으며, 큰 네트워크에서 갱신의 KL 발산은 (64,64) 네트워크보다 평균 33.52배 높았다."}, {"type": "bullet", "text": "reward 재척도는 큰 효과를 낼 수 있으나 환경과 척도 값에 따라 일관되지 않으며, reward scale 약 0.01 이하에서는 학습이 완전히 실패할 수 있고 layer normalization은 재척도 인자가 결과에 미치는 방식을 바꾼다.", "figure_refs": [3]}, {"type": "bullet", "text": "random seed만 다른 10회 시행을 수행한 뒤 5개씩 두 그룹으로 나누어 평균하면 학습 곡선이 극적으로 달라진다. 학습 분포 전반의 2-sample t-test는 t = -9.0916, p = 0.0016을 주어, seed만으로 통계적으로 다른 분포가 나옴을 보인다.", "figure_refs": [5]}, {"type": "bullet", "text": "보고된 결과가 흔히 상위 N개 시행을 선택하거나 5회 미만을 평균하기 때문에 이는 우려스러운데, seed 실험은 이것이 오도할 수 있음을 보인다."}, {"type": "bullet", "text": "환경 선택이 중요하다. DDPG는 안정적인 HalfCheetah-v1에서 압도하지만 불안정한 Hopper-v1에서는 급격히 나빠지고, Swimmer-v1에서는 TRPO가 다른 것들을 크게 능가한다 — 따라서 모든 환경에서 최고의 알고리즘이 항상 분명하지는 않다.", "figure_refs": [4]}, {"type": "bullet", "text": "국소 최적해가 성공으로 위장할 수 있다. Hopper의 DDPG는 단지 최대 궤적 길이까지 버티는 법만 배우고 Swimmer 정책은 몸을 말고 허우적댈 수 있어, 학습 곡선이 원하는 행동을 반영하지 못할 수 있다 — 이는 수익뿐 아니라 시연을 보여줄 필요를 동기화한다."}, {"type": "bullet", "text": "논문에서 흔히 보고되지 않는 구현 차이가 성능에 극적인 영향을 줄 수 있으며, 이는 Table 1-2와 Figure 6의 코드베이스 비교 결과 전반에서 관찰된다.", "figure_refs": [6]}, {"type": "bullet", "text": "bootstrap 신뢰구간과 검정력 분석은 몇 회의 시행이 필요한지와 보고된 이득이 유의한지를 평가하는 도구로 시연되며, TRPO와 PPO가 좁은 bootstrap 신뢰 경계로 가장 안정적임이 확인된다."}]}, "discussion": {"content": [{"type": "bullet", "text": "hyperparameter는 알고리즘과 환경에 따라 상당히 다른 효과를 낼 수 있으므로, 표준적인 hyperparameter 탐색을 통해 적어도 원 보고 baseline 성능에 부합하는 작동 설정을 찾는 것이 중요하다."}, {"type": "bullet", "text": "비교에 쓰는 새로운 baseline 구현은 가능한 경우 원 코드베이스 결과와 일치해야 한다."}, {"type": "bullet", "text": "시행과 random seed 전반의 높은 분산 때문에 성능 비교 시 서로 다른 random seed로 많은 시행을 실행해야 하며, seed 선택이 명시적으로 알고리즘의 일부가 아닌 한 다수 실행을 평균하는 것이 모집단 분포에 대한 통찰을 준다."}, {"type": "bullet", "text": "더 높은 평균 수익이 실제로 더 나은 성능을 나타내는지 판단하려면 적절한 유의성 검정이 수행되어야 하며, 저자들은 bootstrapping과 검정력 분석이 필요한 시행 수에 대한 통찰을 준다고 보인다."}, {"type": "bullet", "text": "재현성을 향한 가장 중요한 단일 단계는 baseline과 신규 연구 모두에 대해 모든 hyperparameter, 구현 세부, 실험 설정, 평가 방법을 보고하는 것이다."}, {"type": "bullet", "text": "유망한 향후 방향은 reward scale, batch size, 네트워크 구조 같은 매개변수를 적응시키는 hyperparameter-agnostic 알고리즘을 구축하여, 외부에서 유입되는 불공정 없는 공정한 비교를 보장하는 것이다."}, {"type": "bullet", "text": "supervised learning의 보정 지표 가정이 반드시 적용되지 않으므로 검토된 유의성 지표가 RL에 최적이 아닐 수 있어, 적절한 보정 유의성 검정에 대한 추가 연구가 필요하다."}, {"type": "bullet", "text": "벤치마크 환경은 실제 세계 응용의 대리물이므로, 새 알고리즘을 제시할 때 벤치마크 결과와 함께 권장 실제 세계 적용 환경을 입증하는 것을 커뮤니티가 고려해야 한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "내재적(random seed, 환경 특성) 원천과 외재적(hyperparameter, 코드베이스) 원천의 비결정성 모두가 baseline 알고리즘 재현의 어려움에 기여한다."}, {"type": "bullet", "text": "내재적 원천으로 인한 크게 변동하는 결과는 적절한 유의성 분석의 필요성을 강화하며, 그 여러 방법이 제안되어 일부 실험에서 유용함이 확인된다."}, {"type": "bullet", "text": "reward scale, 환경 동역학, random seed에 대한 민감도는 상당할 수 있으며 알고리즘과 설정에 따라 달라진다."}, {"type": "bullet", "text": "벤치마크 환경은 실제 세계 응용의 대리물이므로, RL 알고리즘의 실제 세계 적용 가능성에 아마 더 무게를 두어야 한다."}, {"type": "bullet", "text": "모든 벤치마크 환경에서 뚜렷한 승자가 없는 경우가 많으므로, 새 알고리즘을 제시할 때 권장 적용 분야를 벤치마크 결과와 함께 입증해야 한다."}, {"type": "bullet", "text": "커뮤니티로서 우리는 공정한 비교로 재현 가능한 결과를 보장하고, RL이 계속 중요함을 입증하는 최선의 방법을 고민해야 한다."}, {"type": "bullet", "text": "저자들은 재현 불가능하고 오해되기 쉬운 결과로 인한 낭비를 최소화하여 지속적 진보를 보장하는 논의를 촉발하고자 한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "이 조사는 의도적으로 연속 제어의 model-free policy-gradient 방법으로 범위를 한정했으므로, 결론이 value-based 또는 이산 행동 RL로 직접 일반화되지 않을 수 있다.", "source_quote": "For clarity, we focus our investigation on policy gradient (PG) methods in continuous control.", "source_section": "introduction"}, {"claim": "일반 규칙으로 권장할 수 있는 특정 시행 횟수는 없으며, 충분한 시행 횟수를 결정하는 것은 더 많은 조사가 필요한 미해결 문제로 남아 있다.", "source_quote": "While there can be no specific number of trials specified as a recommendation, it is possible that power analysis methods can be used to give a general idea to this extent as we will discuss later. However, more investigation is needed to answer this open problem.", "source_section": "experiment"}, {"claim": "supervised learning에서 차용한 표준 보정 유의성 지표는 RL에서 반드시 성립하지는 않는 가정에 기대고 있어, 검토된 유의성 검정이 최적의 선택이 아닐 수 있다.", "source_quote": "However, the assumptions pertaining to the underlying data with corrected metrics do not necessarily apply in RL. Further work is needed to investigate proper corrected significance tests for RL.", "source_section": "discussion"}], "future_works": [{"claim": "hyperparameter(reward scale, batch size, 네트워크 구조)를 설계의 일부로 스스로 적응시키는 hyperparameter-agnostic 알고리즘을 개발하여, 공정한 비교가 튜닝에 의존하지 않도록 한다.", "source_quote": "Due to the significant effects of hyperparameters (particularly reward scaling), another possibly important line of future investigation is in building hyperparameter agnostic algorithms.", "source_section": "discussion"}, {"claim": "supervised learning에서 그대로 빌려오기보다 RL에 맞춘 적절한 보정 유의성 검정과 더 나은 통계 분석 방법을 연구한다.", "source_quote": "Further work is needed in significance testing and statistical analysis.", "source_section": "discussion"}, {"claim": "새로운 RL 알고리즘의 실제 세계 적용 가능성과 권장 적용 환경을 벤치마크 점수뿐 아니라 함께 입증하는 데 더 무게를 둔다.", "source_quote": "Maybe new methods should be answering the question: in what setting would this work be useful?", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["deep-RL의 state-of-the-art 결과 재현은 좀처럼 간단하지 않으며, 문헌은 동일한 baseline 알고리즘에 대해 매우 다양한 결과를 보고한다.", "벤치마크 환경의 비결정성과 방법 자체에 내재된 분산이 결합되어 보고된 결과를 해석하기 어렵게 만든다.", "RL 문헌은 유의성 검정이 부족하고 다양한 지표를 사용하여, 기존 state-of-the-art 대비 개선을 오도할 소지를 만든다.", "외재적 요인(hyperparameter, 코드베이스)과 내재적 요인(random seed, 환경 특성)이 각각 재현 불가능성에 어떻게 기여하는지 불분명하다."], "addressed_by_this_work": ["hyperparameter, 네트워크 구조, reward scale, random seed, 환경, 코드베이스가 측정 성능에 각각 어떻게 영향을 주는지를 체계적 실험 연구로 정량화한다.", "random seed만 바꾸어도 동일 설정에서 통계적으로 다른 성능 분포가 만들어질 수 있음을 보여, 내재적 비결정성을 입증한다.", "RL 결과 신뢰성 평가를 위한 유의성 검정 도구(2-sample t-test, KS test, bootstrap 신뢰구간, bootstrap 검정력 분석)를 도입·시연한다.", "구체적 보고 권고를 제시한다 — 모든 hyperparameter·구현·설정 보고, 원 baseline 코드와 일치, 다수의 random seed 평균, 유의성 검정 사용."], "remaining_unresolved": ["신뢰할 만한 비교에 필요한 올바른 시행 횟수는 여전히 미해결 문제이다.", "(가정이 위배되는 상황에서) 어떤 유의성 지표가 RL에 진정으로 적합한지는 미해결로 남아 추가 연구가 필요하다.", "튜닝에서 비롯되는 불공정을 제거할 hyperparameter-agnostic 알고리즘은 아직 존재하지 않으며 향후 과제로 제안된다.", "발견은 policy-gradient 연속 제어에 대해서만 확립되어, 다른 RL 영역은 검증되지 않은 채 남는다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

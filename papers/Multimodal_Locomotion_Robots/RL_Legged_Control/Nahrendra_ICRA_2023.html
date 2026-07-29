@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>DreamWaQ: Learning Robust Quadrupedal Locomotion With Implicit Terrain Imagination via Deep Reinforcement Learning</title>
+    <meta name="keywords" content="reinforcement learning, quadrupedal locomotion, proprioception-only control, state estimation, asymmetric actor-critic, variational autoencoder, implicit terrain imagination, sim-to-real transfer, context-aided estimator, domain randomization">
+    <meta name="paper-authors" content="I Made Aswin Nahrendra, Byeongho Yu, Hyun Myung">
+    <meta name="paper-journal" content="2023 IEEE International Conference on Robotics and Automation (ICRA), pp. 5078-5084 · DOI: 10.1109/ICRA48891.2023.10161144 · Preprint arXiv:2301.10602v2">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">DreamWaQ: Learning Robust Quadrupedal Locomotion With Implicit Terrain Imagination via Deep Reinforcement Learning</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">I Made Aswin Nahrendra, Byeongho Yu, Hyun Myung</div>
+            <div class="journal">2023 IEEE International Conference on Robotics and Automation (ICRA), pp. 5078-5084 · DOI: 10.1109/ICRA48891.2023.10161144 · Preprint arXiv:2301.10602v2</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">DreamWaQ는 사족보행 로봇이 <span class="term">proprioception only</span>(IMU + 관절 엔코더)만으로, 배치 시 카메라나 LiDAR 같은 외수용 센서 없이 험지를 보행하게 하는 심층 강화학습 프레임워크다. 핵심은 <span class="term">Context-aided Estimator Network (CENet)</span>로, 부분 관측의 짧은 시간 이력 $o_t^H$($H=5$ 프레임)를 입력받는 단일 공유 인코더가 두 개의 헤드를 통해 측정 불가능한 몸체 선속도 $v_t$를 <span class="term">explicitly</span> 추정(시뮬레이터 정답값에 대한 MSE)하는 동시에, 다음 관측을 복원하는 $\beta$-VAE를 통해 잠재 컨텍스트 $z_t$를 <span class="term">implicitly</span> 추론한다. 보행 정책 $\pi(a_t|o_t,v_t,z_t)$는 오직 크리틱만 특권 상태(외란력, 지형 높이맵)를 보는 <span class="term">asymmetric actor-critic</span> 방식 하에서 PPO로 학습되며, 그 결과 액터는 통상적인 2단계 teacher-student 파이프라인 대신 단일 학습 단계에서 proprioception만으로 지형을 암묵적으로 '상상'하도록 학습한다. adaptive-bootstrapping 기법(AdaBoot)은 학습 과정에서 정책이 추정기를 얼마나 강하게 신뢰할지를 조절한다. Unitree A1에서 zero-shot sim-to-real 정책은 온보드 Intel NUC에서 추정기와 동기적으로 50 Hz로 구동되어 430 m 및 465 m 야외 코스(언덕, 계단, 젖은/변형성 지형)를 완주했고, 추적 정확도, 최대 회복 가능 밀침 속도(1.121 m/s), 생존율(95.2%)에서 teacher-student(RMA 계열) 및 explicit-estimator 베이스라인을 능가했다. base_lin_vel과 관절 상태를 관측에서 제거한 history-stacking + MLP 구성을 쓰는 MARCO의 배치 설정에게, 이는 직접 비교 가능하며 매우 관련성 높은 참조 아키텍처다.</div>
+            <div class="keywords"><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">quadrupedal locomotion</span><span class="keyword-chip">proprioception-only control</span><span class="keyword-chip">state estimation</span><span class="keyword-chip">asymmetric actor-critic</span><span class="keyword-chip">variational autoencoder</span><span class="keyword-chip">implicit terrain imagination</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">context-aided estimator</span><span class="keyword-chip">domain randomization</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">서론은 모델 기반 사족보행 제어(복잡하고 수작업으로 튜닝된 상태 추정 / 궤적 최적화 / 보행 최적화 파이프라인)와 학습 기반 지각 보행을 대비하며, 외수용 센싱(카메라/LiDAR)은 강력하지만 신뢰하기 어렵고 물리적 지형 특성을 읽는 데 취약한 반면, proprioception(IMU + 관절 엔코더)은 가볍고 견고하다고 주장한다. 핵심 장애물을 '표현 학습 병목'으로 규정한다: 정책은 견고하게 보행하려면 지형을 이해해야 하지만, 그 지형을 경험하려면 이미 잘 걸을 수 있어야 한다. DreamWaQ는 proprioception만으로 견고한 정책과 정확한 환경 표현을 동시에 학습하는 프레임워크로 제안되며, 세 가지 기여를 갖는다: 지형을 암묵적으로 상상하는 asymmetric actor-critic, 몸체 상태 + 환경 컨텍스트를 함께 추정하는 context-aided estimator(CENet), 그리고 소형 Unitree A1에서의 실세계 견고성 실증.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">본 논문은 세 갈래의 선행 학습 기반 보행 연구에 대해 자신을 자리매김한다: 카메라/LiDAR로 지형을 읽는 외수용 기반 지각 정책(Lee, Miki, Fu, Yu, Rudin); 먼저 특권 teacher를 학습한 뒤 proprioceptive student로 증류하는 teacher-student / behavior-cloning 적응 방법(Kumar & Fu의 RMA, Lee 등, Margolis); 그리고 동시적 상태 추정 방법(Ji 등). 논문은 behavior cloning이 student의 성능을 teacher로 상한 지운다고 주장하며, 순차적 2단계 학습은 데이터 비효율적이고 teacher가 방문한 적 없는 실패 상태를 탐색할 수 없다고 주장한다. 기존 컨텍스트 추정기는 지형 특성을 위한 잠재 변수 z를 학습하고, 학습된 속도 추정은 드리프트를 줄인다; DreamWaQ는 이들 위에 직접 구축하되, 몸체 상태와 컨텍스트 추정을 정책과 동시에 학습되는 하나의 공유 인코더 네트워크로 융합한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">환경은 부분 관측 MDP이다; 액터 정책 $\pi_\phi(a_t|o_t,v_t,z_t)$는 현재 proprioceptive 관측 $o_t$(각속도, 중력 벡터, 속도 명령, 관절 각/각속도, 이전 행동)와 추정된 몸체 선속도 $v_t$, 잠재 컨텍스트 $z_t$를 입력받는 반면, 크리틱(가치 네트워크)은 추가로 외란력 $d_t$와 지형 높이맵 $h_t$를 담은 특권 관측 $s_t=[o_t, v_t, d_t, h_t]$를 본다. 이 asymmetric actor-critic이 '암묵적 지형 상상'의 메커니즘이다: 정책 네트워크와 가치 네트워크 간의 상호작용은, 배치 시 어떠한 외수용 입력도 없이, 액터가 윈도우 $H=5$인 시간적 부분 관측 이력 $o_t^H$로부터 $d_t$와 $h_t$를 암묵적으로 추론하게 한다. 속도 $v_t$와 컨텍스트 $z_t$는 Context-aided Estimator Network(CENet)가 생성하는데, 이는 두 개의 헤드로 이어지는 단일 공유 MLP 인코더다 — 시뮬레이터 정답값에 대한 MSE로 학습되는 명시적 몸체 속도 추정기와, 다음 관측 $o_{t+1}$을 복원하며 잠재 변수 $z_t$를 산출하는 $\beta$-VAE 오토인코더 — 이 모두는 PPO를 통해 한 단계에서 정책과 동시에 학습되며, adaptive-bootstrapping(AdaBoot) 스케줄로 안정화된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">학습은 단일 RTX 3060Ti에서 4,096개의 도메인 랜덤화된 에이전트로 1,000 반복(벽시계 약 1시간 = 시뮬레이션 약 46일)에 걸쳐 Isaac Gym 시뮬레이터를 사용했으며, PPO(clip 0.2, GAE 0.95, gamma 0.99, Adam lr 1e-3, ELU 활성화)를 적용했다. DreamWaQ는 모두 proprioception으로 제한된, 무적응 베이스라인(Rudin), RMA 계열 teacher-student AdaptationNet(1D-CNN+MLP 인코더), 명시적 전용 EstimatorNet(Ji 등)과 비교된다. DreamWaQ(AdaBoot 적용)는 일관되게 최고의 명령 추적 정확도, 최고의 회복 가능 밀침 속도(1.121 m/s vs 베이스라인 0.511), 최고의 생존율(95.2%)을 보이며, 눈이 먼(blind) 상태임에도 높이맵에 직접 접근하는 오라클 정책에 거의 필적한다. 별도의 비교는 로봇이 계단에서 비틀거릴 때 명시적 전용 EstimatorNet은 실패하는 반면 CENet의 속도 추정은 정확하게 유지됨을 보여주며, 이는 VAE의 순방향-역방향 동역학 학습과 지형 조건부 인코딩에 기인한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결과는 asymmetric actor-critic과 동시에 학습된 context-aided estimator만으로도, 단 5프레임의 proprioceptive 이력과 순환 메모리 없이, 높이맵 접근을 가진 오라클에 필적하는 견고한 blind 보행을 만들어내기에 충분하다는 핵심 주장을 뒷받침한다. 핵심 메커니즘적 통찰은, 하나의 공유 인코더에서 몸체 속도(명시적, 지도)와 지형 컨텍스트(암묵적, VAE)를 함께 추정하는 것이 실시간 온보드 추론을 위해 네트워크를 단순화하는 동시에, 학습된 지형 표현으로 조건 지어 명시적 추정을 더 정확하게 만든다는 점이다. AdaBoot는 불완전한 초기 추정기를 정책에 결합할 때의 실질적 불안정성을 해결한다. 주요하게 인정된 약점은 proprioception 전용 적응이 반응적이라는 것이다 — 로봇은 적응하기 전에 장애물을 느껴야 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">DreamWaQ는 로봇이 proprioception만으로 비정형 지형을 주파하게 하는 견고한 사족보행 프레임워크로, (특권적 크리틱 정보를 통해 지형을 암묵적으로 상상하는) asymmetric actor-critic과, 5프레임 관측 이력으로부터 몸체 속도와 잠재 지형 컨텍스트를 함께 추정하는 context-aided estimator network를 짝지음으로써 이를 달성한다. 추적, 견고성, 생존에서 teacher-student 및 명시적 전용 베이스라인을 능가하며, 소형 Unitree A1이 약 10분간 언덕과 야외를 보행하는 것으로 zero-shot 검증되었다. 한계는 반응적이고 접촉 우선인 적응이며, 향후 연구는 예측적 보행 계획을 위해 외수용 센서를 통합하는 것이다. MARCO에게 이 논문은 순환 정책 없이 제거된 관측 상태를 추정하는 데 직접 이전 가능한 참조다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "사족보행 로봇은 비정형 지형을 주파할 수 있지만 제어가 어렵다; 기존의 모델 기반 제어기는 상태 추정, 궤적 최적화, 보행 최적화, 액추에이터 제어로 이루어진 복잡한 파이프라인을 필요로 하고, 방대한 수동 모델링 및 튜닝을 요구하며, 선형화된 모델이 성능의 상한을 만든다."}, {"type": "bullet", "text": "동물이 경험으로부터 걷기를 학습하는 방식에서 영감을 받은 심층 강화학습은 자연스러운 보행을 합성하는 데 사용되어 왔으나, 최신 방법들은 복잡하고 신뢰성 있는 외수용 센싱 프레임워크에 강하게 의존한다."}, {"type": "bullet", "text": "외수용 센싱은 항상 신뢰할 수 있는 것은 아니다: 카메라는 악천후/조명에서 실패하고, LiDAR조차 물리적 지형 특성을 정확히 추정하지 못한다 — 눈은 단단해 보이지만 부드러울 수 있고, 키 큰 풀은 통과 불가능해 보이지만 다리로는 통과할 수 있다."}, {"type": "bullet", "text": "Proprioceptive 센서(IMU와 관절 엔코더)는 상대적으로 가볍고 견고하다; 최근 연구는 proprioception 양식을 결합하면 사족보행 로봇이 주변 지형과 몸체 상태를 추정할 수 있음을 보여주지만, 다양한 험지에서의 장거리 운용에 대한 실증은 제한적이다.", "figure_refs": [1]}, {"type": "bullet", "text": "정책을 학습하면서 proprioception으로부터 지형 특성을 추정하는 것은 반복적 딜레마이다 — '표현 학습 병목': 정책은 견고해지려면 지형을 이해해야 하지만, 폭넓은 지형 특성을 탐색하려면 이미 잘 걸을 수 있어야 하며, 이는 최적 정책 학습을 방해할 수 있다."}, {"type": "bullet", "text": "본 논문은 DreamWaQ(Dream Walking for Quadrupedal robots)를 제안하는데, 이는 심층 강화학습을 통해 proprioception만으로 견고한 보행 정책을 학습하고 지형 특성(높이맵, 마찰, 반발계수, 장애물)을 암묵적으로 추론하여, 로봇이 안전하게 보행하도록 보행을 적응시킨다."}, {"type": "bullet", "text": "기여 1: proprioception으로부터 지형 특성을 암묵적으로 상상하는 asymmetric actor-critic 구조를 사용하는 새로운 보행 학습 프레임워크."}, {"type": "bullet", "text": "기여 2: 몸체 상태와 환경 컨텍스트를 함께 추정하는 context-aided estimator network(CENet)로, 정책과 결합되어 기존 학습 기반 방법들을 능가한다; 기여 3: 실세계 견고성/내구성 평가로, (ANYmal보다 훨씬 작은) Unitree A1이 언덕과 야외 같은 험지를 지속적으로 보행하는 최초의 실증이다."}]}, "related_works": {"content": [{"type": "bullet", "text": "최전선의 지각 보행 연구들은 로봇에 외수용 센서(카메라 또는 LiDAR)를 장착하여 주변을 관측하고 지형을 안전하게 주파하도록 궤적/보행을 계획하지만, 외수용 센싱의 취약성을 물려받는다."}, {"type": "bullet", "text": "최근 연구들은 IMU/엔코더 양식을 결합하여 proprioception으로부터 지형 및 몸체 상태 정보를 복원하지만, 그 실증은 다양한 험지에서의 장거리 운용에 대해 제한적이다."}, {"type": "bullet", "text": "teacher-student 패러다임(learning by cheating)은 특권 teacher를 학습한 뒤 이를 proprioceptive student로 복제한다; student가 teacher만큼 좋아질 수는 있으나, behavior cloning(BC)은 student의 성능을 teacher로 상한 지우며 좋은 행동에 대한 지도만을 제공한다."}, {"type": "bullet", "text": "BC가 좋은 행동 지도만을 제공하기 때문에, student 정책은 teacher가 초기 RL 단계에서 이미 다루도록 학습한 실패 상태를 탐색하지 못할 수 있으며, 이는 견고성을 제한한다."}, {"type": "bullet", "text": "teacher 다음 student 네트워크를 순차적으로 학습하는 것은 데이터 비효율적이다; 대신 DreamWaQ는 단 하나의 학습 단계만 요구하여 데이터 효율성을 높인다."}, {"type": "bullet", "text": "선행 연구는 지형 특성을 이해하기 위한 표현으로서 잠재 변수 z를 추정하며(RMA 계열 환경 요인 인코더; Margolis rapid locomotion), 이는 CENet의 암묵적 컨텍스트 절반의 동기가 된다."}, {"type": "bullet", "text": "Ji 등의 제어 정책과 명시적 상태 추정기의 동시 학습은, 몸체 속도를 온라인으로 추정하도록 학습하는 것이 누적 추정 드리프트를 제거하여 견고성을 크게 향상시킴을 보여준다; DreamWaQ는 명시적 상태만이 아니라 함께 학습되는 컨텍스트 표현을 추가하여 이를 확장한다."}]}, "method": {"content": [{"type": "bullet", "text": "문제는 연속 완전 상태 s, 부분 관측 o, 행동 a를 갖는 무한 지평 부분 관측 MDP(POMDP)로 모델링된다; 논문은 과거 H개 측정에 걸친 시간적(이력) 관측을 명시적으로 정의하는데, 이는 정책이 순환 메모리 대신 의존하는 history-stacking 윈도우다."}, {"type": "formula", "label": "시간적 부분 관측 (history stack)", "latex": "o_t^{H} = \\begin{bmatrix} o_t & o_{t-1} & \\cdots & o_{t-H} \\end{bmatrix}^{T}, \\quad H = 5", "description": "추정기 입력은 현재와 과거 H개의 부분 관측을 쌓은 스택이다(본 연구에서 H=5). 이 frame-stacking 윈도우는 — LSTM/GRU가 아니라 — DreamWaQ가 네트워크에 시간적 컨텍스트를 부여하는 방식으로, MARCO의 5프레임 history-stacking + MLP 설계와 직접 유사하다."}, {"type": "bullet", "text": "정책 네트워크는 phi로 매개변수화된 MLP(512x256x128x12)로, proprioceptive 관측 o_t, 추정된 몸체 속도 v_t, 잠재 컨텍스트 z_t가 주어지면 행동 a_t를 추론한다; o_t는 관절 엔코더와 IMU로부터 직접 측정되고, v_t와 z_t는 CENet이 공급한다. 구조 어디에도 순환(LSTM/GRU) 레이어는 없다.", "figure_refs": [1]}, {"type": "formula", "label": "식 (1) — proprioceptive 관측 벡터 o_t", "latex": "o_t = \\begin{bmatrix} \\omega_t & g_t & c_t & \\theta_t & \\dot{\\theta}_t & a_{t-1} \\end{bmatrix}^{T}", "description": "측정 가능한 proprioceptive 관측은 몸체 각속도 $\\omega_t$, 몸체 좌표계에서의 중력 벡터 $g_t$, 몸체 속도 명령 $c_t$, 관절 각 $\\theta_t$, 관절 각속도 $\\dot{\\theta}_t$, 이전 행동 $a_{t-1}$을 담는다. 몸체 선속도는 o_t에 포함되지 않음에 유의하라 — 그것은 CENet이 추정해야 하는 측정 불가능한 상태다."}, {"type": "bullet", "text": "가치 네트워크(크리틱)는 특권 관측 s_t를 입력받아 상태 가치 V(s_t)를 출력하는 MLP(512x256x128x1)이다; 정책과 달리 로봇이 배치 시 측정할 수 없는 정보에 접근할 수 있다."}, {"type": "formula", "label": "식 (2) — 특권 (크리틱 전용) 상태 s_t", "latex": "s_t = \\begin{bmatrix} o_t & v_t & d_t & h_t \\end{bmatrix}^{T}", "description": "특권 상태는 참 몸체 선속도 $v_t$, 무작위로 가해지는 외란력 $d_t$, 로봇 주변의 지형 높이맵 스캔 $h_t$를 추가한다. 오직 크리틱만 $d_t$와 $h_t$를 본다; 정책은 이를 proprioception으로부터 암묵적으로 추론하도록 학습된다 — 이 비대칭성이 '암묵적 지형 상상'이다."}, {"type": "bullet", "text": "암묵적 지형 상상 메커니즘: 저자들은 asymmetric actor-critic(Pinto 등)을 채택하고, 정책과 가치 네트워크 간의 상호작용만으로도 정책이 부분 시간 관측으로부터 특권 관측을 암묵적으로 상상하기에 충분함을 발견한다 — 명시적 지형 복원 헤드나 외수용 센서는 필요 없다."}, {"type": "bullet", "text": "행동은 정지 자세 theta_stand 주변의 오프셋으로 표현된 목표 관절 각의 12x1 벡터이다(theta_des = theta_stand + a_t); 목표 각은 관절별 PD 제어기로 추종되므로, 정책은 토크가 아니라 위치 목표값을 출력한다.", "figure_refs": []}, {"type": "bullet", "text": "CENet(Context-aided Estimator Network)은 상태 추정 모듈이다: 다중 헤드 디코더를 갖는 단일 공유 인코더(128x64x19). 공유 인코더는 이력 o_t^H를 v_t와 z_t 모두로 매핑한다; 첫 번째 헤드는 몸체 선속도 v_t를 명시적으로 추정하고, 두 번째는 다음 부분 관측 o_{t+1}을 복원하는 beta-VAE 오토인코더 헤드다(16x1 잠재 변수, 64x128x48 디코더).", "figure_refs": [2]}, {"type": "bullet", "text": "공유 인코더의 설계 근거: (1) 속도와 컨텍스트가 하나의 인코더를 공유하기 때문에 구조가 크게 단순해지고 추론 중 동기적으로 구동된다; (2) 인코더는 오토인코딩 메커니즘을 통해 로봇의 순방향 및 역방향 동역학을 함께 학습하여 추정 정확도를 높인다. 이는 순수 end-to-end MLP도 순수 RNN도 아닌, 명시적 + 암묵적 하이브리드다.", "figure_refs": [2]}, {"type": "formula", "label": "식 (5)-(7) — CENet 하이브리드 손실 (명시적 + 암묵적)", "latex": "L_{CE} = L_{est} + L_{VAE}, \\quad L_{est} = \\mathrm{MSE}(\\tilde{v}_t, v_t), \\quad L_{VAE} = \\mathrm{MSE}(\\tilde{o}_{t+1}, o_{t+1}) + \\beta\\, D_{KL}\\!\\left(q(z_t|o_t^{H}) \\,\\|\\, p(z_t)\\right)", "description": "CENet은 하이브리드 손실로 학습된다. $L_{est}$는 추정된 몸체 속도 $\\tilde{v}_t$와 시뮬레이터 정답값 $v_t$ 사이의 지도 MSE이다(명시적 절반). $L_{VAE}$는 다음 관측 $\\tilde{o}_{t+1}$을 복원하며 표준 정규 사전분포 $p(z_t)$에 대한 KL 항을 갖는 표준 beta-VAE 손실이다(암묵적 컨텍스트 절반). 관측은 평균 0 / 분산 1로 정규화되어 표준 정규 사전분포를 정당화한다."}, {"type": "bullet", "text": "Adaptive bootstrapping(AdaBoot): 추정기로부터 정책을 부트스트래핑하는 것은 sim-to-real 견고성을 향상시킬 수 있으나, 학습 초기의 큰 추정기 잡음 때문에 학습을 해칠 수도 있다. AdaBoot는 도메인 랜덤화된 환경 전반에 걸친 에피소드 보상의 변동 계수(CV)를 사용하여 부트스트래핑 확률을 적응적으로 조정한다."}, {"type": "formula", "label": "식 (8) — adaptive bootstrapping 확률", "latex": "p_{boot} = 1 - \\tanh\\!\\big(\\mathrm{CV}(R)\\big)", "description": "R은 m개의 도메인 랜덤화된 환경에서 얻은 에피소드 보상의 m x 1 벡터다. CV가 작을 때(에이전트가 일관되게 수행, 즉 잘 학습됨) 부트스트래핑 확률이 높고; CV가 클 때(아직 학습 중) 낮다. tanh는 CV(R)를 1로 매끄럽게 상한 짓는다."}, {"type": "bullet", "text": "보상(표 I)은 DreamWaQ의 구조적 기여를 분리하기 위해 기존 보상 항들을 의도적으로 재사용한다: 선/각속도 명령 추적(exp 커널), 수직 속도, 롤/피치 각속도, 자세, 관절 가속도, 관절 전력, 몸체 높이, 발 간격, 행동 변화율 및 매끄러움에 대한 페널티, 그리고 실세계 모터 과열을 줄이기 위해 불균등한 모터 전력을 벌하는 새로운 전력 분배 항 var(tau*theta_dot)."}, {"type": "bullet", "text": "학습은 [0도, 22도] 범위의 열 개 경사 레벨을 갖는 평탄/거친/이산화/계단 지형에 대한 게임 영감 커리큘럼(Rudin)과, 안정적 회전을 개선하고 발 걸림을 방지하기 위한 저속 보행용 격자 적응 커리큘럼(Margolis)을 사용한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "시뮬레이션 학습: Isaac Gym에서 4,096개의 병렬 도메인 랜덤화 에이전트로 1,000 반복; 약 한 시간의 학습이 Intel Core i7-8700 / 32 GB / NVIDIA RTX 3060Ti 데스크톱에서 실세계 경험 약 46일에 해당하는 데이터를 생성했다."}, {"type": "bullet", "text": "PPO 하이퍼파라미터: 클리핑 범위 0.2, GAE 계수 0.95, 할인 계수 0.99, 학습률 1e-3의 Adam 최적화기, 은닉층의 ELU 활성화; 공정성을 위해 비교된 모든 방법에서 동일한 네트워크 구조와 고정된 초기 랜덤 시드."}, {"type": "bullet", "text": "도메인 랜덤화(표 II): 페이로드 [-1,2] kg, Kp 계수 [0.9,1.1], Kd 계수 [0.9,1.1], 모터 강도 계수 [0.9,1.1], 무게중심 이동 [-50,50] mm, 마찰 계수 [0.2,1.25], 시스템 지연 [0.0,15.0] ms — sim-to-real을 잇기 위해 사용된 랜덤화."}, {"type": "bullet", "text": "베이스라인(모두 proprioception 전용): (1) Baseline(Rudin, 무적응); (2) AdaptationNet(1D-CNN + MLP 레이어로 student-teacher 학습된 RMA 계열 암묵적 환경 요인 인코더); (3) EstimatorNet(Ji 등, 컨텍스트 추정 없이 동시 학습된 명시적 상태 추정기); (4) AdaBoot 미적용 DreamWaQ; (5) AdaBoot 적용 DreamWaQ.", "figure_refs": [3]}, {"type": "bullet", "text": "학습 곡선(그림 3, 열 개 시드): EstimatorNet은 AdaptationNet보다 높게 시작하지만 학습 후반의 더 어려운 지형에서 급락하는 반면, DreamWaQ는 일관되게 다른 모두를 능가하며, 눈이 먼 상태임에도 높이맵에 직접 접근하는 오라클 정책만큼 거의 잘 수행한다.", "figure_refs": [3]}, {"type": "bullet", "text": "명령 추적(Gazebo, 10분 무작위 명령, 다섯 개 시드): DreamWaQ는 가장 낮은 전/측 속도 및 요레이트 추적 오차를 가지며, 대응표본 t-검정 유의성은 p < 1e-4이다; AdaBoot는 통계적 부트스트래핑 스케줄을 통해 추적을 유의하게 개선한다.", "figure_refs": [4]}, {"type": "bullet", "text": "견고성 시험(표 III, 30분 무작위 보행 중 넘어질 때까지 무작위 밀침): AdaBoot 적용 DreamWaQ는 가장 큰 밀침(1.121 +/- 0.164 m/s)을 견디고 가장 높은 생존율(95.23 +/- 1.61%)을 가지며, 이는 Baseline 0.511 m/s / 20.51%, AdaptationNet 0.714 m/s / 82.37%, EstimatorNet 0.871 m/s / 80.92%에 대비된다."}, {"type": "bullet", "text": "명시적 추정 비교(그림 5): CENet은 EstimatorNet보다 낮은 제곱 몸체 속도 추정 오차를 가지며, 그 이점은 로봇이 계단에서 비틀거릴 때 가장 두드러진다 — 이때 EstimatorNet은 속도를 정확히 추정하지 못하지만(치명적 낙상을 유발할 수 있음) CENet은 정확하게 유지되어 안전한 계단 등반을 가능하게 한다.", "figure_refs": [5]}, {"type": "bullet", "text": "저자들은 CENet의 추정 우수성을 두 요인에 기인시킨다: (1) VAE 오토인코딩으로부터의 순방향-역방향 동역학 학습이 모든 지형에서 더 정확한 추정을 제공하고, (2) 인코더가 지형 특성을 암묵적으로 추론하도록 함께 학습되기 때문에, 지형 컨텍스트가 명시적 속도 추정을 조건 짓고 개선한다."}, {"type": "bullet", "text": "실세계 배치: 모든 추정과 제어를 Intel NUC에서 온보드로 구동하는 Unitree A1; 추가된 온보드 PC + 배터리가 약 500 g의 페이로드를 더했다. 정책은 CENet과 동기적으로 50 Hz로 구동되고, 목표 관절 각은 PD 제어기(Kp=28, Kd=0.7)로 200 Hz에서 추종된다 — 공유 인코더 추정기가 실시간 온보드 추론에 충분히 가볍다는 증거다.", "figure_refs": [6]}, {"type": "bullet", "text": "발 반사 실증(그림 6): 로봇은 내려가는 계단과 올라가는 계단에서 뚜렷이 다른 보행을 보이고, 비틀거림과 미끄러짐에 대해 즉시 보행을 적응시키고 자세를 회복하며 반응하는데, 이 모두는 견고한 CENet 속도 추정에 의해 구동된다.", "figure_refs": [6]}, {"type": "bullet", "text": "장거리 야외 보행(그림 7, RTK-GPS 기록): 코스 A(경사, 변형성 지형, 다리를 붙잡는 무성한 초목, 강우 후 젖은 계단이 있는 430 m 캠퍼스 야외)와 코스 B(465 m 언덕, 최대 22 m 고도 상승, 아스팔트/자갈/경사)를 모두 완주했다 — 코스 B는 앞다리 모터 과열 보호 사례에도 불구하고 10분 이내에 정상에 도달했다.", "figure_refs": [7]}]}, "discussion": {"content": [{"type": "bullet", "text": "정책, 크리틱, 추정기의 단일 단계 동시 학습은 teacher-student 증류보다 데이터 효율적이며, behavior cloning과 달리 정책을 teacher로 상한 짓거나 실패 상태 탐색을 막지 않는다 — 이는 RMA 계열 파이프라인 대비 asymmetric actor-critic을 지지하는 핵심 논거다."}, {"type": "bullet", "text": "암묵적 지형 상상이 작동하는 이유는, 가치 네트워크가 특권적 지형 상태에 접근하여 이점(advantage) 신호를 형성함으로써, 액터가 직접 관측할 수 없는 지형과 일관된 정책을 학습하게 되고, 사실상 proprioceptive 이력으로부터 높이맵을 '상상'하기 때문이다."}, {"type": "bullet", "text": "명시적 속도 추정이 sim-to-real에 중요한 이유는, 그것이 적분 IMU 속도 추정을 괴롭히는 누적 드리프트를 제거하기 때문이다; 이를 하나의 인코더에서 암묵적 컨텍스트와 결합하면, 명시적 전용 추정기가 붕괴하는 외란(계단 비틀거림)에서도 견디는 정확도를 얻는다."}, {"type": "bullet", "text": "공유 인코더 설계는 추론 비용의 관점에서 명시적으로 정당화된다: 그것은 '크게 단순화되고 추론 중 동기적으로 구동'되며, 50 Hz 온보드 NUC 배치는 추정기+정책이 로봇에 GPU 없이도 실시간 제어를 할 만큼 충분히 저렴함을 확인한다."}, {"type": "bullet", "text": "새로운 전력 분배 보상은 실질적 sim-to-real 고려사항이다: 총 전력만 최소화하면 일부 모터가 과열되므로, 모터별 전력의 높은 분산을 벌하여 부하를 분산시킨다 — 열 한계를 갖는 모든 실세계 배치에 관련된다(앞다리 모터는 지속적인 등반 중 여전히 과열되었다)."}, {"type": "bullet", "text": "AdaBoot의 보상-CV 기반 스케줄은, 공동 학습 중 학습된 추정기를 정책에 안전하게 결합하는 일반적 방법이다: 도메인 랜덤화된 에이전트 집단이 일관되게 행동할 때에만 추정기를 더 신뢰하라."}, {"type": "bullet", "text": "인정된 한계: 눈이 멀었기 때문에 시스템은 반응적이며 적응하기 전에 장애물에 접촉해야 하므로, 고층 계단 같은 복잡한 구조물은 외수용 센서 추가가 필요하다 — 이는 proprioception 전용 상상 접근법이 적용되는 범위를 한정 짓는다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "DreamWaQ는 사족보행 로봇이 오직 proprioception에만 의존하여 비정형 지형을 주파하게 하며, 기존 최신 지각 보행의 외수용 센싱 의존성을 제거한다."}, {"type": "bullet", "text": "명령 추적, 회복 가능 밀침, 생존율 전반에 걸쳐 기존 학습 기반 제어기들(teacher-student AdaptationNet, 명시적 전용 EstimatorNet, 무적응 Baseline)보다 성능을 향상시킨다."}, {"type": "bullet", "text": "견고성은 Unitree A1이 시뮬레이션에서 zero-shot으로 약 10분간 언덕과 비정형 야외를 보행하는 것으로 실증되었으며, 이 정도로 작은 로봇에서의 최초 실증이다."}, {"type": "bullet", "text": "MARCO 프로젝트 관련성: DreamWaQ는 '정책이 배치 관측에서 제거된 상태를 어떻게 추론하는가'라는 질문에 구체적인 비순환 레시피로 답한다 — 짧은 이력 스택(H=5, 정확히 MARCO의 프레임 수)을 공유 MLP 인코더에 입력하여 누락된 몸체 선속도를 명시적으로 회귀(시뮬레이션 정답값 대비 MSE)하고 지형을 VAE 잠재 변수로 암묵적으로 인코딩한 뒤, 이를 평범한 MLP 정책에 공급한다. 이는 MARCO의 'history-stacking + MLP'와 Siekmann의 LSTM 정책 사이의 중간 경로다."}, {"type": "bullet", "text": "Siekmann(이미 Vault에 있는 LSTM/순환 정책)과의 대조: DreamWaQ는 의도적으로 순환을 피하고 대신 frame-stacking + 보조 추정기를 사용하며, 이것이 추론을 온보드 50 Hz로 동기 구동할 만큼 충분히 가볍게 유지한다고 보고한다 — MARCO가 frame-stacking+MLP vs LSTM vs 명시적 추정기 모듈을 저울질할 때 유용한 데이터 포인트다."}, {"type": "bullet", "text": "명시된 한계는 blind 정책의 반응적 접촉 우선 적응이다; 향후 연구는 장애물 접촉 전 보행 계획과 고층 계단 처리를 위해 외수용 센서를 보행 시스템에 통합한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "적응 메커니즘이 순전히 반응적이다: 로봇이 오직 proprioception에만 의존하기 때문에, 적응하기 전에 반드시 다리로 장애물에 물리적으로 접촉해야 하며, 따라서 큰 구조물을 사전에 우회 계획할 수 없다.", "source_quote": "DreamWaQ's limitation lies in its adaptation mechanism, where it must first hit the obstacles with its legs.", "source_section": "conclusion"}, {"claim": "고층 계단과 같은 더 복잡한 구조물은 현재의 proprioception 전용 시스템으로는 처리되지 않으며, 외수용 센서 추가가 필요하다.", "source_quote": "Addressing more complex structures, such as high-rise stairs, is a part of our future work, which requires integrating exteroception into the locomotion system for improved gait planning prior to obstacle contact.", "source_section": "conclusion"}], "future_works": [{"claim": "로봇이 장애물에 접촉하기 전에 보행을 계획하고 고층 계단 같은 더 복잡한 구조물을 다룰 수 있도록, 외수용 센서(카메라/LiDAR)를 보행 시스템에 통합한다.", "source_quote": "Addressing more complex structures, such as high-rise stairs, is a part of our future work, which requires integrating exteroception into the locomotion system for improved gait planning prior to obstacle contact.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["기존의 모델 기반 사족보행 제어기는 복잡한 파이프라인(상태 추정, 궤적/보행 최적화, 액추에이터 제어)과 방대한 수동 모델링 및 튜닝을 요구하며, 선형화된 모델이 성능을 제한한다.", "최신 학습 기반 보행은 복잡하고 신뢰성 있는 외수용 센싱 프레임워크(카메라/LiDAR)에 의존하는데, 이는 악천후/조명 조건에서 신뢰하기 어렵고 물리적 지형 특성을 정확히 읽지 못한다(예: 부드러운 눈이 단단해 보이고, 키 큰 풀이 통과 불가능해 보임).", "지형/몸체 상태를 추정하는 기존 proprioception 기반 방법들은 다양한 험지에서 장거리에 걸친 실증이 제한적이며, 높은 불확실성과 추정 오차 하에서 실패한다.", "proprioception으로부터 지형 특성을 학습하는 것은 반복적인 닭이 먼저냐 달걀이 먼저냐 식의 '표현 학습 병목(representation learning bottleneck)'이다: 정책은 견고하게 보행하려면 지형을 이해해야 하지만, 지형 특성을 탐색하고 경험하려면 이미 잘 걸을 수 있어야 한다."], "addressed_by_this_work": ["DreamWaQ는 수작업으로 설계한 모델 기반 파이프라인을, proprioceptive 이력을 관절 목표값으로 매핑하는 단일 end-to-end RL 정책으로 대체하여, 명시적 모델링/튜닝의 필요성을 제거한다.", "크리틱이 특권적 지형 상태를 보는 asymmetric actor-critic으로 정책을 학습시킴으로써, 액터는 proprioception만으로 지형(높이맵, 마찰, 반발계수, 장애물)을 암묵적으로 상상하도록 학습하며, 따라서 배치 시 외수용 센서가 필요 없다.", "CENet의 명시적 속도 추정과 암묵적 컨텍스트 추정을 한 단계에서 동시에 학습하는 방식은 정확한 몸체 상태 추정을 제공하여, 소형 Unitree A1이 계단, 경사, 젖은/변형성 지형에서 장거리 야외 보행(430 m 야외, 465 m 언덕)을 지속하게 한다.", "정책, 크리틱, 추정기를 동시에 단일 단계로 학습하는 것은 표현 학습 병목과 순차적 teacher-student 학습의 데이터 비효율성을 회피하며, AdaBoot는 학습 과정에서 추정기와 정책 간의 결합을 안정화한다."], "remaining_unresolved": ["시스템은 여전히 반응적이며 다리 접촉 이전에 장애물을 예측할 수 없으므로, 고층 계단과 같은 크거나 복잡한 구조물은 향후 연구에서 외수용 센서 추가를 필요로 한다.", "앞다리 모터는 지속적인 등반 중 과열 보호 모드에 진입할 수 있는데, 이는 열/구동 한계가 전력 분배 보상으로 부분적으로만 완화됨을 나타낸다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

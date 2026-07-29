@@ -284,12 +284,12 @@
 <p>이 글의 개념이 실제 알고리즘과 실물 로봇으로 어떻게 이어지는지 보고 싶다면, 라이브러리의 다음 논문들이 정확한 지도다.</p>
 
 <ul>
-  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2017_Proximal_Policy_Optimization_Algorithms.html">Schulman et al., 2017 — Proximal Policy Optimization (PPO)</a>: 이 글의 원전. 클립된 대리 목적함수 \(L^{CLIP}\)을 제안하고, 무거운 신뢰 영역 제약 없이 1차 최적화만으로 TRPO급 안정성을 얻음을 보였다. 위 §PPO 절 전체가 이 논문이다.</li>
-  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2015_Trust_Region_Policy_Optimization.html">Schulman et al., 2015 — Trust Region Policy Optimization (TRPO)</a>: PPO의 직전 조상. KL 신뢰 영역 제약 아래 대리 목적함수를 최대화하는 정식화와 단조 개선 보장을 제시한다. §신뢰 영역 절의 이론적 뿌리다.</li>
-  <li><a href="../papers/Basic_Theory/Schulman_ICLR_2016_High_Dimensional_Continuous_Control_Generalized_Advantage.html">Schulman et al., 2016 — Generalized Advantage Estimation (GAE)</a>: \(L^{CLIP}\)에 들어가는 \(A_t\)를 TD 오차의 \(\lambda\)-가중합으로 편향-분산 절충해 추정. 이 글이 "지난 편"으로 부르는 바로 그 논문이며, PPO와 사실상 한 벌로 쓰인다.</li>
-  <li><a href="../papers/Basic_Theory/Sutton_NeurIPS_2000_Policy_Gradient_Methods_Reinforcement_Learning_Function.html">Sutton et al., 2000 — Policy Gradient Methods</a>: \(\nabla_\theta\log\pi\cdot A\) 꼴의 정책 기울기 정리를 증명한 원전. PPO가 "안정적으로 크게 밀려는" 그 기울기의 출처다.</li>
-  <li><a href="../papers/Multimodal_Locomotion_Robots/RL_Legged_Control/Rudin_CoRL_2022_Learning_Walk_Minutes_Massively_Parallel_Deep.html">Rudin et al., 2022 — Learning to Walk in Minutes (legged_gym / Isaac Gym)</a>: 수천 개 로봇을 GPU에서 병렬로 굴려 PPO로 보행을 몇 분 만에 학습. Ko가 Isaac Lab에서 실제로 돌리는 세팅의 직접적 원형으로, 위 블록의 "대규모 병렬 PPO"가 이 논문이다.</li>
-  <li><a href="../papers/Basic_Theory/Hwangbo_SciRob_2019_Learning_Agile_Dynamic_Motor_Skills_Legged.html">Hwangbo et al., 2019 — Learning Agile and Dynamic Motor Skills (ANYmal)</a>: 신뢰 영역 계열 정책 최적화와 시뮬레이터 학습을 실물 4족 로봇의 민첩한 동작으로 옮긴 sim-to-real 이정표. §PPO 좌표가 실제 하드웨어로 착지하는 지점이다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2017.html">Schulman et al., 2017 — Proximal Policy Optimization (PPO)</a>: 이 글의 원전. 클립된 대리 목적함수 \(L^{CLIP}\)을 제안하고, 무거운 신뢰 영역 제약 없이 1차 최적화만으로 TRPO급 안정성을 얻음을 보였다. 위 §PPO 절 전체가 이 논문이다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_arXiv_2015.html">Schulman et al., 2015 — Trust Region Policy Optimization (TRPO)</a>: PPO의 직전 조상. KL 신뢰 영역 제약 아래 대리 목적함수를 최대화하는 정식화와 단조 개선 보장을 제시한다. §신뢰 영역 절의 이론적 뿌리다.</li>
+  <li><a href="../papers/Basic_Theory/Schulman_ICLR_2016.html">Schulman et al., 2016 — Generalized Advantage Estimation (GAE)</a>: \(L^{CLIP}\)에 들어가는 \(A_t\)를 TD 오차의 \(\lambda\)-가중합으로 편향-분산 절충해 추정. 이 글이 "지난 편"으로 부르는 바로 그 논문이며, PPO와 사실상 한 벌로 쓰인다.</li>
+  <li><a href="../papers/Basic_Theory/Sutton_NeurIPS_2000.html">Sutton et al., 2000 — Policy Gradient Methods</a>: \(\nabla_\theta\log\pi\cdot A\) 꼴의 정책 기울기 정리를 증명한 원전. PPO가 "안정적으로 크게 밀려는" 그 기울기의 출처다.</li>
+  <li><a href="../papers/Multimodal_Locomotion_Robots/RL_Legged_Control/Rudin_CoRL_2022.html">Rudin et al., 2022 — Learning to Walk in Minutes (legged_gym / Isaac Gym)</a>: 수천 개 로봇을 GPU에서 병렬로 굴려 PPO로 보행을 몇 분 만에 학습. Ko가 Isaac Lab에서 실제로 돌리는 세팅의 직접적 원형으로, 위 블록의 "대규모 병렬 PPO"가 이 논문이다.</li>
+  <li><a href="../papers/Basic_Theory/Hwangbo_SciRob_2019.html">Hwangbo et al., 2019 — Learning Agile and Dynamic Motor Skills (ANYmal)</a>: 신뢰 영역 계열 정책 최적화와 시뮬레이터 학습을 실물 4족 로봇의 민첩한 동작으로 옮긴 sim-to-real 이정표. §PPO 좌표가 실제 하드웨어로 착지하는 지점이다.</li>
 </ul>
 
 </div>

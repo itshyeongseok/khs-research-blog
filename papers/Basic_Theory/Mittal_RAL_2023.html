@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>ORBIT: A Unified Simulation Framework for Interactive Robot Learning Environments</title>
+    <meta name="keywords" content="robot learning, simulation framework, NVIDIA Isaac Sim, GPU parallelization, deformable body simulation, sim-to-real transfer, reinforcement learning, imitation learning, photo-realistic rendering, benchmark tasks">
+    <meta name="paper-authors" content="Mayank Mittal, Calvin Yu, Qinxi Yu, Jingzhou Liu, Nikita Rudin, David Hoeller, Jia Lin Yuan, Ritvik Singh, Yunrong Guo, Hammad Mazhar, Ajay Mandlekar, Buck Babich, Gavriel State, Marco Hutter, Animesh Garg">
+    <meta name="paper-journal" content="IEEE Robotics and Automation Letters (RA-L), 2023 · project: https://isaac-orbit.github.io/ · arXiv:2301.04195">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">ORBIT: A Unified Simulation Framework for Interactive Robot Learning Environments</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Mayank Mittal, Calvin Yu, Qinxi Yu, Jingzhou Liu, Nikita Rudin, David Hoeller, Jia Lin Yuan, Ritvik Singh, Yunrong Guo, Hammad Mazhar, Ajay Mandlekar, Buck Babich, Gavriel State, Marco Hutter, Animesh Garg</div>
+            <div class="journal">IEEE Robotics and Automation Letters (RA-L), 2023 · project: https://isaac-orbit.github.io/ · arXiv:2301.04195</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">ORBIT은 <span class="term">NVIDIA Isaac Sim</span> 위에 구축된 통합·모듈형·오픈소스 로봇 학습 프레임워크로, PhysX SDK 5.1을 통해 photo-realistic 렌더링과 고정밀 강체·변형체 시뮬레이션을 결합한다. 16개 로봇 플랫폼, 4개 센서 양식, 10개 모션 생성기, 20개 이상의 벤치마크 과제와 4개 학습 라이브러리 래퍼를 기본 포함(batteries-included)하여 제공한다. GPU 기반 병렬화를 활용해 RL 정책을 학습하고 대규모 시연 데이터셋을 수 분 내에 수집하며, 강체·변형체 조작에서 각각 선행 프레임워크의 약 10배·약 3배 처리량에 도달한다. 프레임워크는 ANYmal 4족 로봇에서의 locomotion 정책 sim-to-real 전이와 통제된 변형 빔 정확도 연구로 검증된다. 모듈형 World/Agent 추상화는 RL, 시연 기반 학습, 모션 계획을 하나의 공통 플랫폼 안에서 지원한다.</div>
+            <div class="keywords"><span class="keyword-chip">robot learning</span><span class="keyword-chip">simulation framework</span><span class="keyword-chip">NVIDIA Isaac Sim</span><span class="keyword-chip">GPU parallelization</span><span class="keyword-chip">deformable body simulation</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">imitation learning</span><span class="keyword-chip">photo-realistic rendering</span><span class="keyword-chip">benchmark tasks</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">저자들은 이상적인 로봇 시뮬레이터가 빠르고 정확한 물리, 고정밀 센싱, 다양한 에셋 처리, 쉬운 과제 인터페이스를 함께 제공해야 하지만 기존 플랫폼은 이를 절충한다고 주장한다. 이들은 이러한 역량을 통합하고 로보틱스·로봇 학습 연구의 진입 장벽을 낮추는, Isaac Sim 위에 구축된 오픈소스 프레임워크 ORBIT을 제시한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">관련 연구는 시뮬레이션 프레임워크를 세 설계 축 — 물리 엔진, 센서 시뮬레이션, 씬/에셋 처리 — 으로 개괄하고, 12개 선행 프레임워크의 비교표에 ORBIT을 위치시킨다. CPU 기반 엔진은 확장성이 나쁘고, 선행 변형체 프레임워크는 도구가 부족하며, 기존 PBR 프레임워크는 대개 카메라 센서만 지원함을 강조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">ORBIT의 설계는 World(실제 세계에 대응하며 로봇·센서·객체·마커를 담음)와 Agent(지각·행동 기반 노드의 계산 그래프)로 구성된다. 세심한 인터페이스 설계는 actuator·센서 노이즈 모델, 다중 주파수 센싱, 에이전트 계산 그래프에 대한 graph-cut을 통한 모듈형 과제 명세를 지원하며, 모두 sim-to-real 격차를 좁히는 것을 목표로 한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">ORBIT의 적용성은 RL, imitation learning, 모션 계획, 실제 로봇 배포 전반에서 정량적 정확도·처리량 평가와 함께 시연된다. GPU 병렬화는 선행 프레임워크 대비 강체 약 10배, 변형체 약 3배 처리량을 내고, 변형 빔 시뮬레이션은 모션 캡처 데이터와 일치하며, locomotion 정책은 ANYmal-D에서 sim-to-real로 전이된다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 ORBIT을 Isaac Sim을 활용하고 actuator/센서 노이즈 모델·다중 주파수 구성요소로 확장하여 로보틱스 연구의 진입 장벽을 낮추는 인터랙티브하고 직관적인 프레임워크로 규정한다. 저자들은 지원 플랫폼·패러다임의 폭과 ORBIT이 sim-to-real 전이를 촉진할 잠재력을 강조한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">ORBIT은 높은 처리량과 sim-to-real 잠재력을 보이는 통합·모듈형 플랫폼을 제공하지만, 저자들은 렌더링 속도, 시뮬레이터 전체 충실도, 에셋 형식을 둘러싼 구체적인 잔여 격차를 짚는다. 이들은 더 빠른 렌더링, 추가 센서 유형, 네이티브 에셋 로딩을 포함한 구체적 향후 개선을 제시한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "이상적인 로봇 시뮬레이터는 빠르고 정확한 물리, 고정밀 센서 시뮬레이션, 다양한 에셋 처리, 과제·환경 추가를 위한 사용하기 쉬운 인터페이스가 필요하지만, 기존 플랫폼은 이러한 측면들을 절충한다."}, {"type": "bullet", "text": "<span class=\"eng\">Habitat</span>이나 <span class=\"eng\">ManipulaTHOR</span> 같은 비전 중심 시뮬레이터는 렌더링은 잘하지만 저수준 물리 상호작용(예: 파지)을 단순화하는 반면, <span class=\"term\">Isaac Gym</span>이나 SAPIEN 같은 물리 시뮬레이터는 빠른 강체 접촉 동역학을 주지만 PBR, 변형체, ROS 지원을 기본 제공하지 않는다.", "figure_refs": [1]}, {"type": "bullet", "text": "NVIDIA의 Omniverse Isaac Sim은 GPU 가속 실시간 physically-based 렌더링과 최신 물리 엔진으로 이 격차를 메우려 하며, ORBIT은 그 위에 구축된다."}, {"type": "bullet", "text": "ORBIT은 사용자 정의 actuator 동역학 모델에서부터 서로 다른 관측·행동 공간으로 학습하기 위한 모듈형 과제 명세에 이르기까지 bottom-up으로 설계되며, 과제를 프로그래밍적으로도 GUI를 통해 인터랙티브하게도 설계할 수 있게 지원한다."}, {"type": "bullet", "text": "프레임워크의 네 가지 기여는 다음과 같다 — 통합 모듈형 오픈소스 프레임워크, 기본 포함 로봇/센서 에셋 모음, 표준화된 벤치마크 과제 모음(강체 11 + 변형체 조작 13 + locomotion 2), 시뮬레이터 정확도·처리량을 입증하는 실험."}, {"type": "bullet", "text": "대표 결과는 기존 프레임워크 대비 강체 최대 약 10배, 변형체 약 3배 처리량과, ANYmal 4족 로봇에서 시연된 locomotion sim-to-real 전이이다."}, {"type": "bullet", "text": "ORBIT은 표현 학습, reinforcement learning, imitation learning, task-and-motion-planning을 한꺼번에 겨냥하여, 공통 플랫폼 위에서의 학제 간 협력을 장려한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "비교표는 ORBIT을 MetaWorld, RoboSuite, DoorGym, DEDO, RLBench, iGibson, Habitat 2.0, SoftGym, ThreeDWorld, ManiSkill2, ManipulaThor, IsaacGymEnvs와 물리 엔진, 렌더러, GPU 벡터화, 강체/소프트/유체 동역학, PBR, 센서 양식 전반에서 대비한다.", "figure_refs": [2]}, {"type": "bullet", "text": "MuJoCo나 Bullet을 쓰는 선행 프레임워크는 주로 강체 객체 조작에 초점을 두며, CPU 기반이어서 대규모 병렬화를 달성하려면 CPU 클러스터가 필요하다."}, {"type": "bullet", "text": "변형체 프레임워크는 주로 Bullet이나 FleX를 입자 기반 동역학과 함께 쓴다. SofaGym은 유한요소법(FEM)의 이점을 보였으나 이런 프레임워크는 강체 객체 프레임워크에 비해 도구가 제한적이다."}, {"type": "bullet", "text": "ORBIT은 GPU 하드웨어 가속, signed-distance-field(SDF) 충돌 검사, 더 안정적인 FEM 기반 솔버를 제공하는 PhysX SDK 5를 통해 강체·변형체 시뮬레이션을 모두 지원하여 이 격차를 메운다."}, {"type": "bullet", "text": "센서 시뮬레이션의 경우 많은 프레임워크가 photo-realism을 제한하는 고전적 래스터화를 쓴다. ray-tracing 기법은 sim-to-real 시각 도메인 격차를 좁히는 데 도움이 되는 미세 시각 특성(투명도, 반사)을 포착한다."}, {"type": "bullet", "text": "기존 PBR 프레임워크는 대개 카메라 기반 센서(RGB, depth)만 지원하는데, 이는 LiDAR 같은 거리 센서가 필요한 모바일 로봇에는 불충분하다. ORBIT은 Isaac Sim ray-tracing을 활용해 이 모든 양식과 semantic 주석을 지원한다."}, {"type": "bullet", "text": "씬 설계의 경우 프레임워크는 절차적, 메시 스캔, 게임 엔진 방식을 지원한다. 메시 스캔은 기하 아티팩트가 있고 절차적 생성은 다양한 씬을 가능하게 하므로, ORBIT은 제한적이기보다 이 세 방법을 모두 지원한다."}]}, "method": {"content": [{"type": "bullet", "text": "프레임워크는 실제 세계에 대응하는 World와, 체화된 로봇 뒤의 소프트웨어/연산 스택인 Agent로 나뉜다. 에이전트는 원시 관측을 받아 로봇에 적용할 행동을 계산한다.", "figure_refs": [3]}, {"type": "bullet", "text": "모든 지각과 모션 생성이 같은 주파수로 일어난다는 흔한 가정과 달리, ORBIT은 실제 세계 현실 — 센서가 서로 다른 주파수로 갱신되고 행동이 서로 다른 시간 척도로 적용되며 모델링되지 않은 지연/노이즈가 존재함 — 을 모델링하여 sim-to-real을 지원한다."}, {"type": "bullet", "text": "로봇은 articulation, actuator 모델, 저수준 joint 제어기로 구성된다. 단일 인터페이스(예: LeggedRobot)가 같은 범주의 여러 로봇(ANYmal C, Unitree A1)을 지원하며, 모델은 URDF/obj/stl을 USD로 변환하는 스크립트와 함께 USD 파일에서 로드된다.", "figure_refs": [4]}, {"type": "bullet", "text": "actuator 모델은 실제 세계 특성(지연, 토크 포화)을 시뮬레이션에 주입한다. DC-motor와 Series-Elastic-Actuator(SEA) 모델이 포함되며, joint 제어기는 명령을 actuator 모델을 거쳐 처리한 뒤 위치/속도/토크를 시뮬레이터에 적용한다.", "figure_refs": [4]}, {"type": "bullet", "text": "공통 센서 관리 시스템은 proprioceptive·exteroceptive 센서를 하나의 인터페이스로 통합한다. 각 센서는 자체 내부 타이머를 가져 서로 다른 주파수로 동작할 수 있어, 병렬화된 씬에서 매 시뮬레이션 스텝마다 모든 센서를 갱신하는 오버헤드를 피한다."}, {"type": "bullet", "text": "객체는 텍스처와 물리 속성(마찰, joint 매개변수)을 randomize할 수 있는 수동 개체이다. 하이브리드 모델(예: 자석 봉인이 깨지기 전까지 뻣뻣한 냉장고 경첩)로 변하는 객체 동역학을 연구하도록 표현할 수 있다."}, {"type": "bullet", "text": "에이전트는 지각 기반 노드(예: RGB-D에서 점군/TSDF로)와 행동 기반 노드(예: 과제 수준에서 joint 명령으로)의 계산 그래프이며, 각각 내부 타이머를 가진다. 이 그래프에 대한 graph-cut과 외재적 목표로 학습을 정식화하면 하나의 World가 다수의 과제를 정의할 수 있다.", "figure_refs": [3]}, {"type": "bullet", "text": "과제 모듈은 목표를 명세하고 보상을 계산하며 리셋을 별도 모듈로 관리하여, 큐브 들어올리기를 위해 50 Hz task-space IK 제어기가 1000 Hz joint 제어기를 구동하는 것 같은 다중 주파수 제어를 가능하게 한다."}]}, "experiment": {"content": [{"type": "bullet", "text": "RL의 경우 rl-games, RSL-RL, stable-baselines-3로의 래퍼가 환경을 프레임워크에 구애받지 않게 한다. Franka-Reach와 Franka-Cabinet-Opening을 PPO로 학습하면 GPU 최적화 프레임워크에서 2048 환경으로 50,000-75,000 FPS에 도달하는데, stable-baselines3에서는 6,000-18,000 FPS이다.", "figure_refs": [7]}, {"type": "bullet", "text": "원격 조작과 imitation learning의 경우 데이터 수집 인터페이스(키보드, 게임패드, Spacemouse)가 시연을 수집한다. Behavior Cloning(BC)과 BC-RNN으로 학습된 Franka-LiftCube 정책을 초기/목표 상태를 바꾼 100회 시행으로 평가한다.", "figure_refs": [8]}, {"type": "bullet", "text": "BC-RNN은 순수 BC보다 더 잘 일반화한다. 목표 상태 변경 시 성공률이 1.00으로 유지되고, 초기·목표 상태를 모두 바꾸면 0.87-0.88에 도달하는데, BC는 0.43-0.47이다."}, {"type": "bullet", "text": "모션 계획은 절차적(에이전트 노드로서 손수 만든 상태 기계)으로도, GUI 파지 생성·원격 조작·task-space 제어·RMP 제어기를 이용한 모션 미리보기를 통해 인터랙티브하게도 지원된다.", "figure_refs": [8]}, {"type": "bullet", "text": "실제 로봇 배포는 ZMQ와 ROS 전송을 사용한다. quintic 보간기가 60 Hz 시뮬레이터 joint 명령을 Franka Emika 로봇을 위해 1000 Hz로 업샘플링하며, actuator network로 전적으로 시뮬레이션에서 학습된 locomotion 정책이 ANYmal ROS 스택을 통해 ANYmal-D로 전이된다.", "figure_refs": [9, 10]}, {"type": "bullet", "text": "locomotion 정책을 강건하게 만들기 위해 베이스 질량을 randomize(22 +/- 5 kg)하고 시뮬레이션된 무작위 밀침을 추가하며, contact reporter의 접촉력을 보상 설계에 사용한다."}, {"type": "bullet", "text": "변형체 정확도는 고정된 실리콘 엘라스토머 빔에서 검증된다. 모션 캡처 마커가 중력 하 실제 변형을 기록하며, 시뮬레이션된 FEM 감쇠 진동이 실제 세계 데이터를 매우 근접하게 따른다.", "figure_refs": [11]}, {"type": "bullet", "text": "처리량 비교는 CPU 벡터화 프레임워크가 메모리 부족으로 약 200-300 환경에서 붕괴하는 반면 GPU 병렬화는 수천으로 확장되어, 강체 약 10배·변형체(cloth) 약 3배 처리량을 냄을 보인다. ORBIT은 PhysX 엔진을 공유하므로 Isaac Gym과 동등하게 동작한다.", "figure_refs": [12, 13]}]}, "discussion": {"content": [{"type": "bullet", "text": "ORBIT은 환경 설계를 단순화하고 쉬운 과제 명세를 가능하게 하며 로보틱스·로봇 학습의 진입 장벽을 낮추는 인터랙티브 프레임워크로 제안된다."}, {"type": "bullet", "text": "Isaac Sim의 최신 시뮬레이션을 활용하고 이를 확장하여 actuator·센서 노이즈 모델을 통합하며, 센서·actuator·모션 생성기를 서로 다른 동작 주파수로 진전시킨다."}, {"type": "bullet", "text": "기본 포함 제공 — 다양한 로봇 플랫폼, 센서, CPU/GPU 모션 생성기, 벤치마크 과제 — 은 로보틱스 연구자의 설정 오버헤드를 줄이려는 것이다."}, {"type": "bullet", "text": "환경과 로봇 패러다임(RL, LfD, 모션 계획)의 폭은 ORBIT을 로보틱스의 폭넓은 연구 질문에 유용하게 만든다."}, {"type": "bullet", "text": "실험은 다른 프레임워크 대비 상당한 처리량 개선과 sim-to-real 전이를 촉진할 잠재력을 보인다."}, {"type": "bullet", "text": "프레임워크를 오픈소스화하여 저자들은 개발 오버헤드를 줄이고 통합 플랫폼을 제공하며, 포괄적인 로보틱스 연구 솔루션을 향한 커뮤니티 기여를 장려하고자 한다."}, {"type": "bullet", "text": "저자들은 변형체 조작이 빠르고 정확한 시뮬레이션과 사실적 렌더링을 달성하기 어려워 sim-to-real을 거의 쓰지 못했음을 지적하고, ORBIT이 이러한 미해결 과제를 다루는 데 도움이 될 수 있다고 주장한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "ORBIT은 물리를 최대 125,000 FPS로 시뮬레이션할 수 있지만, 카메라 렌더링은 현재 RTX 3090에서 640x480 이미지를 렌더링하는 10개 카메라에 대해 270 FPS로 병목이 있다."}, {"type": "bullet", "text": "렌더링 속도는 다른 프레임워크와 비견되긴 하나, GPU 기반 가속을 통해 적극적으로 개선되고 있다."}, {"type": "bullet", "text": "논문은 강체 접촉 모델링과 소프트 바디용 FEM의 효과를 입증했지만, 시뮬레이터 전체(렌더링·센서·물리)의 충실도를 정량적으로 연구하는 것은 향후 과제로 남는다."}, {"type": "bullet", "text": "저자들은 ORBIT이 변형체 조작에 sim-to-real을 적용하기 어려웠던 역사적 난제를 다루는 데 도움이 되고, 이 분야의 미해결 연구 질문에 답하는 것을 촉진할 수 있다고 믿는다."}, {"type": "bullet", "text": "계획된 개선은 촉각 센서와 6축 force-torque 센서의 통합을 포함한다."}, {"type": "bullet", "text": "또한 프레임워크를 더 범용적이고 사용자 친화적으로 만들기 위해 USD 대신 네이티브 형식(URDF, OBJ)으로 에셋을 직접 로드하는 지원을 계획한다."}, {"type": "bullet", "text": "Appendix B는 동기를 명확히 한다 — Isaac Gym과 그 IsaacGymEnvs는 좁은 RL 라이브러리 통합, 확장 가능한 환경 설계를 위한 모듈성 부재, RL을 넘어선 패러다임 지원 미흡으로 제한되었고, 이러한 결함이 ORBIT 개발을 촉발했다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "카메라 렌더링 처리량이 병목으로, RTX 3090에서 640x480 이미지를 렌더링하는 10개 카메라에 대해 약 270 FPS로 제한되어 물리 시뮬레이션 속도에 크게 못 미친다.", "source_quote": "ORBIT can notably simulate physics at up to 125,000 FPS; however, camera rendering is currently bottlenecked to a total of 270 FPS for ten cameras rendering 640 480 images on an RTX 3090.", "source_section": "conclusion"}, {"claim": "강체 접촉 모델링과 FEM 소프트 바디의 정확도만 입증되었고, 시뮬레이터 전체(렌더링·센서·물리를 함께)의 충실도는 정량적으로 연구되지 않았다.", "source_quote": "While our experiments demonstrate the effectiveness of rigid-contact modeling and FEM for soft bodies, quantitatively studying the fidelity of the entire simulator (such as rendering, sensors, and physics) remains an area for future exploration.", "source_section": "conclusion"}, {"claim": "cloth 메시 해상도를 높이면 시뮬레이션 정확도는 개선되지만 처리량이 저하되고 GPU 메모리를 소진할 수 있다.", "source_quote": "increasing the number of nodes or points (pts) in the cloth mesh adversely affects its performance.", "source_section": "experiment"}], "future_works": [{"claim": "GPU 기반 가속을 통해 렌더링 속도를 더 개선하여 물리 처리량과의 격차를 좁힌다.", "source_quote": "While this number is comparable to other frameworks, we are actively improving the rendering speed through GPU-based acceleration.", "source_section": "conclusion"}, {"claim": "촉각 센서와 6축 force-torque 센서를 프레임워크에 통합한다.", "source_quote": "Further enhancements to the framework include integrating tactile sensors and 6-axis force-torque sensors.", "source_section": "conclusion"}, {"claim": "USD 대신 URDF·OBJ 같은 네이티브 형식으로 에셋을 직접 로드하는 지원을 추가하여 범용성을 높인다.", "source_quote": "Additionally, we plan to add support for loading assets directly in their native formats (such as URDF and OBJ) instead of USDs to make the framework more versatile and user-friendly.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["기존 시뮬레이터는 빠르고 정확한 물리와 고정밀 센서 시뮬레이션·에셋 처리 사이의 절충을 강요한다.", "Isaac Gym이나 SAPIEN 같은 물리 시뮬레이터는 빠른 강체 동역학을 주지만 physically-based 렌더링, 변형체 시뮬레이션, ROS 지원을 기본 제공하지 않는다.", "대부분의 로봇 학습 프레임워크는 환경/MDP만 모델링하여, RL·LfD·모션 계획 사이를 오갈 때 코드 중복과 마찰을 일으킨다.", "변형체 조작은 빠르고 정확한 시뮬레이션과 사실적 렌더링을 달성하기 어려워 sim-to-real을 거의 쓰지 못했다."], "addressed_by_this_work": ["ORBIT은 photo-realistic 렌더링과 고정밀 강체·변형체 시뮬레이션(PhysX SDK 5.1)을 단일 Isaac Sim 백엔드 위에서 통합하여 절충을 제거한다.", "ROS/ZMQ 배포 경로, ray-traced 다중 양식 센서(RGBD, semantic, LiDAR, contact), 그리고 Isaac Gym에 없는 FEM/PBD 변형체 시뮬레이션을 추가한다.", "모듈형 World/Agent 계산 그래프 추상화는 동일한 world가 RL, imitation learning, 모션 계획에 함께 쓰이게 하여 코드 중복을 줄인다.", "시연된 ANYmal locomotion sim-to-real 전이와 통제된 변형 빔 정확도 연구는 접촉이 풍부한 과제와 소프트 바디 과제에 대한 실현 가능성을 입증한다."], "remaining_unresolved": ["시뮬레이터 전체 충실도(렌더링+센서+물리를 함께)는 아직 정량적으로 검증되지 않았다.", "카메라 렌더링 처리량은 물리 처리량 대비 여전히 병목이다.", "변형체 조작의 sim-to-real은 가능해졌다고 주장되지만 이 논문에서 end-to-end로 아직 시연되지는 않았다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>
