@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Bioinspired multimodal robotics</title>
+    <meta name="keywords" content="bioinspired robotics, multimodal locomotion, mode transition, soft robotics, structure repurposing, physical intelligence, computational intelligence, robot design metrics, morphing robots">
+    <meta name="paper-authors" content="Ziyu Ren, Youning Duo, Haoyuan Xu, Yihui Zhang, Xingjian Liu, Jamie Paik, Auke Ijspeert, Li Wen">
+    <meta name="paper-journal" content="Science Robotics (Review), Vol. 11, Issue 116, eaea7639, 22 July 2026 · DOI: 10.1126/scirobotics.aea7639">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Bioinspired multimodal robotics</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Ziyu Ren, Youning Duo, Haoyuan Xu, Yihui Zhang, Xingjian Liu, Jamie Paik, Auke Ijspeert, Li Wen</div>
+            <div class="journal">Science Robotics (Review), Vol. 11, Issue 116, eaea7639, 22 July 2026 · DOI: 10.1126/scirobotics.aea7639</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 생체모방 다중모드 로봇에 관한 Science Robotics <span class="term">리뷰</span>로, 다중모드 로봇을 하나의 플랫폼에서 둘 이상의 서로 다른 생체모방 이동 모드를 통합·전환하는 시스템으로 정의한다. 이 분야의 역사적 진화를 세 국면(공학적 통합, 생체모방 구조적 다중모드성, 계산적·물리적 지능의 융합)으로 추적하고, 세 가지 몸체 설계 전략(연성 재료, 구조 재활용, 다중로봇 아키텍처)과 운동 전환 분류를 개관하며, 계획·제어가 그래프 기반과 이산 전환에서 학습 기반 프레임워크로 이동하는 흐름을 검토한다. 이 분야의 표준 벤치마크 부재를 해결하기 위해 저자들은 다섯 가지 정량 지표(모드 수, 모드 추가 한계비용, 부품 재활용 비율, 전환 비용, 성능 향상)를 제안한다. 마지막으로 실시간 행동 적응을 위해 계산적·물리적 지능을 긴밀히 결합하는 시스템 아키텍처와 로드맵을 제안한다. (리뷰 스키마 안내: 본 분석은 리뷰의 평가 프레임워크를 Method 절에, 개관한 대표 시스템/근거를 Experiment 절에 대응시켰다.)</div>
+            <div class="keywords"><span class="keyword-chip">bioinspired robotics</span><span class="keyword-chip">multimodal locomotion</span><span class="keyword-chip">mode transition</span><span class="keyword-chip">soft robotics</span><span class="keyword-chip">structure repurposing</span><span class="keyword-chip">physical intelligence</span><span class="keyword-chip">computational intelligence</span><span class="keyword-chip">robot design metrics</span><span class="keyword-chip">morphing robots</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">리뷰는 동물이 다중모드 이동으로 동적·비정형 환경에서 생존한다는 관찰로 시작하며, 다양한 생체모방 모드를 그 원리 이해와 함께 통합하면 자연 능력을 능가하는 로봇을 만들 수 있다고 주장한다. 다중모드 로봇을 동일 플랫폼에서 둘 이상의 서로 다른 이동 모드를 통합·전환하는 시스템으로 신중히 정의하고, 다중모드와 다중보행을 구분하며, 평가 지표와 미래 아키텍처까지 제안하는 포괄적 자연 모방 리뷰로 스스로를 자리매김한다. (리뷰이므로 아래 6절 구조는 단일 연구가 아니라 리뷰 내용을 대응시킨 것이다.)</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">역사적 진화 절은 다중모드 로보틱스를 세 국면으로 구성한다. 개별 기능의 초기 공학적 통합(MOBOT Mark I, WABOT-1, Odex I)에서 시작해, 다중모드성을 형태에 내재화한 재구성 가능 아키텍처(PolyBot, 그리고 용어를 처음 공식화한 Azimut)로 이동하고, 자율성과 강건성을 높이는 계산적·물리적 지능이 정의하는 세 번째 국면으로 이어진다. 이 국면들은 부가적·하드웨어 중심 해법에서 긴밀히 결합된 계산-물리 시스템으로의 이동을 추적하며, 리뷰는 기존의 분야별 서베이와 스스로를 구별한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">리뷰이므로 이 Method 절은 단일 연구 절차가 아니라 리뷰의 분석 프레임워크를 제시한다: 다중모드 로봇의 기능적 목표, 여섯 가지 핵심 설계 고려사항, 그리고 제안된 다섯 정량 지표다. 지표는 설계 효율(모드 수, 모드 추가 한계비용, 부품 재활용 비율)과 운영 성능(전환 비용, 성능 향상)으로 나뉘며, 저자들은 이를 대표 로봇에 시연한다. 이 프레임워크는 분야의 표준 벤치마크 부재를 메우기 위해 제시된다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">단일 연구 실험 대신 이 절은 리뷰가 수집한 실증 근거를 개관한다: 세 가지 몸체 설계 전략과 그 절충, 이들 간 정성 비교, 지표 값이 표로 정리된 대표 로봇, 그리고 운동 전환 전략 분류다. 서베이는 연성 재료, 구조 재활용, 다중로봇 아키텍처가 각기 다른 방식으로 다중모드성을 달성함을 보이고, 능동 MM-MM 전환의 공백을 규명한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 다중모드 로봇의 하드웨어·제어 과제를 종합하고 자율성 전략을 검토한다. 하드웨어 측면에서 단일 목적 부품은 다른 모드에서 죽은 무게가 되어 다기능 설계를 요구한다. 제어 측면에서 로봇은 급변하는 동역학을 겪어 계획·제어가 복잡해지며, 그래프 기반 경로 계획, 생체모방·학습 기반 제어, 다중로봇 조정을 아우른다. 이어 저자들은 성능 향상을 극대화하고 전환 비용을 최소화하기 위해 계산적 의사결정과 물리적 구현을 긴밀히 결합하는 시스템 아키텍처를 제안한다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">리뷰는 분야의 진화, 몸체 설계·전환 발전, 학습 기반 계획·제어로의 이동을 요약하며 마무리한다. 핵심 기여는 벤치마크 부재를 메우는 다섯 정량 지표와 물리적·계산적 지능의 통합을 옹호하는 전략 로드맵이다. 전망은 하드웨어·알고리즘 과제를 해결하면 민첩성·효율·적응성에서 생물학적 대응물을 능가하는 생체모방 다중모드 로봇을 얻을 수 있다고 주장한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "동물계 전반에서 동적·비정형 환경에서의 생존은 적응적 <span class=\"term\">다중모드 이동</span>을 요구한다. 예컨대 문어는 제트 수영, 기어가기, 심지어 이족 보행까지 할 수 있다."}, {"type": "bullet", "text": "생체모방 다중모드 로봇의 동기는 다양한 운동 모드를 그 원리 이해와 함께 통합하면 자연 능력을 능가하는 시스템을 만들 수 있다는 것이다. 좋은 설계는 성능을 높이지만(예: RAVEN은 점프·비행·활공 가능) 부적절한 설계는 과도한 전력·질량·낮은 안정성·나쁜 기동성을 초래한다."}, {"type": "bullet", "text": "리뷰는 다중모드 로봇을 동일 플랫폼에서 둘 이상의 서로 다른 이동 모드를 결합·전환하는 시스템으로 정의하며, 이동성과 조작을 통합하는 플랫폼을 포함한 이동 모달리티로 용어를 제한하고 완전 고정형 조작은 제외한다."}, {"type": "bullet", "text": "<span class=\"term\">다중모드</span>(근본적으로 다른 물리 원리의 모드)와 <span class=\"term\">다중보행</span>(한 모드 내 변형)을 구분한다. 고양이의 걷기와 달리기는 한 모드의 보행이지만, 걷기와 점프는 서로 다른 모드다."}, {"type": "bullet", "text": "연성 로봇, 마이크로로봇, 모바일 조작, 수공/공지 로봇 등 특정 분야에 집중한 기존 리뷰와 달리, 본 논문은 자연 모방 다중모드 로보틱스에 대한 포괄적 리뷰를 제공한다."}, {"type": "bullet", "text": "기여로는 목표와 핵심 과제 규명, 설계 품질·성능을 정량화하는 다섯 지표 제안, 몸체 설계·전환 전략 개관, 그리고 계산적 지능과 물리적 지능을 결합하는 계획·제어 아키텍처 제안이 있다."}, {"type": "bullet", "text": "리뷰 스키마 안내: 본 분석에서 평가 프레임워크와 설계 고려사항은 Method 절에, 개관한 대표 시스템은 Experiment 절에 대응시켜, 독자가 이것이 단일 연구가 아닌 리뷰임을 알 수 있도록 했다."}]}, "related_works": {"content": [{"type": "bullet", "text": "최초의 다중모드 로봇은 인간에게 위험한 환경을 위해 등장했다. MOBOT Mark I(Hughes Aircraft, 1959)는 바퀴 기반에 매니퓰레이터를 결합해, 동시대 단일모드 산업용 팔인 Unimate와 대비되었다.", "figure_refs": [1]}, {"type": "bullet", "text": "이후 이동-조작 통합이 심화되어 WABOT-1(1973)은 최초의 완전 규모 이족 조작 휴머노이드였고, Odex I(1983)는 관절 다리를 조작·들어올리기에 재활용한 초기 functionoid였다.", "figure_refs": [1]}, {"type": "bullet", "text": "적응성 요구가 커지며 재구성 가능 아키텍처로 이동했다: 1999년 플랫폼은 수동 사족↔바퀴 전환을, PolyBot(2000)은 동적 자기재구성을, Azimut(2003)은 다리·트랙·바퀴 부속을 통합하고 다중모드 로봇 용어를 처음 공식적으로 사용했다."}, {"type": "bullet", "text": "이 시기는 다중모드성이 별도 하위 시스템 추가가 아니라 물리적 형태(적응적 형태발생)에 내재화되는 개념적 전환점이다."}, {"type": "bullet", "text": "세 번째 국면은 계산적·물리적 지능이 정의한다: 연속 자기모델링(2006)은 손상 후 형태를 추론해 보상 보행을 생성했고, 도롱뇽 모방 CPG 로봇(2007)은 부드러운 수영-보행 전환을 조율했으며, 자기 밀리로봇(2018)은 몸체 유연성으로 제어를 단순화했고, 2024년 바퀴-다리 플랫폼은 계층적 RL로 강건 내비게이션을 달성했다."}, {"type": "bullet", "text": "이 세 국면 — 공학적 통합, 생체모방 구조적 다중모드성, 계산적·물리적 지능의 융합 — 은 이 분야가 부가적·하드웨어 중심 해법에서 긴밀히 결합된 계산-물리 시스템으로 이동함을 추적한다."}, {"type": "bullet", "text": "리뷰는 특정 하위 분야에 국한된 기존 리뷰와 대조적으로 포괄적 자연 모방 종합으로 스스로를 자리매김한다."}]}, "method": {"content": [{"type": "bullet", "text": "리뷰 스키마 안내: 이 Method 절은 단일 실험 방법이 아니라 리뷰가 제안한 평가 프레임워크와 설계 분석을 대응시킨 것으로, 출처가 서베이임을 독자가 알 수 있게 한다."}, {"type": "bullet", "text": "리뷰는 운동 통합을 이끄는 다섯 기능적 목표를 규명한다: 혼잡 환경 내 도메인 내 이동, 도메인 간(매질 횡단) 이동, 에너지 절감, 기동성 향상, 모바일 조작."}, {"type": "bullet", "text": "여섯 가지 핵심 설계 고려사항 — 공간 배분, 질량 특성, 다중 모드 협조, 가변 강성, 이질적 액추에이션 유형, 몸체 모핑 — 을 아홉 개 대표 다중모드 로봇에 걸쳐 검토한다.", "figure_refs": [1]}, {"type": "bullet", "text": "핵심 주제는 시너지다: 단순 결합된 모드는 부가적이거나 심지어 해로울 수 있는 반면, 시너지적 설계는 초가법적(superadditive) 성능을 달성한다."}, {"type": "formula", "label": "시너지 기준 (초가법성)", "latex": "\\text{additive: } 1+1=2, \\qquad \\text{detrimental: } 1+1<2, \\qquad \\text{synergistic: } 1+1>2", "description": "리뷰는 좋은 다중모드 설계를, 통합된 모드가 독립적 기여의 합을 능가하는 초가법적 성능 달성으로 규정한다."}, {"type": "bullet", "text": "모드 수(N_mode)는 서로 다른 운동 모드의 수를 센다(조작은 단일 모드로 취급). 값이 높을수록 더 다재다능한 설계를 뜻한다."}, {"type": "formula", "label": "MCM - 모드 추가 한계비용", "latex": "\\mathrm{MCM} = \\frac{M_n - M_{n-1}}{M_{n-1}}", "description": "n번째 모드 추가의 상대 비용(질량·부피 등)이며, $M_n$은 n개 모드 시스템의 비용, $M_{n-1}$은 이전 시스템의 비용이다. MCM이 낮을수록 통합이 효율적이다."}, {"type": "formula", "label": "CRP - 부품 재활용 비율", "latex": "\\mathrm{CRP} = \\frac{\\#\\{\\text{두 개 이상 모드가 쓰는 부품}\\}}{\\#\\{\\text{전체 부품}\\}}", "description": "모드 간 공유되는 부품의 비율로, CRP가 높을수록 단일 목적 애드온 모듈을 피하는 효율적 설계를 뜻한다."}, {"type": "formula", "label": "T - 전환 비용 행렬", "latex": "T = [\\,T_{ij}\\,] \\in \\mathbb{R}^{N_{mode} \\times N_{mode}}", "description": "$T_{ij}$는 모드 $i$에서 $j$로 전환하는 데 드는 시간 또는 에너지로, 정방향·역방향 전환 비용의 비대칭을 담기 위해 행렬로 구성된다. 값이 낮을수록 바람직하다."}, {"type": "formula", "label": "PI - 성능 향상", "latex": "\\mathrm{PI} = \\frac{P(S)}{\\max_{m \\in S} P(m)}, \\qquad \\mathrm{PI} > 1 \\Rightarrow \\text{시너지}", "description": "결합 모드 성능 $P(S)$를 최선의 단일 모드 성능으로 나눈 무차원 비율로, PI=1은 시너지 없음, PI>1은 통합으로 인한 비례적 이득을 정량화한다."}, {"type": "bullet", "text": "지표는 실제 시스템에 시연된다: 시트형 로봇은 N_mode=9, CRP=1을 달성하고, Hopcopter는 MCM=0.29, PI=3.29(1/3 미만의 질량 비용으로 지구력을 3배 이상 향상)를, HI-ARM은 비행과 5-DoF 파지를 높은 CRP·낮은 전환 시간으로 결합한다.", "figure_refs": [2]}]}, "experiment": {"content": [{"type": "bullet", "text": "몸체 설계 전략 1 — 연성 재료·구조: 내재된 높은 자유도가 복잡한 형태와 경량·소형 설계를 가능케 하고, 그 출력 운동학이 환경 힘을 활용한다(예: 홉핑에서 수영으로 전환하는 자기진동 로봇, 스스로 작동해 앉는 쌍안정 발톱).", "figure_refs": [4]}, {"type": "bullet", "text": "연성 설계의 단점: 낮은 하중 지지력. 가변 강성 기구(열반응 복합재, 라미나 재밍)가 이를 완화하나 재밍은 질량·진공계를 더하고 상변화 재료는 반응이 느리며, 내구성·피로·낮은 출력 우려가 있다."}, {"type": "bullet", "text": "몸체 설계 전략 2 — 구조 재활용: 동일 부품을 여러 모드에 재사용해 CRP를 높인다(MultiMo-Bat은 박쥐 모방 다리-날개 공유 구조로 점프+활공; AmBot은 트랙-플로트; 심해 로봇은 다리 재배향으로 수영·기어가기). 대가로 모드별 성능이 준최적이고 변형 에너지가 든다."}, {"type": "bullet", "text": "몸체 설계 전략 3 — 다중로봇 아키텍처: 기능적으로 구별되는 단일모드 로봇을 통합한다(공중+지상 이종 팀; 사회적 곤충처럼 자기재구성하는 동종 군집). 개별 복잡도는 낮게 유지하나 하중은 상호 결합 강도에, 그리고 조정 오버헤드와 에이전트 수에 따라 증가하는 제어 복잡도에 제약된다."}, {"type": "bullet", "text": "정성 비교에 따르면 연성 설계는 에너지 효율이 가장 높지만 하중 지지력이 제한되고 제어 복잡도가 가장 높으며, 구조 재활용은 기능적 절충이 있는 균형적 중간, 다중로봇은 에이전트당 가장 단순하나 시스템 수준 한계가 있다.", "figure_refs": [4]}, {"type": "bullet", "text": "표로 정리된 지표 근거(Table 1)는 RAVEN(4모드), Hopcopter(2모드, MCM 0.29, PI 3.29), 공공-수공 히치하이킹 로봇(4모드, MCM 0.04, CRP 1), Tribot(5모드, MCM 0, CRP 1), 시트형 로봇(9모드, CRP 1)을 아우른다."}, {"type": "bullet", "text": "운동 전환은 운동학적 변화(제어 전략 변경에서 비롯되며 대개 낮은 전환 시간) 또는 구조 변형(가용 자유도를 바꾸는 물리적 재구성)에서 비롯된다.", "figure_refs": [5]}, {"type": "bullet", "text": "구조 변형은 능동(자기 작동: 오리가미 접힘, 변신 몸통, 달팽이 모방 군집 자기재구성) 또는 수동(환경 유발: 얼음 융해 방출, 적응 모핑 바퀴, 주변 제약에 맞춰 형태를 바꾸는 자기 밀리로봇)으로 나뉜다. 수동 전환은 비용이 낮을 수 있으나 의도치 않은 작동 위험이 있다.", "figure_refs": [5]}, {"type": "bullet", "text": "리뷰는 전환을 nM-mM(n개 모드에서 m개 모드로)으로 형식화하고, 문헌을 종합해 능동 MM-MM 전환이 대체로 미탐구 상태로 남아 있어 핵심 연구 공백임을 밝힌다.", "figure_refs": [5]}]}, "discussion": {"content": [{"type": "bullet", "text": "주요 하드웨어 과제는 한 모드에 최적화된 부품이 다른 모드에서 잉여·유해 페이로드가 된다는 점이며, 이에 효과적 설계는 N_mode를 최대화하고 MCM을 최소화하며 CRP를 높이는 다기능 부품을 만들어야 한다.", "figure_refs": [3]}, {"type": "bullet", "text": "안정 영역의 완만한 외란에 최적화된 단일모드 로봇과 달리, 다중모드 로봇은 급격한 시스템 동역학 변화를 겪으므로 경로 계획기는 로봇의 전체 능력 범위를 활용해야 하고 제어기는 빠르고 큰 동역학 변화를 다뤄야 한다.", "figure_refs": [3]}, {"type": "bullet", "text": "경로 계획은 환경을 그래프(균일 격자 또는 확률적 로드맵)로 이산화하고 에너지·시간·위험의 간선 가중치를 두어 최소 비용 경로(예: 수정 A*)를 구한다. 다중모드성은 모드별·전환 비용으로 그래프를 확장해 실시간 재계획을 난해하게 만들 수 있어, 의미론적 장면 완성과 유연한 웨이포인트+정책 프레임워크가 동기가 된다."}, {"type": "bullet", "text": "제어의 경우 모드별 분리 제어기와 전환(예: LEONARDO)은 쉽지만 전환이 거칠 수 있고, 통합 물리 기반 모델은 일반화가 어렵다. RL로 학습한 신경망 제어기는 통합적 동물 제어를 모방하나 방대한 시뮬레이션이 필요하고 sim-to-real 격차에 직면하며, CPG는 리듬 운동에 뛰어나나 비주기 기동에 약하다."}, {"type": "bullet", "text": "다중로봇 조정은 중앙집중식(감독 에이전트, 효과적이나 확장성·강건성이 낮고 실패·통신 문제에 취약)이거나 분산식(지역 정보 공유, 확장적·강건하나 전역 조정이 어려움)일 수 있다."}, {"type": "bullet", "text": "제안된 아키텍처는 계산적 의사결정을 물리적 능력과 긴밀히 결합한다: 전역 계획기가 전체 N_mode 집합에 걸쳐 모달리티를 순서화해 PI를 극대화하고 전환 비용을 최소화하며 능동 환경 수정(예: 다리 건설)까지 추론하고, 실행은 계층적 파이프라인 또는 종단간 모델(VLA 아키텍처, 공간 지능 프레임워크, 세계 모델)로 이뤄진다.", "figure_refs": [6]}, {"type": "bullet", "text": "이 통합 프레임워크는 로봇의 다중모드 설계(높은 N_mode·높은 CRP·낮은 MCM)를 온전히 활용해 우수한 운영 성능(높은 PI·낮은 전환 비용)을 얻는 것을 목표로 하며, TrackVLA·NavFoM 같은 급진전하는 종단간 구현 내비게이션도 인정한다."}]}, "conclusion": {"content": [{"type": "bullet", "text": "리뷰는 생체모방 다중모드 로보틱스의 역사적 진행, 핵심 설계 고려사항, 현 과제를 탐구한다."}, {"type": "bullet", "text": "능동·수동 구조 재구성을 통한 매끄러운 모드 전환을 가능케 하는 몸체 설계 발전 — 연성 재료, 구조 재활용, 다중로봇 시스템 — 을 조명한다."}, {"type": "bullet", "text": "경로 계획과 운동 제어가 전통적 그래프 기반 접근과 이산 제어기에서 학습 기반 프레임워크로 점진 이동하고 있음을 관찰한다."}, {"type": "bullet", "text": "표준 벤치마크의 현 공백을 해결하기 위해 다섯 지표 — 모드 수, 모드 추가 한계비용, 부품 재활용 비율, 전환 비용, 성능 향상 — 를 정량 평가 프레임워크로 제안한다."}, {"type": "bullet", "text": "물리적·계산적 지능의 통합을 옹호하는 전략 로드맵을 제시하며, 이 융합이 복잡한 환경 자극에 대한 실시간 행동 적응에 핵심이라고 주장한다."}, {"type": "bullet", "text": "전망은 하드웨어 과제(적응형 재료·고출력밀도 액추에이터·다중모드 센서)와 알고리즘 과제(sim-to-real 전이·분포 외 일반화)를 극복하면 생물학적 대응물의 민첩성·효율·적응성을 능가하는 로봇이 가능하다고 본다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "제안된 다섯 지표 프레임워크는 진화가 예상되는 기초적 기준선에 불과하며, 기존 연구 모두가 다섯 지표를 동시에 평가할 만큼 포괄적 데이터를 제공하지는 않는다.", "source_quote": "However, we note that not all existing research provides the comprehensive data needed to evaluate all five metrics simultaneously.", "source_section": "discussion"}, {"claim": "다중모드 시스템의 구조적 통합 품질, 모드 전환 동역학, 시너지적 과제 성능을 구체적으로 겨냥한 포괄적·정량적 프레임워크는 이 분야에 여전히 드물다.", "source_quote": "comprehensive, quantitative frameworks specifically targeting multimodal systems' architectural integration quality, modal transition dynamics, and synergistic task performance remain scarce.", "source_section": "discussion"}, {"claim": "능동적 다중모드-대-다중모드(MM-MM) 전환 능력은 대체로 미탐구 상태로 남아 있어 현 문헌의 두드러진 공백이다.", "source_quote": "Analysis of current literature reveals a notable gap (Fig. 5B): Active MM-MM capabilities remain largely unexplored.", "source_section": "discussion"}], "future_works": [{"claim": "복잡한 조작을 위한 정교한 손, 고속 이동을 위한 바퀴, 험지 통과를 위한 다리를 활용하는 인간형 로봇 등 능동적 MM-MM 능력을 갖춘 로봇을 개발한다.", "source_quote": "This represents a promising frontier for future research, such as developing anthropomorphic robots that could leverage dexterous hands for complex manipulation, wheels for high-speed travel, legs for traversing uneven terrain.", "source_section": "discussion"}, {"claim": "자율적이고 다재다능한 다중모드 시스템 실현을 위해 하드웨어 수준에서 적응형 재료, 고출력밀도 액추에이터, 다중모드 인지 센서를 발전시킨다.", "source_quote": "At the hardware level, advancements are needed in adaptive materials, high-power-density actuators, and sensors capable of multimodal perception.", "source_section": "conclusion"}, {"claim": "알고리즘 수준에서 비정형·동적 환경을 다루기 위해 sim-to-real 전이의 한계를 극복하고 분포 외 일반화를 개선한다.", "source_quote": "At the algorithmic level, control frameworks must overcome limitations in sim-to-real transfer and improve out-of-distribution generalization to tackle unstructured and dynamic environments.", "source_section": "conclusion"}, {"claim": "공정한 비교 분석과 반복적 최적화를 위해 제안된 다섯 지표(또는 새로운 지표)를 채택하고 일관되게 보고한다.", "source_quote": "We encourage researchers to adopt and consistently report these metrics, or propose new ones, in future studies on multimodal robots.", "source_section": "discussion"}], "motivation_resolution": {"motivating_problems": ["이 분야는 다중모드 로봇을 평가할 표준 벤치마크와 포괄적 정량 프레임워크가 부족하다.", "기존 리뷰들은 포괄적 자연 모방 종합이 아니라 특정 하위 분야(연성 로봇, 마이크로로봇, 수공/공지 로봇 등)에 집중했다.", "용어가 부정확하여 다중모드 이동과 다중보행(multigait)이 혼동되고, 다중모드 로봇의 범위가 불분명하다.", "몸체를 어떻게 설계하고, 신뢰할 만한 모드 전환을 어떻게 달성하며, 모드마다 급변하는 동역학 전반에서 어떻게 계획·제어할지 불명확하다.", "비정형 환경에서 동작하는 자율적·다재다능 다중모드 로봇을 위한 미래 로드맵이 필요하다."], "addressed_by_this_work": ["리뷰는 다섯 성능 지표(모드 수, 모드 추가 한계비용, 부품 재활용 비율, 전환 비용, 성능 향상)를 정량 평가 프레임워크로 제안한다.", "몸체 설계, 운동 전환, 계획·제어에 걸쳐 여러 하위 분야를 아우르는 포괄적 자연 모방 리뷰를 제공한다.", "다중모드 이동과 다중보행을 정확히 구분하고, 다중모드 로봇의 범위를 이동성+모바일 조작을 포함한 이동 모달리티로 규정한다.", "세 가지 몸체 설계 전략, 운동 전환 분류(nM-mM), 그리고 계획·제어의 그래프 기반→학습 기반 진화를 개관한다.", "계산적·물리적 지능을 긴밀히 결합하는 시스템 아키텍처와 미래 전략 로드맵을 제안한다."], "remaining_unresolved": ["능동적 MM-MM 전환은 대체로 미탐구 상태로 남아 있다.", "기존 연구 모두가 다섯 지표 계산에 필요한 데이터를 보고하지 않으며, 프레임워크는 계속 진화할 것으로 예상된다.", "하드웨어(적응형 재료·고출력밀도 액추에이터·다중모드 센서)와 알고리즘(sim-to-real 전이·분포 외 일반화) 과제가 미해결로 남는다.", "완전한 물리적-계산적 융합을 통한 복잡한 환경 자극에의 실시간 행동 적응은 아직 실현되지 않았다."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

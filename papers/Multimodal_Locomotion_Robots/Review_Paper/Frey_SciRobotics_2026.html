@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Advances, challenges, and opportunities for legged robots</title>
+    <meta name="keywords" content="legged robots, quadrupedal robots, humanoid robots, reinforcement learning, sim-to-real transfer, legged locomotion, robot autonomy, actuator design, robot ethics">
+    <meta name="paper-authors" content="Jonas Frey, Matias Mattamala, Hae-Won Park, Mayank Mittal, Georg Martius, Maike Osborne, Robert Sparrow, Marco Hutter">
+    <meta name="paper-journal" content="Science Robotics (Review), Vol. 11, Issue 116, eaee0787, 29 July 2026 · DOI: 10.1126/scirobotics.aee0787">
+    <meta name="paper-tier" content="1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$',  right: '$',  display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });"></script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans KR', 'Arial', sans-serif;
+            margin: 0; padding: 0;
+            background: #f5f5f5;
+            color: #333;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .slide {
+            width: min(1680px, 98vw);
+            height: 96vh;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            overflow: hidden;
+        }
+        .header {
+            background: #005b96;
+            color: white;
+            padding: 26px 38px;
+        }
+        .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1.3; }
+        .authors { font-size: 17px; margin-bottom: 5px; }
+        .journal { font-size: 15px; opacity: 0.9; }
+
+        .summary-container {
+            background: #f0f5fa;
+            padding: 18px 38px;
+            border-bottom: 1px solid #e1e5e8;
+        }
+        .summary-title {
+            font-size: 19px; font-weight: bold; margin-bottom: 8px; color: #005b96;
+        }
+        .summary { font-size: 17px; line-height: 1.65; }
+        .keywords {
+            margin-top: 10px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .keyword-chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            background: white;
+            color: #005b96;
+            border: 1px solid #c6dbed;
+            border-radius: 999px;
+            font-weight: 500;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px 18px;
+            overflow: hidden;
+        }
+        .section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,91,150,0.18);
+            border-color: #005b96;
+        }
+        .section-title {
+            color: #005b96;
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 9px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #005b96;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .click-hint {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        .section-summary {
+            font-size: 15px;
+            line-height: 1.6;
+            flex: 1;
+            overflow: hidden;
+        }
+        .term { font-weight: bold; color: #005b96; }
+        .eng { color: #666; font-style: italic; }
+
+        /* Tier badge */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .tier-1 { background: #d32f2f; color: white; }
+        .tier-2 { background: #f57c00; color: white; }
+        .tier-3 { background: #757575; color: white; }
+
+        /* Conclusion-modal Insights block (한계 / 향후 연구 / 동기 vs 해결도) */
+        .conclusion-insights {
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 2px dashed #c5cdd6;
+        }
+
+        .modal-body .lim-list,
+        .modal-body .future-list {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+        .modal-body .lim-list li,
+        .modal-body .future-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .evidence-source {
+            font-size: 13px;
+            color: #666;
+            margin-top: 3px;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            line-height: 1.5;
+        }
+        .evidence-source em { font-style: normal; color: #888; }
+        .motivation-block {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 8px;
+        }
+        @media (min-width: 900px) {
+            .motivation-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        .mot-problems h5,
+        .mot-addressed h5,
+        .mot-remaining h5 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mot-problems h5  { color: #c62828; }
+        .mot-addressed h5 { color: #2e7d32; }
+        .mot-remaining h5 { color: #ef6c00; }
+        .mot-problems ul,
+        .mot-addressed ul,
+        .mot-remaining ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+        .mot-problems li,
+        .mot-addressed li,
+        .mot-remaining li {
+            margin-bottom: 6px;
+            line-height: 1.55;
+            font-size: 14.5px;
+        }
+        .insights-section-title {
+            color: #005b96;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+            font-size: 17px;
+        }
+        .insights-section-title:first-child { margin-top: 0; }
+
+        /* Figure-ref chip */
+        .fig-ref {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-variant: small-caps;
+            color: #555;
+            background: #eef2f7;
+            border: 1px solid #d0d8e0;
+            border-radius: 999px;
+            vertical-align: middle;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.18s ease-out;
+        }
+        .modal-overlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+            background: white;
+            width: min(1100px, 90vw);
+            height: min(800px, 88vh);
+            border-radius: 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #005b96;
+            color: white;
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 22px; font-weight: bold; }
+        .modal-close {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px; line-height: 1;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.2); }
+        .modal-body {
+            padding: 24px 32px;
+            overflow-y: auto;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+        .modal-body .bullet {
+            margin-bottom: 10px;
+            padding-left: 18px;
+            text-indent: -18px;
+        }
+        .modal-body .bullet:before {
+            content: "▸ ";
+            color: #005b96;
+            font-weight: bold;
+        }
+        .modal-body .formula-block {
+            background: #f8f9fb;
+            border-left: 4px solid #005b96;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 4px;
+        }
+        .modal-body .formula-label {
+            font-size: 12px;
+            color: #005b96;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .modal-body .formula-desc {
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .modal-body h4 {
+            color: #005b96;
+            margin-top: 22px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="header-row">
+                <div class="title">Advances, challenges, and opportunities for legged robots</div>
+                <span class="tier-badge tier-1">Tier 1 — 최상위</span>
+            </div>
+            <div class="authors">Jonas Frey, Matias Mattamala, Hae-Won Park, Mayank Mittal, Georg Martius, Maike Osborne, Robert Sparrow, Marco Hutter</div>
+            <div class="journal">Science Robotics (Review), Vol. 11, Issue 116, eaee0787, 29 July 2026 · DOI: 10.1126/scirobotics.aee0787</div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-title">논문 요약</div>
+            <div class="summary">본 논문은 휴머노이드·사족보행 로봇의 현황을 다섯 축(하드웨어, 이동, 자율성, 데이터, 응용)에 걸쳐 평가하고 사회적·경제적·윤리적·정책적 함의를 성찰하는 Science Robotics <span class="term">리뷰</span>이다. 기술적으로는 역구동(backdrivable) 고토크 전기 구동, 센서 소형화, 시뮬레이션 학습 <span class="term">강화학습</span>(및 sim-to-real 기법)이 다리형 로봇을 실험실 기계에서 야외를 자율 보행하는 민첩한 시스템으로 바꾼 과정을 정리한다. 형식적 안전 인증, 기술 증류(distillation), sim-to-real 시각 격차, 표준 벤치마크·실세계 데이터의 희소성 등 핵심 미해결 과제를 규명하고, 저자들이 <span class="term">숙련된 의미론적 이동(dexterous semantic locomotion)</span>이라 부르는 신흥 프런티어를 제시한다. 이어 실세계 배치(점검, 배송, 국방·재난, 과학, 엔터테인먼트)를 개관하고 윤리·노동시장 경제·상이한 글로벌 규제를 논의하며 네 가지 정책 우선순위로 마무리한다. (리뷰 스키마 안내: 본 분석은 리뷰의 기술적 기반을 Method 절에, 개관한 자율성·데이터·배치 근거를 Experiment 절에 대응시켰다.)</div>
+            <div class="keywords"><span class="keyword-chip">legged robots</span><span class="keyword-chip">quadrupedal robots</span><span class="keyword-chip">humanoid robots</span><span class="keyword-chip">reinforcement learning</span><span class="keyword-chip">sim-to-real transfer</span><span class="keyword-chip">legged locomotion</span><span class="keyword-chip">robot autonomy</span><span class="keyword-chip">actuator design</span><span class="keyword-chip">robot ethics</span></div>
+        </div>
+
+        <div class="content">
+            <div class="section" onclick="openModal('introduction')">
+                <div class="section-title">Introduction — 연구 동기 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">리뷰는 한때 공상과학이던 다리형 로봇이 이제 라스트마일 배송과 수색·구조 시연 같은 실제 과제를 수행하며 투자·연구가 급증하고 있다는 관찰로 시작한다. 바퀴 대비(장애물 넘기·계단 오르기·작은 발자국), 드론 대비(지구력·페이로드·모바일 조작) 이점을 지니고 그 형태가 인간 중심 환경에 적합하다고 주장한다. 분야의 역사를 개괄하고 '어떻게 여기까지 왔는가, 무엇이 부족한가, 다음은 무엇인가, 세상은 어떻게 바뀔 것인가'를 물으며, 기술적 진보와 그 사회적·경제적·윤리적 함의를 함께 다루는 리뷰로 스스로를 자리매김한다.</div>
+            </div>
+            <div class="section" onclick="openModal('related_works')">
+                <div class="section-title">Related Works — 관련 연구 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">역사적 배경은 다리형 로봇을 원격조종 화물 운반기에서 동적 안정성과 학습 제어를 갖춘 기계로 추적한다. 이정표에는 GE Walking Truck, 디지털 제어의 토대를 놓은 OSU 헥사포드, Kato의 인간형 WABOT-1, Raibert의 동적 안정성 패러다임, Honda의 온보드 컴퓨터 이족 로봇, Boston Dynamics의 BigDog·LS3가 포함되며, 최근 플랫폼의 폭발적 성장으로 귀결된다. 리뷰는 제어 패러다임이 준정적 보행에서 RL로 진화한 과정도 정리한다.</div>
+            </div>
+            <div class="section" onclick="openModal('method')">
+                <div class="section-title">Method — 방법론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">리뷰이므로 이 Method 절은 단일 연구 절차가 아니라 논문이 다루는 기술적 기반 — 다리형 하드웨어와 이동 알고리즘 — 을 대응시킨다. 하드웨어에서는 다리형 로봇이 왜 고토크·저임피던스·역구동 구동을 필요로 하는지, 그리고 현대 전기 설계와 소형화 센싱이 이를 어떻게 달성했는지 설명한다. 이동에서는 고전적 모델 기반 제어(COM/ZMP 기준, 축소 차수 모델, MPC)에서 sim-to-real 기법·보상 설계·기준 모션 모방으로 가능해진 시뮬레이션 학습 강화학습으로의 전환을 추적한다.</div>
+            </div>
+            <div class="section" onclick="openModal('experiment')">
+                <div class="section-title">Experiment — 실험 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">단일 실험 대신 이 절은 리뷰가 수집한 실증 근거 — 자율성 시스템 아키텍처, 데이터·시뮬레이션 관행, 실세계 배치 — 를 대응시킨다. 고전적 모듈형 자율성과 신흥 학습 기반 융합 시스템을 대비하고, 시뮬레이션이 희소한 실세계 데이터로 보완되어야 하는 이유를 설명하며, 경제 부문·국방/재난·과학·엔터테인먼트에 걸친 배치를 개관한다.</div>
+            </div>
+            <div class="section" onclick="openModal('discussion')">
+                <div class="section-title">Discussion — 논의 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">논의는 횡단적 미해결 과제와 다리형 로봇의 더 넓은 함의를 종합한다. 기술적으로 안전 인증, 기술 증류, sim-to-real 시각 격차가 미해결로 남고, 저자들은 숙련된 의미론적 이동을 프런티어로 규정한다. 기술을 넘어 윤리(실업, 돌봄, 군사 사용, 동반 로봇, 인종·젠더 부호화), 서비스 노동 자동화의 경제, 상이한 글로벌 규제를 검토하며 네 가지 정책 우선순위로 끝맺는다.</div>
+            </div>
+            <div class="section" onclick="openModal('conclusion')">
+                <div class="section-title">Conclusion — 결론 <span class="click-hint">(클릭하여 자세히)</span></div>
+                <div class="section-summary">결론은 다리형 로봇의 과거·현재·잠재적 미래를 요약한다: 전자기 구동이 하드웨어를 광범위한 적용성으로 성숙시켰고, 사족은 상업적으로 수렴하며, 휴머노이드는 양산을 향해 빠르게 진화한다. RL은 사족 이동을 접근 가능하게 만들어 프런티어를 의미론적 이해와 숙련된 상호작용으로 옮겼고, 이족 과제는 정밀한 발 배치를 요구한다. 자율성은 학습과 다양한 데이터로 구동되어 다리형 로봇을 디지털 AI와 물리 세계를 잇는 위치에 두며, 저자들은 책임 있는 역량 기반 거버넌스를 재차 촉구한다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title"></div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_TITLES = {
+            introduction:  "Introduction — 연구 동기",
+            related_works: "Related Works — 관련 연구",
+            method:        "Method — 방법론",
+            experiment:    "Experiment — 실험",
+            discussion:    "Discussion — 논의",
+            conclusion:    "Conclusion — 결론"
+        };
+
+        const FIG_PREFIX = "그림";
+
+        const SECTION_DETAIL = {"introduction": {"content": [{"type": "bullet", "text": "한때 주로 공상과학의 영역이던 다리형 로봇은 이제 문 앞까지 소포를 배송하고 수색·구조 개념검증 시연을 지원할 만큼 발전했으며, 재정 투자와 학술 연구가 급증하고 있다."}, {"type": "bullet", "text": "바퀴 대비 다리는 장애물을 넘고 계단을 오르며 능동 서스펜션과 작은 발자국을 제공한다. 공중 드론 대비 다리형 시스템은 긴 운용 시간, 무거운 페이로드, 정밀한 모바일 조작을 제공하고, 그 형태는 인간 중심 환경에 적합하다."}, {"type": "bullet", "text": "이 분야는 유압식 GE Walking Truck과 오하이오주립대 헥사포드에서, Ichiro Kato의 WABOT-1, 정적에서 동적 안정성으로의 Marc Raibert의 전환, 그리고 Honda의 P2·ASIMO 휴머노이드로 진화했다."}, {"type": "bullet", "text": "지난 10년간 다리형 플랫폼의 역량·다양성·접근성이 폭발적으로 증가했고, 이는 리뷰의 핵심 질문 — 어떻게 여기까지 왔는가, 무엇이 부족한가, 다음은 무엇을 해야 하는가, 세상은 어떻게 바뀔 것인가 — 을 촉발한다.", "figure_refs": [1]}, {"type": "bullet", "text": "리뷰는 로봇이 전례 없는 환경 이해로 야외를 자율 보행하게 한 하드웨어 발전(저비용 구동, 센서 소형화, 온보드 연산, 오픈소스 설계)과 머신러닝 진보(특히 RL과 오픈소스 소프트웨어 생태계)를 다룬다."}, {"type": "bullet", "text": "이 리뷰의 가치는 기술적 진보와 미해결 과제를 요약하는 데 그치지 않고 사회적·경제적·윤리적 함의를 성찰하며 개발자·정책입안자·입법자·의사결정자를 위한 실행 가능한 권고를 제공하는 데 있다."}, {"type": "bullet", "text": "리뷰 스키마 안내: 논문은 다섯 축(하드웨어·이동·자율성·데이터·응용)에 걸쳐 역량을 평가하며, 본 분석은 기술적 기반을 Method 절에, 개관한 자율성·데이터·배치 근거를 Experiment 절에 대응시켜 독자가 리뷰임을 알 수 있게 한다."}]}, "related_works": {"content": [{"type": "bullet", "text": "유압식 General Electric Walking Truck은 험지에서 무거운 짐을 나르기 위한 초기 원격조종 플랫폼이었다."}, {"type": "bullet", "text": "1970년대 후반 오하이오주립대 헥사포드 같은 개발 플랫폼은 디지털 제어의 토대를 놓았다."}, {"type": "bullet", "text": "일본에서 Ichiro Kato는 WABOT-1 같은 초기 완전 규모 인간형 휴머노이드 개발에 핵심적이었다."}, {"type": "bullet", "text": "Marc Raibert는 정적으로 안정한 로봇에서 동적 안정성으로 초점을 옮겼고, 이는 Honda 휴머노이드로 이어졌다. P2는 온보드 컴퓨터로 보행한 최초의 자기완결형 이족 로봇(ASIMO의 전신)이었다."}, {"type": "bullet", "text": "Boston Dynamics의 LS3와 BigDog은 동적으로 안정한 사족 기계의 정착을 보였고, 이후 지난 10년간 역량·다양성·접근성이 폭발적으로 증가했다.", "figure_refs": [1]}, {"type": "bullet", "text": "제어 패러다임은 준정적 보행에서 전신 제어와 모델 예측 제어를 거쳐 강화학습으로 진화했다.", "figure_refs": [1]}, {"type": "bullet", "text": "이 진행은 리뷰가 종합하는 학술 연구와 산업 활동의 현대적 급성장으로 무대를 마련했다."}]}, "method": {"content": [{"type": "bullet", "text": "리뷰 스키마 안내: 이 Method 절은 단일 실험 방법이 아니라 리뷰의 기술적 기반(하드웨어·이동 접근)을 대응시킨 것으로, 출처가 서베이임을 독자가 알 수 있게 한다."}, {"type": "bullet", "text": "다리형 로봇 하드웨어는 구동기·센서·전자부품·기계 구조로 이루어진다. 사족·이족이 가장 흔한 형태이며, 사족 페이로드는 약 180 kg에 이르고, 휴머노이드는 큰 조작 작업공간을 제공하나 안정성이 더 어렵다.", "figure_refs": [1]}, {"type": "bullet", "text": "구동기는 고토크와 저기계임피던스, 높은 역구동성을 갖춰야 한다. 달리는 사족은 수직 지면 반력이 체중의 3배에 이를 수 있고 접촉 시 큰 충격 임펄스를 흡수해야 하기 때문이다."}, {"type": "bullet", "text": "전기 모터는 역사적으로 고속을 지향해 높은 기어비를 요했고 이는 마찰·반사 관성·비역구동성을 초래했다. 직렬 탄성 구동기는 유연성을 더하나 제어 대역폭을 줄이고, 유압은 출력 대 중량비가 높으나 복잡·고가·소음으로 관심이 감소했다."}, {"type": "bullet", "text": "현대의 고토크 역구동 전기 구동기는 큰 갭 반경·짧은 축 길이 토폴로지와 낮은 기어비를 사용해 관절 토크가 모터 전류에 거의 비례하며, 별도 힘/토크 센서 없이 정밀한 고대역폭 토크 제어가 가능하다."}, {"type": "formula", "label": "센서리스 관절 토크 근사", "latex": "\\tau_{\\mathrm{joint}} \\approx K_t \\cdot N \\cdot I_{\\mathrm{motor}}", "description": "투명하고 낮은 기어비의 전동에서는 관절 토크가 모터 전류 $I_{\\mathrm{motor}}$에 대략 선형이며, 모터 토크 상수 $K_t$와 기어비 $N$로 스케일되어 별도 힘 센서 없이 정확한 토크 제어가 가능하다."}, {"type": "bullet", "text": "센싱은 고유수용 신호(관절 엔코더·IMU)와 외수용 센서(LiDAR 조밀 3-D 점군, RGB-D 카메라)를 결합해 지형 매핑과 발 배치 계획에 쓰고, 접촉/힘 센싱과 신흥 촉각 스킨을 더하며, 대안 구동기(인공 근육·건 구동·연성)는 아직 개발 중이다."}, {"type": "bullet", "text": "이동은 모듈형 제어 구조를 쓴다: 빠른 저수준 모듈(구동기 제어 ~200-1000 Hz, 이동 ~50-200 Hz)과, 장면 이해·계획·내비게이션을 위한 느린 고수준 모듈(<30 Hz)."}, {"type": "bullet", "text": "고전 제어는 정적 안정성(지지 다각형 내 무게중심)에서 ZMP 기준, 축소 차수 모델(선형·스프링 하중 역진자)로 나아갔고, MPC가 보행·점프·달리기를 가능케 했으나 실시간 요구가 모델 표현력과 강건성을 제약한다."}, {"type": "bullet", "text": "시뮬레이션에서 전적으로 학습된 RL(주로 PPO)이 이제 지배적 패러다임이며, sim-to-real 기법(시스템 식별·도메인 무작위화·온라인 도메인 적응 추정), 저용량 모델(<1000만 파라미터), 대칭성·CPG·제약 RL·커리큘럼에 의한 보상 설계, 특권 정보 기반 teacher-student 학습으로 배치 가능해졌다.", "figure_refs": [2]}, {"type": "bullet", "text": "비디오·모션 캡처의 기준 모션은 역기구학으로 재타깃되어 RL 제어기가 추종하며 보상 조정과 사회적 수용을 돕는다. 형태는 절충을 낳는다: 다리가 많을수록 조정 요구가 크지만 회복 동작 공간이 넓고, 이족은 험지에서 어렵지만 발자국이 작고 인간 모션 데이터를 확장 수집할 수 있다."}]}, "experiment": {"content": [{"type": "bullet", "text": "리뷰 스키마 안내: 이 Experiment 절은 단일 연구 결과가 아니라 리뷰가 개관한 자율성 시스템, 데이터 관행, 실세계 배치를 대응시킨다."}, {"type": "bullet", "text": "고전적 자율성은 과제를 하위 시스템(인지·상태추정/오도메트리·매핑·주행가능성·계획·이동)으로 분해하고 명확한 인터페이스로 처리하며, 다중 센서 융합은 기구-관성 정식화에서 카메라·LiDAR·레이더 통합으로 진화했다.", "figure_refs": [3]}, {"type": "bullet", "text": "주행가능성 추정은 특정 로봇·제어기에 대한 지형 난이도를 점수화(수동 레이블·자기지도 학습)하며, 다리 자체가 다리 오도메트리를 통해 센서 역할을 한다."}, {"type": "bullet", "text": "학습 기반 자율성은 원시 센서·지도에서 RL로 내비게이션 정책을 학습하고 모듈을 융합해 시각+언어 추상을 결합하며, 구조·구난에서 동기를 얻은 로봇 파쿠르는 계층적 RL과 잠재 장면 표현으로 이동 행동을 조율한다.", "figure_refs": [3]}, {"type": "bullet", "text": "대형 언어·비전-언어 모델, VLA·대형 행동 모델은 총체적 추론, 예외 상황 처리, 자연어 내비게이션 지시를 가능케 하나, 모방 학습 내비게이션은 여전히 강건성·해석성에서 고전 기법에 뒤지고 실시간 제약이 아키텍처를 계속 규정한다."}, {"type": "bullet", "text": "학습 데이터는 임베디먼트·센서·동역학에 깊이 얽혀 있고, 고도로 다중모드적·비동기적·잡음이 있으며, 세계 지식→일반 지식→과제 특화 지식으로 이어지는 피라미드로 구성된다.", "figure_refs": [4]}, {"type": "bullet", "text": "GPU 가속 시뮬레이터가 대규모 정책 학습을 민주화했고 도메인 무작위화·학습 잔차 모델·시스템 식별로 sim-to-real 격차를 좁혔으나, 초목 얽힘·변형 지형·RGB 비용·시각 데이터 뒤의 물리 상호작용 모델링 같은 문제로 시뮬레이션만으로는 불충분하다."}, {"type": "bullet", "text": "GrandTour, Sub-T 같은 실세계 데이터셋은 원격조종·시연으로 수집되나 자율주행 대비 훨씬 비싸, 신경 렌더링·생성적 증강·폐루프 데이터 플라이휠로 인터넷 규모 학습을 지향한다.", "figure_refs": [4]}, {"type": "bullet", "text": "경제 부문 배치는 점검·모니터링(해상 석유·가스의 ANYmal, 광산·원자력/에너지 시설의 Spot, 건설 현장), 농업·임업(대개 연구), 라스트마일 배송(RIVR, Digit), 2022년 이후 휴머노이드 공장 붐을 포함하며, 노인 돌봄이 오랜 목표다.", "figure_refs": [5]}, {"type": "bullet", "text": "그 밖의 배치는 국방·재난 대응(BigDog/LS3 짐말, DARPA Robotics Challenge의 Atlas, DARPA Subterranean Challenge의 사족), 과학(토양 샘플링, 야생 모니터링, NASA LEMUR·ESA 챌린지의 우주 탐사), 예술·엔터테인먼트(AIBO, NAO, RoboCup, Disney 이족 캐릭터)에 걸친다.", "figure_refs": [5]}]}, "discussion": {"content": [{"type": "bullet", "text": "학습된 제어 정책의 안전을 검증·인증하는 것은 미해결 문제로 남아, 부분 관측성과 비선형 동역학 하에서 안전 상태를 정의하기 어렵고 달성 가능한 행동과 형식적 보장 사이 격차가 크다."}, {"type": "bullet", "text": "미해결 기술 문제로는 다수 기술의 단일 정책 증류, 다단계 학습의 절차적 복잡성, PPO의 표본 비효율, 미해결 sim-to-real 시각 격차가 있다."}, {"type": "bullet", "text": "저자들은 프런티어를 숙련된 의미론적 이동으로 규정한다: 기하를 넘어 의미론적 이해와, 사회 규범·다중에이전트 상호작용·협력을 고려한 정밀하고 환경 조건적인 발 배치로 나아가는 것이다.", "figure_refs": [2]}, {"type": "bullet", "text": "윤리에서 다리형 로봇은 기술적 실업과 불평등 우려(보편적 기본소득 제안 촉발), 로봇 개발을 누가 결정하는가(엔지니어·투자자의 좁은 인구통계), 노인이 로봇 돌봄을 원하는지 여부의 질문을 제기한다."}, {"type": "bullet", "text": "추가 윤리 쟁점으로 군사 로봇이 살상 장벽을 낮추고 책임 귀속을 복잡하게 할 가능성(자율 무기), 동반 로봇과의 정서적 유대가 사회적 고립을 키울 위험, 휴머노이드의 인종·젠더 부호화를 둘러싼 로봇 미디어 윤리가 있다."}, {"type": "bullet", "text": "경제적으로 다리형 로봇은 험지와 인간 설계 환경 모두에서 일을 자동화할 수 있다. 현 사족은 대략 3만~9만 달러(배터리 90분~6시간), 보급형은 2700~4900달러에서 시작하며, 미국 고용의 약 47%가 높은 자동화 위험에 처해 다리형 로봇은 일부 선진국 노동력의 약 80%를 차지하는 서비스 부문에 영향을 줄 수 있다."}, {"type": "bullet", "text": "글로벌 규제는 상이하다: EU AI Act는 위험 수준별 분류, 일본 Society 5.0은 촉진적 입장, 중국은 공격적 산업 정책과 양산 목표, 미국은 부문별 지침에 의존하며, 중국이 산업용 로봇 밀도를 선도한다."}, {"type": "bullet", "text": "저자들은 네 정책 우선순위를 권고한다: 로봇 역량에 맞춘 역량 기반 규제, 치명적 로봇 같은 안전 위험에 대한 국제 협력, 전략적 산업 정책(R&D 자금·제조·기술), 그리고 압축된 10~15년 역량 진행에 대비한 선제적 노동력 프로그램."}]}, "conclusion": {"content": [{"type": "bullet", "text": "전자기 구동에 힘입어 다리형 하드웨어는 광범위한 적용성으로 성숙했으며, 사족은 이미 여러 기업에서 상업적으로 판매되고 형태·설계가 수렴하고 있다."}, {"type": "bullet", "text": "휴머노이드 하드웨어는 학술·정부·산업 투자 급증 속에 빠르게 진화하며, 여러 경쟁 설계가 공존하고 2026년 양산이 진행·계획되고 있다."}, {"type": "bullet", "text": "RL은 지형 기하가 알려졌을 때 사족 이동을 접근 가능하고 신뢰성 있게 만들었으며, 프런티어는 의미론적 이해와 숙련된 상호작용으로 옮겨갔고, 특히 이족 로봇은 정밀한 발 배치와 섬세한 환경 이해를 요구한다."}, {"type": "bullet", "text": "이 과제 해결에는 sim-to-real 패러다임 재고, 강체 시뮬레이션 탈피, 새로운 학습 기반 제어 알고리즘 개발이 필요할 수 있으며, 숙련성 문제는 조작(manipulation)의 문제를 닮아 도메인 간 기회를 연다."}, {"type": "bullet", "text": "경제·사회적 가치를 여는 데 근본적인 자율성은 원격조종과 취약한 휴리스틱을 넘어 학습·데이터로 구동될 것이며, 핵심 과제는 다양한 데이터에서 학습하고 올바른 귀납 편향을 통합하는 것이다. 다리형 로봇은 디지털 AI 에이전트와 물리 세계를 잇는 독보적 위치에 있다."}, {"type": "bullet", "text": "저자들은 역량 기반 정부 규제, 국제 협력, 전략적 산업 정책, 선제적 노동력 프로그램을 옹호하며, 개발자에게 암묵적 편향과 잠재적 해악에 대한 경계를 유지하고 누가 이 기술을 개발·배치·통제할 권한을 갖는지 숙고할 것을 촉구한다."}]}};
+        const INSIGHTS_DATA = {"limitations": [{"claim": "학습된 제어 정책의 안전을 검증·인증하는 것은 여전히 미해결 문제이며, 실제 달성 가능한 이동 행동과 형식적 안전 보장을 확립할 수 있는 행동 사이에 상당한 격차가 남는다.", "source_quote": "In general, verifying and certifying the safety of control policies for legged robots remains an open problem.", "source_section": "discussion"}, {"claim": "초목에 발이 얽히거나, 변형 지형, 의미론적으로 복잡한 환경 등 많은 상황이 현 시뮬레이터의 범위를 넘어서고, 시각 데이터 뒤의 올바른 물리적 상호작용을 시뮬레이션하는 것이 주요 병목이어서 sim-to-real 시각 격차가 미해결로 남으므로, 시뮬레이션만으로는 불충분하다.", "source_quote": "Despite these advances, simulation alone is insufficient.", "source_section": "experiment"}, {"claim": "여러 기술이나 정책을 단일 정책으로 증류하는 것은 여전히 미해결 문제이며, 많은 현행 접근은 절차적으로 복잡한 다단계 학습을 요구한다.", "source_quote": "distilling multiple skills or policies into a single policy remains an open problem.", "source_section": "method"}, {"claim": "표준화·공유 벤치마크와 관행의 부재가 주요 병목이며, 대부분의 sim-to-real 연구가 맞춤형 하드웨어에 의존해 체계적 비교가 어렵다.", "source_quote": "Across all these modalities, a major bottleneck for researchers is the lack of standardized, shared benchmarks and practices.", "source_section": "experiment"}], "future_works": [{"claim": "숙련된 의미론적 이동을 추구한다: 순수 기하 인지를 넘어 의미론적 이해와, 어포던스·사회 규범·다중에이전트 상호작용을 고려한 정밀하고 환경 조건적인 발 배치로 나아간다.", "source_quote": "We term this emerging research paradigm, which emphasizes the need for robots to anticipate interactions with the terrain beyond mere geometry and interpret their environment to plan precise, fine-grained motor responses, “dexterous semantic locomotion.”", "source_section": "conclusion"}, {"claim": "강체 시뮬레이션을 넘어서 sim-to-real 패러다임을 재고하고 새로운 학습 기반 제어 알고리즘을 개발하며, 이동의 숙련성과 조작(manipulation) 사이의 유사성을 활용해 도메인 간 진보를 꾀한다.", "source_quote": "Meeting these challenges may require rethinking the sim-to-real paradigm, moving beyond rigid-body simulation, and developing new learning-based control algorithms.", "source_section": "conclusion"}, {"claim": "다양한 데이터 원천에서 학습하고 올바른 귀납 편향을 통합하며, 확장 가능한 시뮬레이션·생성적 증강·광범위한 실세계 배치를 결합한 폐루프 데이터 플라이휠로 자율성을 발전시킨다.", "source_quote": "a key unsolved challenge toward autonomy and general-purpose robots is learning from diverse data sources and integrating the right inductive biases to handle the complexity of the real world, which will shape the future architecture of deployed autonomy stacks.", "source_section": "conclusion"}, {"claim": "역량 기반 정부 규제, 국제 협력, 전략적 산업 정책, 선제적 노동력 프로그램을 통해 기술을 책임 있게 도입하고, 암묵적 편향과 잠재적 해악에 대해 경계를 유지한다.", "source_quote": "we advocate for capability-based governmental regulation, international coordination, strategic industrial policy, and anticipatory workforce programs.", "source_section": "conclusion"}], "motivation_resolution": {"motivating_problems": ["최근 하드웨어·머신러닝 발전이 어떻게 다리형 로봇을 유능하고 널리 채택되게 했는지 이해한다(어떻게 여기까지 왔는가).", "광범위한 채택과 새로운 활용을 위해 극복해야 할 핵심 미해결 과제를 규명한다(무엇이 부족한가).", "이동·자율성·데이터 전반에서 다음에 무엇을 해야 하는지 기술적으로 결정한다.", "다리형 로봇의 사회적·경제적·윤리적·정책적 함의를 이해한다(세상은 어떻게 바뀔 것인가).", "개발자·정책입안자·입법자·기타 의사결정자를 위한 실행 가능한 권고를 제공한다."], "addressed_by_this_work": ["리뷰는 다섯 축(하드웨어·이동·자율성·데이터·응용)에 걸쳐 현 역량을 평가하고, 급성장을 이끈 역구동 구동과 시뮬레이션 학습 RL 발전을 설명한다.", "안전 인증, 기술 증류, sim-to-real 시각 격차, 벤치마크 희소성, 비싼 실세계 데이터 등 각 축의 미해결 과제를 목록화한다.", "다음 프런티어를 숙련된 의미론적 이동과 학습 기반 융합 자율성으로 명명하고 sim-to-real 패러다임 재고를 촉구한다.", "윤리(실업, 돌봄 로봇, 군사 사용, 동반 로봇의 고립, 인종·젠더 부호화), 노동시장 경제, 상이한 글로벌 규제를 논의한다.", "네 가지 구체적 정책 우선순위와 여러 이해관계자 집단을 위한 실행 가능한 권고를 제시한다."], "remaining_unresolved": ["부분 관측성과 비선형 동역학 하에서 학습된 정책의 형식적 안전 검증·인증.", "sim-to-real 시각 격차, 올바른 물리적 상호작용 시뮬레이션, 다수 기술의 단일 정책 증류.", "표준 벤치마크의 희소성과 비싸고 제한된 실세계 다리형 로봇 데이터.", "험지에서의 이족 보행, 그리고 의미론적 이해와 숙련된 발 배치의 결합.", "압축된 10~15년 역량 진행을 따라가는 거버넌스, 그리고 편향·사회적 고립·자율 무기 같은 윤리적 해악의 완화."]}};
+        const INSIGHTS_LABELS = {
+            panel_title:    "Critical Insights",
+            limitations:    "한계",
+            future_works:   "향후 연구",
+            motivation:     "동기 vs 해결도",
+            mot_problems:   "동기 (해결 대상)",
+            mot_addressed:  "본 연구가 해결",
+            mot_remaining:  "미해결"
+        };
+
+        function escapeHtml(s) { return s; } // bullet text already pre-sanitised by analyser
+
+        function renderBullet(item) {
+            let chipHtml = "";
+            if (item.figure_refs && item.figure_refs.length > 0) {
+                chipHtml = `<span class="fig-ref">[${FIG_PREFIX} ${item.figure_refs.join(", ")}]</span>`;
+            }
+            return `<div class="bullet">${item.text}${chipHtml}</div>`;
+        }
+
+        function renderInsightsBlock() {
+            const d = INSIGHTS_DATA || {};
+            const L = INSIGHTS_LABELS;
+            const limItems = (d.limitations || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const futItems = (d.future_works || []).map(item => {
+                if (typeof item === 'string') return `<li>${item}</li>`;
+                return `<li>${item.claim}<div class="evidence-source">"${item.source_quote}" — <em>${item.source_section}</em></div></li>`;
+            }).join('');
+            const mr = d.motivation_resolution || {};
+            const motProb = (mr.motivating_problems    || []).map(s => `<li>${s}</li>`).join('');
+            const motAddr = (mr.addressed_by_this_work || []).map(s => `<li>${s}</li>`).join('');
+            const motRem  = (mr.remaining_unresolved   || []).map(s => `<li>${s}</li>`).join('');
+
+            return `
+                <div class="conclusion-insights">
+                    <h4 class="insights-section-title">${L.limitations}</h4>
+                    <ul class="lim-list">${limItems}</ul>
+
+                    <h4 class="insights-section-title">${L.future_works}</h4>
+                    <ul class="future-list">${futItems}</ul>
+
+                    <h4 class="insights-section-title">${L.motivation}</h4>
+                    <div class="motivation-block">
+                        <div class="mot-problems">
+                            <h5>${L.mot_problems}</h5>
+                            <ul>${motProb}</ul>
+                        </div>
+                        <div class="mot-addressed">
+                            <h5>${L.mot_addressed}</h5>
+                            <ul>${motAddr}</ul>
+                        </div>
+                        <div class="mot-remaining">
+                            <h5>${L.mot_remaining}</h5>
+                            <ul>${motRem}</ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(key) {
+            const detail = SECTION_DETAIL[key];
+            if (!detail) return;
+            document.getElementById('modal-title').innerText = SECTION_TITLES[key] || key;
+
+            let html = (detail.content || []).map(item => {
+                if (item.type === 'bullet') {
+                    return renderBullet(item);
+                } else if (item.type === 'formula') {
+                    return `<div class="formula-block">
+                        <div class="formula-label">${item.label}</div>
+                        <div class="formula-latex">$$${item.latex}$$</div>
+                        <div class="formula-desc">${item.description}</div>
+                    </div>`;
+                }
+                return '';
+            }).join('');
+
+            // Conclusion 모달에만 limitations / future_works / motivation_resolution 블록을 끝에 추가
+            if (key === 'conclusion') {
+                html += renderInsightsBlock();
+            }
+
+            const body = document.getElementById('modal-body');
+            body.innerHTML = html;
+            body.scrollTop = 0;
+            document.getElementById('modal-overlay').classList.add('active');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>
