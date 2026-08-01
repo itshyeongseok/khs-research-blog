@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css" integrity="sha384-fdYESlG2/q3gb3tpQoY8G4IPLxYyZUdjYNYyO6NYmsYuvh21TTLnsLPvNBE5mMva" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
   :root{
     --bg:#f3f5f8; --panel:#ffffff; --ink:#232830; --soft:#565c6b; --mute:#9aa0ad;
@@ -99,6 +99,22 @@
   .iter{font-size:12px;color:var(--mute);font-family:var(--disp);}
   .demo-note{font-size:13.5px;color:var(--soft);margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
 
+  /* Series navigation — prev/next within the same category, by `order` */
+  .series{max-width:var(--measure);margin:38px auto 0;padding:0 24px;
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  a.snav{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;display:flex;flex-direction:column;gap:5px;
+    transition:transform .18s cubic-bezier(.2,.7,.3,1),box-shadow .18s,border-color .18s;}
+  a.snav:hover{transform:translateY(-3px);box-shadow:0 16px 32px -18px rgba(20,20,40,.20);border-color:#dfe2ee;}
+  .snav .dir{font-family:var(--disp);font-size:11.5px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--accent);}
+  .snav .t{font-size:14.5px;font-weight:700;line-height:1.4;letter-spacing:-.01em;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .snav.next{text-align:right;}
+  .snav.ph{background:none;border:1px dashed var(--line);box-shadow:none;pointer-events:none;}
+  .snav.ph .t{color:var(--mute);font-weight:500;}
+  @media(max-width:640px){.series{grid-template-columns:1fr;}.snav.next{text-align:left;}}
+
   footer{border-top:1px solid var(--line);margin-top:30px;}
   .foot-in{max-width:var(--measure);margin:0 auto;padding:34px 24px 48px;text-align:center;color:var(--mute);font-size:13px;}
   .foot-in .fbrand{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--ink);}
@@ -120,7 +136,7 @@
   <div class="back"><a href="./">← 이론 노트</a></div>
   <span class="cat-badge">강화학습 기초</span>
   <h1 class="title">PPO — 근접 정책 최적화</h1>
-  <div class="meta"><span>📖 읽는 시간 약 12분</span><span>강화학습 기초 노트</span></div>
+  <div class="meta"><span>📖 읽는 시간 약 12분</span><span>강화학습 기초 노트 4/5</span></div>
   <p class="summary">정책 기울기가 준 방향으로 정책을 안정적으로 크게 업데이트하기. 큰 갱신이 on-policy 학습을 붕괴시키는 문제에서 출발해, TRPO의 KL 신뢰 영역 아이디어를 거쳐 PPO의 클립된 대리 목적함수 L^CLIP을 유도한다. 확률 비율 r_t와 클립이 어드밴티지 부호에 따라 유인을 어떻게 잘라내는지, ε이 신뢰 영역 폭을 어떻게 정하는지를 인터랙티브 위젯으로 확인한다. Isaac Lab에서 실제로 돌리는 model-free·on-policy·actor-critic 알고리즘.</p>
 </article>
 
@@ -294,13 +310,15 @@
 
 </div>
 
+<nav class="series"><a class="snav prev" href="actor_critic_gae.html"><span class="dir">← 이전</span><span class="t">액터-크리틱과 GAE</span></a><a class="snav next" href="sim2real_dr.html"><span class="dir">다음 →</span><span class="t">Sim-to-Real과 도메인 랜덤화(Domain Randomization)</span></a></nav>
+
 <footer><div class="foot-in">
   <div class="fbrand">KHS Research</div>
   <div class="fl"><a href="../">홈</a><a href="./">이론 노트</a><a href="../papers/">논문 서재</a></div>
 </div></footer>
 
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js" integrity="sha384-jMb/B4EcJScIJrPg0UpLMKBwRX11GLqvdHwGR/GE/PrfiHHCkF7J2IpN96rEw5H6" crossorigin="anonymous"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js" integrity="sha384-pz29R3Cx7I2DrXfvIP4Cu6cpRY1SDtgrT1Sxm9AlIIMhb2cxFvzyg4iDQBT0PFwt" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     renderMathInElement(document.body, {
